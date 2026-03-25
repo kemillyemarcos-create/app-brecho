@@ -103,8 +103,8 @@ function EtiquetaPrint({ peca }) {
         style={{
           width: "100%",
           fontWeight: "bold",
-          fontSize: "7px",
-          lineHeight: 1.15,
+          fontSize: "8px",
+          lineHeight: 1,
           overflow: "hidden",
           display: "-webkit-box",
           WebkitLineClamp: 2,
@@ -119,8 +119,8 @@ function EtiquetaPrint({ peca }) {
       <div
         style={{
           width: "100%",
-          fontSize: "6px",
-          lineHeight: 1.1,
+          fontSize: "6.5px",
+          lineHeight: 1,
           overflow: "hidden",
           display: "-webkit-box",
           WebkitLineClamp: 1,
@@ -136,9 +136,9 @@ function EtiquetaPrint({ peca }) {
       <div
         style={{
           width: "100%",
-          fontSize: "7px",
+          fontSize: "8px",
           fontWeight: "bold",
-          lineHeight: 1.1,
+          lineHeight: 1,
           overflow: "hidden",
         }}
       >
@@ -148,8 +148,8 @@ function EtiquetaPrint({ peca }) {
       <div
         style={{
           width: "100%",
-          fontSize: "5.5px",
-          lineHeight: 1.05,
+          fontSize: "6px",
+          lineHeight: 1.0,
           overflow: "hidden",
           display: "-webkit-box",
           WebkitLineClamp: 2,
@@ -170,7 +170,7 @@ function EtiquetaPrint({ peca }) {
           height: "100%",
         }}
       >
-        <QRCodeCanvas value={peca.id} size={54} />
+        <QRCodeCanvas value={peca.id} size={56} />
       </div>
     </div>
   );
