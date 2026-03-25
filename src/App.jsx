@@ -75,25 +75,25 @@ function EtiquetaPrint({ peca }) {
   return (
     <div
       style={{
-        width: "36mm",
-        height: "42mm",
+        width: "37mm",
+        height: "46mm",
         padding: "1.2mm 1mm 1mm 1mm",
         boxSizing: "border-box",
         fontFamily: "Arial, sans-serif",
         textAlign: "center",
         overflow: "hidden",
         display: "grid",
-        gridTemplateRows: "7mm 3.5mm 3.5mm 4.5mm 18mm",
+        gridTemplateRows: "8mm 4mm 4mm 5mm 20mm",
         alignItems: "start",
         justifyItems: "center",
-        rowGap: "0.4mm",
+        rowGap: "0.5mm",
       }}
     >
       <div
         style={{
           width: "100%",
           fontWeight: "bold",
-          fontSize: "6.5px",
+          fontSize: "7px",
           lineHeight: 1.15,
           overflow: "hidden",
           display: "-webkit-box",
@@ -109,7 +109,7 @@ function EtiquetaPrint({ peca }) {
       <div
         style={{
           width: "100%",
-          fontSize: "5.5px",
+          fontSize: "6px",
           lineHeight: 1.1,
           overflow: "hidden",
           display: "-webkit-box",
@@ -126,7 +126,7 @@ function EtiquetaPrint({ peca }) {
       <div
         style={{
           width: "100%",
-          fontSize: "6.5px",
+          fontSize: "7px",
           fontWeight: "bold",
           lineHeight: 1.1,
           overflow: "hidden",
@@ -138,7 +138,7 @@ function EtiquetaPrint({ peca }) {
       <div
         style={{
           width: "100%",
-          fontSize: "5px",
+          fontSize: "5.5px",
           lineHeight: 1.05,
           overflow: "hidden",
           display: "-webkit-box",
@@ -160,7 +160,7 @@ function EtiquetaPrint({ peca }) {
           height: "100%",
         }}
       >
-        <QRCodeCanvas value={peca.id} size={48} />
+        <QRCodeCanvas value={peca.id} size={54} />
       </div>
     </div>
   );
@@ -2724,16 +2724,17 @@ Chave: CELULAR – 41988921085
 
               {tipoPreview === "etiquetas" && Array.isArray(dadosPreview) && (
                 <div
+                  className="etiquetas-print-grid"
                   style={{
                     width: "210mm",
                     display: "grid",
-                    gridTemplateColumns: "repeat(5, 36mm)",
-                    gridAutoRows: "42mm",
+                    gridTemplateColumns: "repeat(5, 37mm)",
+                    gridAutoRows: "46mm",
                     columnGap: "2mm",
-                    rowGap: "2mm",
+                    rowGap: "3mm",
                     justifyContent: "center",
                     alignContent: "start",
-                    padding: "3mm",
+                    padding: "3mm 4mm",
                     margin: "0 auto",
                     boxSizing: "border-box",
                     background: "#fff",
@@ -2752,19 +2753,20 @@ Chave: CELULAR – 41988921085
         {`
     @media print {
       body * {
-        visibility: hidden;
+        visibility: hidden !important;
       }
 
       #area-preview-impressao,
       #area-preview-impressao * {
-        visibility: visible;
+        visibility: visible !important;
       }
 
       #area-preview-impressao {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 210mm !important;
+        min-height: 297mm !important;
         background: #fff !important;
         padding: 0 !important;
         margin: 0 !important;
@@ -2775,23 +2777,29 @@ Chave: CELULAR – 41988921085
         display: none !important;
       }
 
-      .comanda-print {
-        max-width: 780px !important;
-        margin: 0 auto !important;
-        background: #fff !important;
-        padding: 24px !important;
-        border-radius: 0 !important;
-        box-shadow: none !important;
-        page-break-inside: avoid;
+      .etiquetas-print-grid {
+        width: 210mm !important;
+        display: grid !important;
+        grid-template-columns: repeat(5, 37mm) !important;
+        grid-auto-rows: 46mm !important;
+        column-gap: 2mm !important;
+        row-gap: 3mm !important;
+        justify-content: center !important;
+        align-content: start !important;
+        padding: 3mm 4mm !important;
+        box-sizing: border-box !important;
       }
 
       @page {
         size: A4 portrait;
-        margin: 0mm;
+        margin: 0;
       }
+
       html, body {
-       width: 210mm;
-       height: 297mm;
+        width: 210mm !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
       }
     }
   `}
