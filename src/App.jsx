@@ -63,6 +63,16 @@ function imprimirPreview() {
   window.print();
 }
 
+function agruparEtiquetasEmPaginas(lista, porPagina = 30) {
+  const paginas = [];
+
+  for (let i = 0; i < lista.length; i += porPagina) {
+    paginas.push(lista.slice(i, i + porPagina));
+  }
+
+  return paginas;
+}
+
 function EtiquetaPrint({ peca }) {
   const valorEtiqueta =
     typeof peca.venda === "number"
@@ -2723,25 +2733,31 @@ Chave: CELULAR – 41988921085
               )}
 
               {tipoPreview === "etiquetas" && Array.isArray(dadosPreview) && (
-                <div
-                  className="etiquetas-print-grid"
-                  style={{
-                    width: "210mm",
-                    display: "grid",
-                    gridTemplateColumns: "repeat(5, 37mm)",
-                    gridAutoRows: "46mm",
-                    columnGap: "2mm",
-                    rowGap: "3mm",
-                    justifyContent: "center",
-                    alignContent: "start",
-                    padding: "3mm 4mm",
-                    margin: "0 auto",
-                    boxSizing: "border-box",
-                    background: "#fff",
-                  }}
-                >
-                  {dadosPreview.map((peca) => (
-                    <EtiquetaPrint key={peca.id} peca={peca} />
+                <div style={{ display: "grid", gap: 0 }}>
+                  {agruparEtiquetasEmPaginas(dadosPreview, 25).map((pagina, paginaIndex) => (
+                    <div
+                      key={paginaIndex}
+                      className="pagina-etiquetas"
+                      style={{
+                        width: "210mm",
+                        minHeight: "297mm",
+                        padding: "10mm 4mm 6mm 4mm",
+                        boxSizing: "border-box",
+                        background: "#fff",
+                        display: "grid",
+                        gridTemplateColumns: "repeat(5, 37mm)",
+                        gridAutoRows: "46mm",
+                        columnGap: "2mm",
+                        rowGap: "3mm",
+                        justifyContent: "center",
+                        alignContent: "start",
+                        pageBreakAfter: "always",
+                      }}
+                    >
+                      {pagina.map((peca) => (
+                        <EtiquetaPrint key={peca.id} peca={peca} />
+                      ))}
+                    </div>
                   ))}
                 </div>
               )}
@@ -2777,8 +2793,11 @@ Chave: CELULAR – 41988921085
         display: none !important;
       }
 
-      .etiquetas-print-grid {
+      .pagina-etiquetas {
         width: 210mm !important;
+        min-height: 297mm !important;
+        padding: 10mm 4mm 6mm 4mm !important;
+        box-sizing: border-box !important;
         display: grid !important;
         grid-template-columns: repeat(5, 37mm) !important;
         grid-auto-rows: 46mm !important;
@@ -2786,8 +2805,13 @@ Chave: CELULAR – 41988921085
         row-gap: 3mm !important;
         justify-content: center !important;
         align-content: start !important;
-        padding: 3mm 4mm !important;
-        box-sizing: border-box !important;
+        page-break-after: always !important;
+        break-after: page !important;
+      }
+
+      .pagina-etiquetas:last-child {
+        page-break-after: auto !important;
+        break-after: auto !important;
       }
 
       @page {
