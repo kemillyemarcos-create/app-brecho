@@ -2780,7 +2780,7 @@ Chave: CELULAR – 41988921085
       #area-preview-impressao {
         position: absolute !important;
         left: 0 !important;
-        top: 4.4mm !important;
+        top: 1mm !important;
         width: 210mm !important;
         min-height: 297mm !important;
         background: #fff !important;
@@ -2816,7 +2816,7 @@ Chave: CELULAR – 41988921085
 
       @page {
         size: A4 portrait;
-        margin-top: 4.4mm;
+        margin-top: 1mm;
         margin-left: 0;
         margin-right: 0;
         margin-bottom: 0;
