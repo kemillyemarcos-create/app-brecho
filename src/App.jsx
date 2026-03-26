@@ -1,8 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import { Html5QrcodeScanner } from "html5-qrcode";
-import { createRoot } from "react-dom/client";
 import { supabase } from "./lib/supabase";
+
+const FORM_INICIAL_PECA = {
+  nome: "",
+  custo: "",
+  venda: "",
+  obs: "",
+  foto: "",
+};
+
+const FORM_INICIAL_CLIENTE = {
+  nome: "",
+  cpf: "",
+  telefone: "",
+  cep: "",
+  endereco: "",
+  numero: "",
+  complemento: "",
+};
+
+const PREVIEW_TIPO = {
+  COMANDA: "comanda",
+  ETIQUETAS: "etiquetas",
+};
 
 function formatarMoeda(valor) {
   const numeros = String(valor || "").replace(/\D/g, "");
@@ -19,7 +41,6 @@ function formatarValorDescontoInput(valor) {
 
   if (!numeros) return "";
 
-  // remove zeros à esquerda (mas mantém pelo menos 1 dígito)
   numeros = numeros.replace(/^0+/, "") || "0";
 
   if (numeros.length === 1) return `0,0${numeros}`;
@@ -59,11 +80,46 @@ function csvEscape(valor) {
   return texto;
 }
 
-function imprimirPreview() {
-  window.print();
+function formatarCPF(valor) {
+  const numeros = String(valor || "")
+    .replace(/\D/g, "")
+    .slice(0, 11);
+
+  return numeros
+    .replace(/^(\d{3})(\d)/, "$1.$2")
+    .replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1-$2");
 }
 
-function agruparEtiquetasEmPaginas(lista, porPagina = 30) {
+function formatarTelefone(valor) {
+  const numeros = String(valor || "")
+    .replace(/\D/g, "")
+    .slice(0, 11);
+
+  if (numeros.length <= 10) {
+    return numeros
+      .replace(/^(\d{2})(\d)/, "($1) $2")
+      .replace(/(\d{4})(\d)/, "$1-$2");
+  }
+
+  return numeros
+    .replace(/^(\d{2})(\d)/, "($1) $2")
+    .replace(/(\d{5})(\d)/, "$1-$2");
+}
+
+function formatarCEP(valor) {
+  const numeros = String(valor || "")
+    .replace(/\D/g, "")
+    .slice(0, 8);
+
+  return numeros.replace(/^(\d{5})(\d)/, "$1-$2");
+}
+
+function gerarCodigo(prefixo = "PC") {
+  return `${prefixo}-${Date.now()}`;
+}
+
+function agruparEtiquetasEmPaginas(lista, porPagina = 25) {
   const paginas = [];
 
   for (let i = 0; i < lista.length; i += porPagina) {
@@ -73,11 +129,65 @@ function agruparEtiquetasEmPaginas(lista, porPagina = 30) {
   return paginas;
 }
 
+function converterDataPtBrParaIso(dataStr) {
+  if (!dataStr) return null;
+
+  const parteData = String(dataStr).split(",")[0].trim();
+  const partes = parteData.split("/");
+
+  if (partes.length !== 3) return null;
+
+  const [dia, mes, ano] = partes;
+  if (!dia || !mes || !ano) return null;
+
+  return `${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
+}
+
+function baixarCSV(nomeArquivo, linhas) {
+  const csv = linhas.map((linha) => linha.map(csvEscape).join(";")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", nomeArquivo);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function montarTextoComanda(clienteResumo) {
+  return `🧾 *Comanda da Cliente*
+
+Cliente: ${clienteResumo.nome}
+Status do pagamento: ${clienteResumo.pago ? "Pago" : "Pendente"}
+Total de peças: ${clienteResumo.pecas}
+Valor total: ${formatarBRL(clienteResumo.total)}
+
+${clienteResumo.itens
+      .map(
+        (item, index) =>
+          `${index + 1}. ${item.nomePeca} - ${formatarBRL(item.valor)} - Código: ${item.codigo} - ${item.dataVenda || ""}`
+      )
+      .join("\n")}
+
+PIX para pagamento:
+Chave: CELULAR – 41988921085
+
+🏦 Banco: *cloudwalk*
+👩‍💼 Nome: *Kemilly Lima*
+
+💳 Para pagamento via Cartão solicite o link de pagamento (em até 12x com taxas da operadora)
+
+❌Caso queira deixar em sacolinha nos avisar! Obrigada ☺️🌸
+
+🚚 Caso deseje envio, solicitar o envio que encaminho os dados para envio 🚚`;
+}
+
 function EtiquetaPrint({ peca }) {
   const valorEtiqueta =
-    typeof peca.venda === "number"
-      ? formatarBRL(peca.venda)
-      : peca.venda || "R$ 0,00";
+    typeof peca.venda === "number" ? formatarBRL(peca.venda) : peca.venda || "R$ 0,00";
 
   const obsEtiqueta =
     typeof peca?.obs === "string" ? peca.obs.trim() : String(peca?.obs || "").trim();
@@ -149,7 +259,7 @@ function EtiquetaPrint({ peca }) {
         style={{
           width: "100%",
           fontSize: "6px",
-          lineHeight: 1.0,
+          lineHeight: 1,
           overflow: "hidden",
           display: "-webkit-box",
           WebkitLineClamp: 2,
@@ -178,61 +288,50 @@ function EtiquetaPrint({ peca }) {
 
 export default function App() {
   const [abaAtiva, setAbaAtiva] = useState("cadastro");
-  const [pecas, setPecas] = useState([]);
   const [carregando, setCarregando] = useState(true);
+
+  const [pecas, setPecas] = useState([]);
+  const [clientes, setClientes] = useState([]);
+  const [listaLives, setListaLives] = useState([]);
+  const [vendasLive, setVendasLive] = useState([]);
+  const [todasVendasLive, setTodasVendasLive] = useState([]);
   const [pagamentosClientes, setPagamentosClientes] = useState({});
 
-  const [form, setForm] = useState({
-    nome: "",
-    custo: "",
-    venda: "",
-    obs: "",
-    foto: "",
-  });
+  const [form, setForm] = useState(FORM_INICIAL_PECA);
+  const [formCliente, setFormCliente] = useState(FORM_INICIAL_CLIENTE);
+
+  const [clienteEditandoId, setClienteEditandoId] = useState(null);
+  const [liveAtual, setLiveAtual] = useState(null);
+  const [liveSelecionada, setLiveSelecionada] = useState(null);
+  const [nomeNovaLive, setNomeNovaLive] = useState("");
 
   const [vendaId, setVendaId] = useState("");
   const [cliente, setCliente] = useState("");
+  const [valorDesconto, setValorDesconto] = useState("");
+  const [salvandoVenda, setSalvandoVenda] = useState(false);
+
   const [buscaCliente, setBuscaCliente] = useState("");
   const [buscaPeca, setBuscaPeca] = useState("");
   const [scannerAtivo, setScannerAtivo] = useState(false);
   const [etiquetasSelecionadas, setEtiquetasSelecionadas] = useState([]);
-  const [filtroPagamentoCliente, setFiltroPagamentoCliente] = useState("todos");
   const [clientesExpandidos, setClientesExpandidos] = useState({});
+
+  const [filtroPagamentoCliente, setFiltroPagamentoCliente] = useState("todos");
   const [filtroEstoque, setFiltroEstoque] = useState("todas");
-  const [clientes, setClientes] = useState([]);
-  const [clienteEditandoId, setClienteEditandoId] = useState(null);
-  const [liveAtual, setLiveAtual] = useState(null);
-  const [nomeNovaLive, setNomeNovaLive] = useState("");
-  const [vendasLive, setVendasLive] = useState([]);
-  const [listaLives, setListaLives] = useState([]);
-  const [liveSelecionada, setLiveSelecionada] = useState(null);
-  const liveEmVisualizacao = liveSelecionada || liveAtual;
-  const [valorDesconto, setValorDesconto] = useState("");
-  const [salvandoVenda, setSalvandoVenda] = useState(false);
-  const [previewAberto, setPreviewAberto] = useState(false);
-  const [tipoPreview, setTipoPreview] = useState(null); // "comanda" | "etiqueta"
-  const [dadosPreview, setDadosPreview] = useState(null);
   const [dataInicialFiltro, setDataInicialFiltro] = useState("");
   const [dataFinalFiltro, setDataFinalFiltro] = useState("");
-  const [todasVendasLive, setTodasVendasLive] = useState([]);
-  const [formCliente, setFormCliente] = useState({
 
-    nome: "",
-    cpf: "",
-    telefone: "",
-    cep: "",
-    endereco: "",
-    numero: "",
-    complemento: "",
-  });
+  const [previewAberto, setPreviewAberto] = useState(false);
+  const [tipoPreview, setTipoPreview] = useState(null);
+  const [dadosPreview, setDadosPreview] = useState(null);
 
   const scannerRef = useRef(null);
   const scannerElementId = "reader";
 
+  const liveEmVisualizacao = liveSelecionada || liveAtual;
+
   async function carregarPagamentosClientes() {
-    const { data, error } = await supabase
-      .from("clientes_pagamento")
-      .select("*");
+    const { data, error } = await supabase.from("clientes_pagamento").select("*");
 
     if (error) {
       console.error(error);
@@ -263,7 +362,6 @@ export default function App() {
     }
 
     setPecas(data || []);
-    await carregarPagamentosClientes();
     setCarregando(false);
   }
 
@@ -282,285 +380,86 @@ export default function App() {
     setClientes(data || []);
   }
 
-  async function salvarCliente() {
-    if (!formCliente.nome.trim()) {
-      alert("Preencha pelo menos o nome.");
-      return;
-    }
-
-    const payload = {
-      nome: formCliente.nome,
-      cpf: formCliente.cpf,
-      telefone: formCliente.telefone,
-      cep: formCliente.cep,
-      endereco: formCliente.endereco,
-      numero: formCliente.numero,
-      complemento: formCliente.complemento,
-    };
-
-    if (clienteEditandoId) {
-      const { error } = await supabase
-        .from("clientes")
-        .update(payload)
-        .eq("id", clienteEditandoId);
-
-      if (error) {
-        console.error("ERRO AO ATUALIZAR CLIENTE:", error);
-        alert(`Erro ao atualizar cliente: ${error.message}`);
-        return;
-      }
-
-      alert("Cliente atualizado com sucesso.");
-    } else {
-      const novo = {
-        id: "CLI-" + Date.now(),
-        ...payload,
-        criado_em: new Date().toLocaleString("pt-BR"),
-      };
-
-      const { error } = await supabase
-        .from("clientes")
-        .insert(novo);
-
-      if (error) {
-        console.error("ERRO AO SALVAR CLIENTE:", error);
-        alert(`Erro ao salvar cliente: ${error.message}`);
-        return;
-      }
-
-      alert("Cliente salvo com sucesso.");
-    }
-
-    setFormCliente({
-      nome: "",
-      cpf: "",
-      telefone: "",
-      cep: "",
-      endereco: "",
-      numero: "",
-      complemento: "",
-    });
-
-    setClienteEditandoId(null);
-    await carregarClientes();
-  }
-
-  function editarCliente(cliente) {
-    setClienteEditandoId(cliente.id);
-    setFormCliente({
-      nome: cliente.nome || "",
-      cpf: cliente.cpf || "",
-      telefone: cliente.telefone || "",
-      cep: cliente.cep || "",
-      endereco: cliente.endereco || "",
-      numero: cliente.numero || "",
-      complemento: cliente.complemento || "",
-    });
-    setAbaAtiva("clientes");
-  }
-
-  async function excluirCliente(id) {
-    const confirmar = window.confirm("Deseja excluir este cliente?");
-    if (!confirmar) return;
-
-    const { error } = await supabase
-      .from("clientes")
-      .delete()
-      .eq("id", id);
+  async function carregarLives() {
+    const { data, error } = await supabase
+      .from("lives")
+      .select("*")
+      .order("criado_em", { ascending: false });
 
     if (error) {
-      console.error("ERRO AO EXCLUIR CLIENTE:", error);
-      alert(`Erro ao excluir cliente: ${error.message}`);
+      console.error("ERRO AO CARREGAR LIVES:", error);
       return;
     }
 
-    if (clienteEditandoId === id) {
-      setClienteEditandoId(null);
-      setFormCliente({
-        nome: "",
-        cpf: "",
-        telefone: "",
-        cep: "",
-        endereco: "",
-        numero: "",
-        complemento: "",
-      });
-    }
-
-    await carregarClientes();
-    alert("Cliente excluído com sucesso.");
+    setListaLives(data || []);
   }
 
-  async function carregarVendasLive() {
-    if (!liveAtual) return;
+  async function carregarLiveAberta() {
+    const { data, error } = await supabase
+      .from("lives")
+      .select("*")
+      .eq("status", "aberta")
+      .order("criado_em", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error("ERRO AO CARREGAR LIVE ABERTA:", error);
+      return;
+    }
+
+    if (data) {
+      setLiveAtual(data);
+      setLiveSelecionada(data);
+    } else {
+      setLiveAtual(null);
+      setLiveSelecionada(null);
+      setVendasLive([]);
+    }
+  }
+
+  async function carregarTodasVendasLive() {
+    const { data, error } = await supabase.from("vendas_live").select("*");
+
+    if (error) {
+      console.error("ERRO AO CARREGAR TODAS AS VENDAS:", error);
+      return;
+    }
+
+    setTodasVendasLive(data || []);
+  }
+
+  async function carregarVendasLive(live = liveAtual) {
+    if (!live?.id) {
+      setVendasLive([]);
+      return;
+    }
 
     const { data, error } = await supabase
       .from("vendas_live")
       .select("*")
-      .eq("live_id", liveAtual.id);
+      .eq("live_id", live.id);
 
     if (error) {
-      console.error(error);
+      console.error("ERRO AO CARREGAR vendas_live:", error);
       return;
     }
 
     setVendasLive(data || []);
   }
 
-  async function iniciarLive() {
-    if (!nomeNovaLive.trim()) {
-      alert("Digite um nome para a live.");
-      return;
-    }
-
-    const novaLive = {
-      id: "LIVE-" + Date.now(),
-      nome: nomeNovaLive,
-      data_live: new Date().toLocaleDateString("pt-BR"),
-      hora_inicio: new Date().toLocaleTimeString("pt-BR"),
-      status: "aberta",
-      criado_em: new Date().toLocaleString("pt-BR"),
-    };
-
-    const { data, error } = await supabase
-      .from("lives")
-      .insert(novaLive)
-      .select();
-
-    if (error) {
-      console.error("ERRO AO INICIAR LIVE:", error);
-      alert(`Erro ao iniciar live: ${error.message}`);
-      return;
-    }
-
-    console.log("LIVE CRIADA:", data);
-
-    setNomeNovaLive("");
-    await carregarLives();
-    await carregarLiveAberta();
-    alert("Live iniciada com sucesso!");
-  }
-
-  async function encerrarLive() {
-    if (!liveAtual) return;
-
-    const { error } = await supabase
-      .from("lives")
-      .update({
-        status: "encerrada",
-        hora_fim: new Date().toLocaleTimeString("pt-BR"),
-      })
-      .eq("id", liveAtual.id);
-
-    if (error) {
-      console.error(error);
-      alert("Erro ao encerrar live");
-      return;
-    }
-
-    setLiveSelecionada(null);
-    await carregarLives();
-    await carregarLiveAberta();
-    alert("Live encerrada!");
-  }
-
-  async function compartilharCliente(cliente) {
-    const texto = `Cliente: ${cliente.nome}
-CPF: ${cliente.cpf || "-"}
-Telefone: ${cliente.telefone || "-"}
-CEP: ${cliente.cep || "-"}
-Endereço: ${cliente.endereco || "-"}
-Número: ${cliente.numero || "-"}
-Complemento: ${cliente.complemento || "-"}`;
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `Cliente ${cliente.nome}`,
-          text: texto,
-        });
-        return;
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    try {
-      await navigator.clipboard.writeText(texto);
-      alert("Dados do cliente copiados.");
-    } catch (err) {
-      console.error(err);
-      alert("Não foi possível compartilhar.");
-    }
-  }
-
-  function cancelarEdicaoCliente() {
-    setClienteEditandoId(null);
-    setFormCliente({
-      nome: "",
-      cpf: "",
-      telefone: "",
-      cep: "",
-      endereco: "",
-      numero: "",
-      complemento: "",
-    });
-  }
-
-  function formatarCPF(valor) {
-    const numeros = String(valor || "").replace(/\D/g, "").slice(0, 11);
-
-    return numeros
-      .replace(/^(\d{3})(\d)/, "$1.$2")
-      .replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
-      .replace(/\.(\d{3})(\d)/, ".$1-$2");
-  }
-
-  function formatarTelefone(valor) {
-    const numeros = String(valor || "").replace(/\D/g, "").slice(0, 11);
-
-    if (numeros.length <= 10) {
-      return numeros
-        .replace(/^(\d{2})(\d)/, "($1) $2")
-        .replace(/(\d{4})(\d)/, "$1-$2");
-    }
-
-    return numeros
-      .replace(/^(\d{2})(\d)/, "($1) $2")
-      .replace(/(\d{5})(\d)/, "$1-$2");
-  }
-
-  function formatarCEP(valor) {
-    const numeros = String(valor || "").replace(/\D/g, "").slice(0, 8);
-    return numeros.replace(/^(\d{5})(\d)/, "$1-$2");
-  }
-
-  function formatarCEP(valor) {
-    const numeros = String(valor || "").replace(/\D/g, "").slice(0, 8);
-    return numeros.replace(/^(\d{5})(\d)/, "$1-$2");
-
-    function limparMoeda(valor) {
-      if (!valor) return 0;
-
-      return Number(
-        String(valor)
-          .replace("R$", "")
-          .replace(/\./g, "")
-          .replace(",", ".")
-          .trim()
-      );
-    }
+  async function abrirLiveHistorica(live) {
+    setLiveSelecionada(live);
+    await carregarVendasLive(live);
   }
 
   async function buscarCep(cep) {
     const cepLimpo = String(cep || "").replace(/\D/g, "");
-
     if (cepLimpo.length !== 8) return;
 
     try {
       const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
       const data = await res.json();
-
       if (data.erro) return;
 
       setFormCliente((prev) => ({
@@ -573,13 +472,28 @@ Complemento: ${cliente.complemento || "-"}`;
   }
 
   useEffect(() => {
-    carregarPecas();
-    carregarLives();
-    carregarLiveAberta();
-    carregarPagamentosClientes();
-    carregarTodasVendasLive();
-    carregarClientes();
+    async function carregarTudo() {
+      await Promise.all([
+        carregarPecas(),
+        carregarClientes(),
+        carregarLives(),
+        carregarLiveAberta(),
+        carregarPagamentosClientes(),
+        carregarTodasVendasLive(),
+      ]);
+    }
+
+    carregarTudo();
   }, []);
+
+  useEffect(() => {
+    if (liveAtual) {
+      carregarVendasLive(liveAtual);
+      setLiveSelecionada((prev) => prev || liveAtual);
+    } else if (!liveSelecionada) {
+      setVendasLive([]);
+    }
+  }, [liveAtual]);
 
   useEffect(() => {
     const channelPecas = supabase
@@ -587,8 +501,8 @@ Complemento: ${cliente.complemento || "-"}`;
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "pecas" },
-        () => {
-          carregarPecas();
+        async () => {
+          await carregarPecas();
         }
       )
       .subscribe();
@@ -598,34 +512,12 @@ Complemento: ${cliente.complemento || "-"}`;
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "clientes_pagamento" },
-        () => {
-          carregarPagamentosClientes();
+        async () => {
+          await carregarPagamentosClientes();
         }
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channelPecas);
-      supabase.removeChannel(channelPagamentos);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (liveAtual) {
-      carregarVendasLive();
-    }
-  }, [liveAtual]);
-
-  useEffect(() => {
-    if (liveAtual) {
-      carregarVendasLive();
-      setLiveSelecionada(liveAtual);
-    } else if (!liveSelecionada) {
-      setVendasLive([]);
-    }
-  }, [liveAtual]);
-
-  useEffect(() => {
     const channelLives = supabase
       .channel("lives-realtime")
       .on(
@@ -638,50 +530,27 @@ Complemento: ${cliente.complemento || "-"}`;
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channelLives);
-    };
-  }, []);
-
-  useEffect(() => {
     const channelVendasLive = supabase
       .channel("vendas-live-realtime")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "vendas_live" },
         async () => {
+          await carregarTodasVendasLive();
           if (liveEmVisualizacao) {
-            if (liveEmVisualizacao.id === liveAtual?.id) {
-              await carregarVendasLive();
-            } else {
-              await abrirLiveHistorica(liveEmVisualizacao);
-            }
+            await carregarVendasLive(liveEmVisualizacao);
           }
         }
       )
       .subscribe();
 
     return () => {
+      supabase.removeChannel(channelPecas);
+      supabase.removeChannel(channelPagamentos);
+      supabase.removeChannel(channelLives);
       supabase.removeChannel(channelVendasLive);
     };
-  }, [liveEmVisualizacao, liveAtual]);
-
-  useEffect(() => {
-    const channelPecas = supabase
-      .channel("pecas-realtime-sync")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "pecas" },
-        async () => {
-          await carregarPecas();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channelPecas);
-    };
-  }, []);
+  }, [liveEmVisualizacao]);
 
   useEffect(() => {
     if (!scannerAtivo) return;
@@ -729,15 +598,146 @@ Complemento: ${cliente.complemento || "-"}`;
     }
   }, [scannerAtivo]);
 
-  function gerarCodigo() {
-    return "PC-" + Date.now();
+  async function salvarCliente() {
+    if (!formCliente.nome.trim()) {
+      alert("Preencha pelo menos o nome.");
+      return;
+    }
+
+    const payload = {
+      nome: formCliente.nome,
+      cpf: formCliente.cpf,
+      telefone: formCliente.telefone,
+      cep: formCliente.cep,
+      endereco: formCliente.endereco,
+      numero: formCliente.numero,
+      complemento: formCliente.complemento,
+    };
+
+    if (clienteEditandoId) {
+      const { error } = await supabase
+        .from("clientes")
+        .update(payload)
+        .eq("id", clienteEditandoId);
+
+      if (error) {
+        console.error("ERRO AO ATUALIZAR CLIENTE:", error);
+        alert(`Erro ao atualizar cliente: ${error.message}`);
+        return;
+      }
+
+      alert("Cliente atualizado com sucesso.");
+    } else {
+      const novo = {
+        id: gerarCodigo("CLI"),
+        ...payload,
+        criado_em: new Date().toLocaleString("pt-BR"),
+      };
+
+      const { error } = await supabase.from("clientes").insert(novo);
+
+      if (error) {
+        console.error("ERRO AO SALVAR CLIENTE:", error);
+        alert(`Erro ao salvar cliente: ${error.message}`);
+        return;
+      }
+
+      alert("Cliente salvo com sucesso.");
+    }
+
+    setFormCliente(FORM_INICIAL_CLIENTE);
+    setClienteEditandoId(null);
+    await carregarClientes();
+  }
+
+  function editarCliente(clienteSelecionado) {
+    setClienteEditandoId(clienteSelecionado.id);
+    setFormCliente({
+      nome: clienteSelecionado.nome || "",
+      cpf: clienteSelecionado.cpf || "",
+      telefone: clienteSelecionado.telefone || "",
+      cep: clienteSelecionado.cep || "",
+      endereco: clienteSelecionado.endereco || "",
+      numero: clienteSelecionado.numero || "",
+      complemento: clienteSelecionado.complemento || "",
+    });
+    setAbaAtiva("clientes");
+  }
+
+  function cancelarEdicaoCliente() {
+    setClienteEditandoId(null);
+    setFormCliente(FORM_INICIAL_CLIENTE);
+  }
+
+  async function excluirCliente(id) {
+    const confirmar = window.confirm("Deseja excluir este cliente?");
+    if (!confirmar) return;
+
+    const { error } = await supabase.from("clientes").delete().eq("id", id);
+
+    if (error) {
+      console.error("ERRO AO EXCLUIR CLIENTE:", error);
+      alert(`Erro ao excluir cliente: ${error.message}`);
+      return;
+    }
+
+    if (clienteEditandoId === id) {
+      cancelarEdicaoCliente();
+    }
+
+    await carregarClientes();
+    alert("Cliente excluído com sucesso.");
+  }
+
+  async function compartilharCliente(clienteSelecionado) {
+    const texto = `Cliente: ${clienteSelecionado.nome}
+CPF: ${clienteSelecionado.cpf || "-"}
+Telefone: ${clienteSelecionado.telefone || "-"}
+CEP: ${clienteSelecionado.cep || "-"}
+Endereço: ${clienteSelecionado.endereco || "-"}
+Número: ${clienteSelecionado.numero || "-"}
+Complemento: ${clienteSelecionado.complemento || "-"}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Cliente ${clienteSelecionado.nome}`,
+          text: texto,
+        });
+        return;
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(texto);
+      alert("Dados do cliente copiados.");
+    } catch (err) {
+      console.error(err);
+      alert("Não foi possível compartilhar.");
+    }
+  }
+
+  function handleFoto(e) {
+    const arquivo = e.target.files?.[0];
+    if (!arquivo) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setForm((prev) => ({
+        ...prev,
+        foto: reader.result,
+      }));
+    };
+    reader.readAsDataURL(arquivo);
   }
 
   async function adicionarPeca() {
     if (!form.nome.trim()) return;
 
     const nova = {
-      id: gerarCodigo(),
+      id: gerarCodigo("PC"),
       nome: form.nome.trim(),
       custo: form.custo,
       venda: form.venda,
@@ -757,186 +757,9 @@ Complemento: ${cliente.complemento || "-"}`;
       return;
     }
 
-    setForm({
-      nome: "",
-      custo: "",
-      venda: "",
-      obs: "",
-      foto: "",
-    });
-
+    setForm(FORM_INICIAL_PECA);
     setAbaAtiva("pecas");
     await carregarPecas();
-  }
-
-  async function registrarVenda() {
-    if (salvandoVenda) return;
-
-    if (!liveAtual) {
-      alert("Você precisa iniciar uma live antes de vender.");
-      return;
-    }
-
-    if (!vendaId.trim() || !cliente.trim()) return;
-
-    const peca = pecas.find((p) => String(p.id) === String(vendaId.trim()));
-
-    if (!peca) {
-      alert("Código da peça não encontrado.");
-      return;
-    }
-
-    if (peca.vendido) {
-      alert("Essa peça já está marcada como vendida.");
-      return;
-    }
-
-    setSalvandoVenda(true);
-
-    try {
-      const valorFinal = valorDesconto
-        ? limparMoeda(valorDesconto)
-        : limparMoeda(peca?.venda);
-
-      // atualiza a peça SOMENTE se ainda estiver disponível
-      const { data: pecaAtualizada, error: errorPeca } = await supabase
-        .from("pecas")
-        .update({
-          vendido: true,
-          cliente: cliente.trim(),
-          data_venda: new Date().toLocaleString("pt-BR"),
-          valor_venda_final: valorFinal,
-        })
-        .eq("id", vendaId.trim())
-        .eq("vendido", false)
-        .select();
-
-      if (errorPeca) {
-        console.error(errorPeca);
-        alert("Erro ao registrar venda.");
-        return;
-      }
-
-      if (!pecaAtualizada || pecaAtualizada.length === 0) {
-        alert("Essa peça já foi vendida ou a venda já foi registrada.");
-        await carregarPecas();
-        return;
-      }
-
-      // proteção extra: não inserir se já existir em vendas_live
-      const { data: vendaExistente, error: errorBuscaVenda } = await supabase
-        .from("vendas_live")
-        .select("id")
-        .eq("peca_id", vendaId.trim())
-        .limit(1);
-
-      if (errorBuscaVenda) {
-        console.error("ERRO AO VERIFICAR venda existente:", errorBuscaVenda);
-        alert("Erro ao verificar venda existente.");
-        return;
-      }
-
-      if (vendaExistente && vendaExistente.length > 0) {
-        alert("Essa peça já está registrada na live.");
-        await carregarPecas();
-        await carregarVendasLive();
-        return;
-      }
-
-      const novaVendaLive = {
-        id: "VENDA-" + Date.now(),
-        live_id: liveAtual.id,
-        peca_id: vendaId.trim(),
-        nome_peca: peca?.nome || "-",
-        cliente_nome: cliente.trim(),
-        valor_venda: valorFinal,
-        data_hora: new Date().toLocaleString("pt-BR"),
-        status_pagamento: "pendente",
-      };
-
-      const { error: errorVendaLive } = await supabase
-        .from("vendas_live")
-        .insert(novaVendaLive);
-
-      if (errorVendaLive) {
-        console.error("ERRO AO SALVAR EM vendas_live:", errorVendaLive);
-        alert(`Erro ao salvar na vendas_live: ${errorVendaLive.message}`);
-        return;
-      }
-
-      await carregarVendasLive();
-      await carregarPecas();
-      await carregarTodasVendasLive();
-
-      setVendaId("");
-      setCliente("");
-      setValorDesconto("");
-    } finally {
-      setSalvandoVenda(false);
-    }
-  }
-
-  async function cancelarVenda(id) {
-    const confirmar = window.confirm(
-      "Deseja cancelar essa venda e devolver a peça para disponível?"
-    );
-    if (!confirmar) return;
-
-    // 1. Voltar peça para disponível
-    const { error: errorPeca } = await supabase
-      .from("pecas")
-      .update({
-        vendido: false,
-        cliente: null,
-        data_venda: null,
-        valor_venda_final: null,
-      })
-      .eq("id", id);
-
-    if (errorPeca) {
-      console.error("ERRO AO VOLTAR PEÇA:", errorPeca);
-      alert(`Erro ao cancelar venda: ${errorPeca.message}`);
-      return;
-    }
-
-    // 2. Remover da vendas_live e confirmar se removeu mesmo
-    const { data: removidas, error: errorVendaLive } = await supabase
-      .from("vendas_live")
-      .delete()
-      .eq("peca_id", id)
-      .select();
-
-    if (errorVendaLive) {
-      console.error("ERRO AO REMOVER DA LIVE:", errorVendaLive);
-      alert(`Erro ao remover da live: ${errorVendaLive.message}`);
-      return;
-    }
-
-    if (!removidas || removidas.length === 0) {
-      console.warn("Nenhum registro foi removido da vendas_live para a peça:", id);
-      alert(
-        `A peça voltou para disponível, mas não encontrei registro na vendas_live para o código ${id}.`
-      );
-      await carregarPecas();
-      await carregarTodasVendasLive();
-      return;
-    }
-
-    // 3. Recarregar tudo
-    await carregarPecas();
-    await carregarTodasVendasLive();
-
-    if (liveEmVisualizacao) {
-      if (liveEmVisualizacao.id === liveAtual?.id) {
-        await carregarVendasLive();
-      } else {
-        await abrirLiveHistorica(liveEmVisualizacao);
-      }
-    } else {
-      setVendasLive([]);
-    }
-
-    alert("Venda cancelada com sucesso.");
   }
 
   async function removerPeca(id) {
@@ -968,16 +791,168 @@ Complemento: ${cliente.complemento || "-"}`;
     setEtiquetasSelecionadas([]);
   }
 
+  async function registrarVenda() {
+    if (salvandoVenda) return;
+
+    if (!liveAtual) {
+      alert("Você precisa iniciar uma live antes de vender.");
+      return;
+    }
+
+    if (!vendaId.trim() || !cliente.trim()) return;
+
+    const peca = pecas.find((item) => String(item.id) === String(vendaId.trim()));
+
+    if (!peca) {
+      alert("Código da peça não encontrado.");
+      return;
+    }
+
+    if (peca.vendido) {
+      alert("Essa peça já está marcada como vendida.");
+      return;
+    }
+
+    setSalvandoVenda(true);
+
+    try {
+      const valorFinal = valorDesconto ? limparMoeda(valorDesconto) : limparMoeda(peca.venda);
+
+      const { data: pecaAtualizada, error: errorPeca } = await supabase
+        .from("pecas")
+        .update({
+          vendido: true,
+          cliente: cliente.trim(),
+          data_venda: new Date().toLocaleString("pt-BR"),
+          valor_venda_final: valorFinal,
+        })
+        .eq("id", vendaId.trim())
+        .eq("vendido", false)
+        .select();
+
+      if (errorPeca) {
+        console.error(errorPeca);
+        alert("Erro ao registrar venda.");
+        return;
+      }
+
+      if (!pecaAtualizada || pecaAtualizada.length === 0) {
+        alert("Essa peça já foi vendida ou a venda já foi registrada.");
+        await carregarPecas();
+        return;
+      }
+
+      const { data: vendaExistente, error: errorBuscaVenda } = await supabase
+        .from("vendas_live")
+        .select("id")
+        .eq("peca_id", vendaId.trim())
+        .limit(1);
+
+      if (errorBuscaVenda) {
+        console.error("ERRO AO VERIFICAR venda existente:", errorBuscaVenda);
+        alert("Erro ao verificar venda existente.");
+        return;
+      }
+
+      if (vendaExistente && vendaExistente.length > 0) {
+        alert("Essa peça já está registrada na live.");
+        await carregarPecas();
+        await carregarVendasLive();
+        return;
+      }
+
+      const novaVendaLive = {
+        id: gerarCodigo("VENDA"),
+        live_id: liveAtual.id,
+        peca_id: vendaId.trim(),
+        nome_peca: peca.nome || "-",
+        cliente_nome: cliente.trim(),
+        valor_venda: valorFinal,
+        data_hora: new Date().toLocaleString("pt-BR"),
+        status_pagamento: "pendente",
+      };
+
+      const { error: errorVendaLive } = await supabase.from("vendas_live").insert(novaVendaLive);
+
+      if (errorVendaLive) {
+        console.error("ERRO AO SALVAR EM vendas_live:", errorVendaLive);
+        alert(`Erro ao salvar na vendas_live: ${errorVendaLive.message}`);
+        return;
+      }
+
+      await Promise.all([carregarVendasLive(), carregarPecas(), carregarTodasVendasLive()]);
+      setVendaId("");
+      setCliente("");
+      setValorDesconto("");
+    } finally {
+      setSalvandoVenda(false);
+    }
+  }
+
+  async function cancelarVenda(id) {
+    const confirmar = window.confirm(
+      "Deseja cancelar essa venda e devolver a peça para disponível?"
+    );
+    if (!confirmar) return;
+
+    const { error: errorPeca } = await supabase
+      .from("pecas")
+      .update({
+        vendido: false,
+        cliente: null,
+        data_venda: null,
+        valor_venda_final: null,
+      })
+      .eq("id", id);
+
+    if (errorPeca) {
+      console.error("ERRO AO VOLTAR PEÇA:", errorPeca);
+      alert(`Erro ao cancelar venda: ${errorPeca.message}`);
+      return;
+    }
+
+    const { data: removidas, error: errorVendaLive } = await supabase
+      .from("vendas_live")
+      .delete()
+      .eq("peca_id", id)
+      .select();
+
+    if (errorVendaLive) {
+      console.error("ERRO AO REMOVER DA LIVE:", errorVendaLive);
+      alert(`Erro ao remover da live: ${errorVendaLive.message}`);
+      return;
+    }
+
+    if (!removidas || removidas.length === 0) {
+      console.warn("Nenhum registro foi removido da vendas_live para a peça:", id);
+      alert(
+        `A peça voltou para disponível, mas não encontrei registro na vendas_live para o código ${id}.`
+      );
+      await Promise.all([carregarPecas(), carregarTodasVendasLive()]);
+      return;
+    }
+
+    await Promise.all([carregarPecas(), carregarTodasVendasLive()]);
+
+    if (liveEmVisualizacao) {
+      await carregarVendasLive(
+        liveEmVisualizacao.id === liveAtual?.id ? liveAtual : liveEmVisualizacao
+      );
+    } else {
+      setVendasLive([]);
+    }
+
+    alert("Venda cancelada com sucesso.");
+  }
+
   async function togglePagamentoCliente(nomeCliente, statusAtual) {
     const novoStatus = !statusAtual;
 
-    const { error } = await supabase
-      .from("clientes_pagamento")
-      .upsert({
-        cliente: nomeCliente,
-        pago: novoStatus,
-        updated_at: new Date().toISOString(),
-      });
+    const { error } = await supabase.from("clientes_pagamento").upsert({
+      cliente: nomeCliente,
+      pago: novoStatus,
+      updated_at: new Date().toISOString(),
+    });
 
     if (error) {
       console.error(error);
@@ -988,56 +963,56 @@ Complemento: ${cliente.complemento || "-"}`;
     await carregarPagamentosClientes();
   }
 
-  async function carregarLives() {
-    const { data, error } = await supabase
-      .from("lives")
-      .select("*")
-      .order("criado_em", { ascending: false });
-
-    if (error) {
-      console.error("ERRO AO CARREGAR LIVES:", error);
+  async function iniciarLive() {
+    if (!nomeNovaLive.trim()) {
+      alert("Digite um nome para a live.");
       return;
     }
 
-    setListaLives(data || []);
+    const novaLive = {
+      id: gerarCodigo("LIVE"),
+      nome: nomeNovaLive,
+      data_live: new Date().toLocaleDateString("pt-BR"),
+      hora_inicio: new Date().toLocaleTimeString("pt-BR"),
+      status: "aberta",
+      criado_em: new Date().toLocaleString("pt-BR"),
+    };
+
+    const { error } = await supabase.from("lives").insert(novaLive);
+
+    if (error) {
+      console.error("ERRO AO INICIAR LIVE:", error);
+      alert(`Erro ao iniciar live: ${error.message}`);
+      return;
+    }
+
+    setNomeNovaLive("");
+    await carregarLives();
+    await carregarLiveAberta();
+    alert("Live iniciada com sucesso!");
   }
 
-  async function carregarLiveAberta() {
-    const { data, error } = await supabase
+  async function encerrarLive() {
+    if (!liveAtual) return;
+
+    const { error } = await supabase
       .from("lives")
-      .select("*")
-      .eq("status", "aberta")
-      .order("criado_em", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .update({
+        status: "encerrada",
+        hora_fim: new Date().toLocaleTimeString("pt-BR"),
+      })
+      .eq("id", liveAtual.id);
 
     if (error) {
-      console.error("ERRO AO CARREGAR LIVE ABERTA:", error);
+      console.error(error);
+      alert("Erro ao encerrar live");
       return;
     }
 
-    if (data) {
-      setLiveAtual(data);
-      setLiveSelecionada(data);
-    } else {
-      setLiveAtual(null);
-    }
-  }
-
-  async function abrirLiveHistorica(live) {
-    setLiveSelecionada(live);
-
-    const { data, error } = await supabase
-      .from("vendas_live")
-      .select("*")
-      .eq("live_id", live.id);
-
-    if (error) {
-      console.error("ERRO AO ABRIR LIVE HISTÓRICA:", error);
-      return;
-    }
-
-    setVendasLive(data || []);
+    setLiveSelecionada(null);
+    await carregarLives();
+    await carregarLiveAberta();
+    alert("Live encerrada!");
   }
 
   async function togglePagamentoClienteLive(nomeCliente, statusAtual) {
@@ -1060,71 +1035,9 @@ Complemento: ${cliente.complemento || "-"}`;
       return;
     }
 
-    if (liveEmVisualizacao.id === liveAtual?.id) {
-      await carregarVendasLive();
-    } else {
-      await abrirLiveHistorica(liveEmVisualizacao);
-    }
-  }
-
-  async function carregarTodasVendasLive() {
-    const { data, error } = await supabase
-      .from("vendas_live")
-      .select("*");
-
-    if (error) {
-      console.error("ERRO AO CARREGAR TODAS AS VENDAS:", error);
-      return;
-    }
-
-    setTodasVendasLive(data || []);
-  }
-
-  async function carregarVendasLive() {
-    if (!liveAtual) {
-      setVendasLive([]);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("vendas_live")
-      .select("*")
-      .eq("live_id", liveAtual.id);
-
-    if (error) {
-      console.error("ERRO AO CARREGAR vendas_live:", error);
-      return;
-    }
-
-    setVendasLive(data || []);
-  }
-
-  function handleFoto(e) {
-    const arquivo = e.target.files?.[0];
-    if (!arquivo) return;
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setForm((prev) => ({
-        ...prev,
-        foto: reader.result,
-      }));
-    };
-    reader.readAsDataURL(arquivo);
-  }
-
-  function baixarCSV(nomeArquivo, linhas) {
-    const csv = linhas.map((linha) => linha.map(csvEscape).join(";")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", nomeArquivo);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    await carregarVendasLive(
+      liveEmVisualizacao.id === liveAtual?.id ? liveAtual : liveEmVisualizacao
+    );
   }
 
   function exportarRelatorioCSV() {
@@ -1181,38 +1094,20 @@ Complemento: ${cliente.complemento || "-"}`;
     baixarCSV(nomeArquivo, linhas);
   }
 
-  function gerarComanda(clienteResumo) {
-    setTipoPreview("comanda");
-    setDadosPreview(clienteResumo);
+  function abrirPreview(tipo, dados) {
+    setTipoPreview(tipo);
+    setDadosPreview(dados);
     setPreviewAberto(true);
   }
 
-  function montarTextoComanda(clienteResumo) {
-    return `🧾 *Comanda da Cliente*
+  function fecharPreview() {
+    setPreviewAberto(false);
+    setTipoPreview(null);
+    setDadosPreview(null);
+  }
 
-Cliente: ${clienteResumo.nome}
-Status do pagamento: ${clienteResumo.pago ? "Pago" : "Pendente"}
-Total de peças: ${clienteResumo.pecas}
-Valor total: ${formatarBRL(clienteResumo.total)}
-
-${clienteResumo.itens
-        .map(
-          (item, index) =>
-            `${index + 1}. ${item.nomePeca} - ${formatarBRL(item.valor)} - Código: ${item.codigo} - ${item.dataVenda || ""}`
-        )
-        .join("\n")}
-
-PIX para pagamento:
-Chave: CELULAR – 41988921085
-
-🏦 Banco: *cloudwalk*
-👩‍💼 Nome: *Kemilly Lima*
-
-💳 Para pagamento via Cartão solicite o link de pagamento (em até 12x com taxas da operadora)
-
-❌Caso queira deixar em sacolinha nos avisar! Obrigada ☺️🌸
-
-🚚 Caso deseje envio, solicitar o envio que encaminho os dados para envio 🚚`;
+  function gerarComanda(clienteResumo) {
+    abrirPreview(PREVIEW_TIPO.COMANDA, clienteResumo);
   }
 
   async function copiarTextoComanda(clienteResumo) {
@@ -1225,9 +1120,7 @@ Chave: CELULAR – 41988921085
   }
 
   function abrirWhatsappComanda(clienteResumo) {
-    const texto = montarTextoComanda(clienteResumo);
-    const textoCodificado = encodeURIComponent(texto);
-
+    const textoCodificado = encodeURIComponent(montarTextoComanda(clienteResumo));
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     const url = isMobile
@@ -1273,9 +1166,14 @@ Chave: CELULAR – 41988921085
       return;
     }
 
-    setTipoPreview("etiquetas");
-    setDadosPreview(selecionadas);
-    setPreviewAberto(true);
+    abrirPreview(PREVIEW_TIPO.ETIQUETAS, selecionadas);
+  }
+
+  function toggleExpandirCliente(nomeCliente) {
+    setClientesExpandidos((prev) => ({
+      ...prev,
+      [nomeCliente]: !prev[nomeCliente],
+    }));
   }
 
   const resumoClientes = useMemo(() => {
@@ -1311,43 +1209,19 @@ Chave: CELULAR – 41988921085
       .sort((a, b) => b.total - a.total);
   }, [pecas, pagamentosClientes]);
 
-  const totalPecas = pecas.length;
-  const totalVendidas = pecas.filter((p) => p.vendido).length;
-  const totalDisponiveis = pecas.filter((p) => !p.vendido).length;
-
-  const faturamento = pecas
-    .filter((p) => p.vendido)
-    .reduce(
-      (acc, p) =>
-        acc + Number(p.valor_venda_final ?? limparMoeda(p.venda)),
-      0
-    );
-
-  const lucroEstimado = pecas
-    .filter((p) => p.vendido)
-    .reduce(
-      (acc, p) =>
-        acc +
-        (
-          Number(p.valor_venda_final ?? limparMoeda(p.venda)) -
-          limparMoeda(p.custo)
-        ),
-      0
-    );
-
   const pecasFiltradas = useMemo(() => {
     const termo = buscaPeca.trim().toLowerCase();
 
     return pecas.filter((p) => {
       const nome = String(p?.nome || "").toLowerCase();
       const codigo = String(p?.id || "").toLowerCase();
-      const cliente = String(p?.cliente || "").toLowerCase();
+      const clienteNome = String(p?.cliente || "").toLowerCase();
 
       const bateBusca =
         !termo ||
         nome.includes(termo) ||
         codigo.includes(termo) ||
-        cliente.includes(termo);
+        clienteNome.includes(termo);
 
       if (!bateBusca) return false;
 
@@ -1359,153 +1233,158 @@ Chave: CELULAR – 41988921085
     });
   }, [pecas, buscaPeca, filtroEstoque]);
 
-  const resumoClientesLive = Object.values(
-    vendasLive.reduce((acc, venda) => {
-      const nome = venda.cliente_nome || "Sem nome";
+  const resumoClientesLive = useMemo(
+    () =>
+      Object.values(
+        vendasLive.reduce((acc, venda) => {
+          const nome = venda.cliente_nome || "Sem nome";
 
-      if (!acc[nome]) {
-        acc[nome] = {
-          nome,
-          total: 0,
-          pecas: 0,
-          pago: true,
-          itens: [],
-        };
-      }
+          if (!acc[nome]) {
+            acc[nome] = {
+              nome,
+              total: 0,
+              pecas: 0,
+              pago: true,
+              itens: [],
+            };
+          }
 
-      acc[nome].total += Number(venda.valor_venda || 0);
-      acc[nome].pecas += 1;
+          acc[nome].total += Number(venda.valor_venda || 0);
+          acc[nome].pecas += 1;
 
-      if (venda.status_pagamento !== "pago") {
-        acc[nome].pago = false;
-      }
+          if (venda.status_pagamento !== "pago") {
+            acc[nome].pago = false;
+          }
 
-      acc[nome].itens.push({
-        codigo: venda.peca_id || "-",
-        nomePeca:
-          venda.nome_peca ||
-          pecas.find((p) => String(p.id) === String(venda.peca_id))?.nome ||
-          venda.peca_id ||
-          "-",
-        valor: Number(venda.valor_venda || 0),
-        dataVenda: venda.data_hora || "-",
-      });
+          acc[nome].itens.push({
+            codigo: venda.peca_id || "-",
+            nomePeca:
+              venda.nome_peca ||
+              pecas.find((p) => String(p.id) === String(venda.peca_id))?.nome ||
+              venda.peca_id ||
+              "-",
+            valor: Number(venda.valor_venda || 0),
+            dataVenda: venda.data_hora || "-",
+          });
 
-      return acc;
-    }, {})
+          return acc;
+        }, {})
+      ),
+    [vendasLive, pecas]
   );
 
-  const clientesFiltrados = resumoClientesLive.filter((c) => {
-    const bateBusca = c.nome.toLowerCase().includes(buscaCliente.toLowerCase());
+  const clientesFiltrados = useMemo(
+    () =>
+      resumoClientesLive.filter((c) => {
+        const bateBusca = c.nome.toLowerCase().includes(buscaCliente.toLowerCase());
 
-    if (!bateBusca) return false;
+        if (!bateBusca) return false;
+        if (filtroPagamentoCliente === "todos") return true;
+        if (filtroPagamentoCliente === "pagos") return c.pago === true;
+        if (filtroPagamentoCliente === "pendentes") return c.pago === false;
 
-    if (filtroPagamentoCliente === "todos") return true;
-    if (filtroPagamentoCliente === "pagos") return c.pago === true;
-    if (filtroPagamentoCliente === "pendentes") return c.pago === false;
+        return true;
+      }),
+    [resumoClientesLive, buscaCliente, filtroPagamentoCliente]
+  );
 
-    return true;
-  });
+  const pecasVendidasFiltradas = useMemo(
+    () =>
+      pecas.filter((p) => {
+        if (!p.vendido || !p.data_venda) return false;
 
-  const totalPecasLive = vendasLive.length;
+        const dataVendaIso = converterDataPtBrParaIso(p.data_venda);
+        if (!dataVendaIso) return false;
 
-  const faturamentoLive = vendasLive.reduce((acc, venda) => {
-    return acc + Number(venda.valor_venda || 0);
-  }, 0);
+        if (dataInicialFiltro && dataVendaIso < dataInicialFiltro) return false;
+        if (dataFinalFiltro && dataVendaIso > dataFinalFiltro) return false;
 
-  function toggleExpandirCliente(nomeCliente) {
-    setClientesExpandidos((prev) => ({
-      ...prev,
-      [nomeCliente]: !prev[nomeCliente],
-    }));
-  }
+        return true;
+      }),
+    [pecas, dataInicialFiltro, dataFinalFiltro]
+  );
 
-  const lucroEstimadoLive = vendasLive.reduce((acc, venda) => {
-    const pecaOriginal = pecas.find(
-      (p) => String(p.id) === String(venda.peca_id)
-    );
+  const livesFiltradas = useMemo(
+    () =>
+      listaLives.filter((live) => {
+        if (!live?.data_live) return true;
 
-    const custo = limparMoeda(pecaOriginal?.custo || 0);
-    const valorVenda = Number(venda.valor_venda || 0);
+        const partes = String(live.data_live).split("/");
+        if (partes.length !== 3) return true;
 
-    return acc + (valorVenda - custo);
-  }, 0);
+        const [dia, mes, ano] = partes;
+        const dataLive = `${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
 
-  const livesFiltradas = listaLives.filter((live) => {
-    if (!live?.data_live) return true;
+        if (dataInicialFiltro && dataLive < dataInicialFiltro) return false;
+        if (dataFinalFiltro && dataLive > dataFinalFiltro) return false;
 
-    const partes = String(live.data_live).split("/");
-    if (partes.length !== 3) return true;
+        return true;
+      }),
+    [listaLives, dataInicialFiltro, dataFinalFiltro]
+  );
 
-    const [dia, mes, ano] = partes;
-    const dataLive = `${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
+  const resumoFaturamentoPorLive = useMemo(
+    () =>
+      livesFiltradas.map((live) => {
+        const vendasDaLive = todasVendasLive.filter(
+          (v) => String(v.live_id) === String(live.id)
+        );
 
-    if (dataInicialFiltro && dataLive < dataInicialFiltro) return false;
-    if (dataFinalFiltro && dataLive > dataFinalFiltro) return false;
+        const faturamentoDaLive = vendasDaLive.reduce(
+          (acc, v) => acc + Number(v.valor_venda || 0),
+          0
+        );
 
-    return true;
-  });
+        const lucroDaLive = vendasDaLive.reduce((acc, v) => {
+          const pecaOriginal = pecas.find((p) => String(p.id) === String(v.peca_id));
+          const custo = limparMoeda(pecaOriginal?.custo || 0);
+          return acc + (Number(v.valor_venda || 0) - custo);
+        }, 0);
 
-  const resumoFaturamentoPorLive = livesFiltradas.map((live) => {
-    const vendasDaLive = todasVendasLive.filter(
-      (v) => String(v.live_id) === String(live.id)
-    );
+        const quantidade = vendasDaLive.length;
+        const ticketMedio = quantidade > 0 ? faturamentoDaLive / quantidade : 0;
 
-    const faturamento = vendasDaLive.reduce(
-      (acc, v) => acc + Number(v.valor_venda || 0),
+        return {
+          id: live.id,
+          nome: live.nome,
+          data: live.data_live || "-",
+          status: live.status || "-",
+          quantidade,
+          faturamento: faturamentoDaLive,
+          lucro: lucroDaLive,
+          ticketMedio,
+        };
+      }),
+    [livesFiltradas, todasVendasLive, pecas]
+  );
+
+  const totalPecas = pecas.length;
+  const totalVendidas = pecas.filter((p) => p.vendido).length;
+  const totalDisponiveis = pecas.filter((p) => !p.vendido).length;
+
+  const faturamento = pecas
+    .filter((p) => p.vendido)
+    .reduce((acc, p) => acc + Number(p.valor_venda_final ?? limparMoeda(p.venda)), 0);
+
+  const lucroEstimado = pecas
+    .filter((p) => p.vendido)
+    .reduce(
+      (acc, p) => acc + (Number(p.valor_venda_final ?? limparMoeda(p.venda)) - limparMoeda(p.custo)),
       0
     );
 
-    const lucro = vendasDaLive.reduce((acc, v) => {
-      const pecaOriginal = pecas.find(
-        (p) => String(p.id) === String(v.peca_id)
-      );
+  const totalPecasLive = vendasLive.length;
 
-      const custo = limparMoeda(pecaOriginal?.custo || 0);
-      return acc + (Number(v.valor_venda || 0) - custo);
-    }, 0);
+  const faturamentoLive = vendasLive.reduce(
+    (acc, venda) => acc + Number(venda.valor_venda || 0),
+    0
+  );
 
-    const quantidade = vendasDaLive.length;
-    const ticketMedio = quantidade > 0 ? faturamento / quantidade : 0;
-
-    return {
-      id: live.id,
-      nome: live.nome,
-      data: live.data_live || "-",
-      status: live.status || "-",
-      quantidade,
-      faturamento,
-      lucro,
-      ticketMedio,
-    };
-  });
-
-  function converterDataPtBrParaIso(dataStr) {
-    if (!dataStr) return null;
-
-    const parteData = String(dataStr).split(",")[0].trim();
-    const partes = parteData.split("/");
-
-    if (partes.length !== 3) return null;
-
-    const [dia, mes, ano] = partes;
-
-    if (!dia || !mes || !ano) return null;
-
-    return `${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
-  }
-
-  const pecasVendidasFiltradas = pecas.filter((p) => {
-    if (!p.vendido || !p.data_venda) return false;
-
-    const dataVendaIso = converterDataPtBrParaIso(p.data_venda);
-    if (!dataVendaIso) return false;
-
-    if (dataInicialFiltro && dataVendaIso < dataInicialFiltro) return false;
-    if (dataFinalFiltro && dataVendaIso > dataFinalFiltro) return false;
-
-    return true;
-  });
+  const lucroEstimadoLive = vendasLive.reduce((acc, venda) => {
+    const pecaOriginal = pecas.find((p) => String(p.id) === String(venda.peca_id));
+    const custo = limparMoeda(pecaOriginal?.custo || 0);
+    return acc + (Number(venda.valor_venda || 0) - custo);
+  }, 0);
 
   const faturamentoFiltrado = pecasVendidasFiltradas.reduce(
     (acc, p) => acc + Number(p.valor_venda_final ?? limparMoeda(p.venda)),
@@ -1520,11 +1399,8 @@ Chave: CELULAR – 41988921085
   );
 
   const quantidadeVendidaFiltrada = pecasVendidasFiltradas.length;
-
   const ticketMedioFiltrado =
-    quantidadeVendidaFiltrada > 0
-      ? faturamentoFiltrado / quantidadeVendidaFiltrada
-      : 0;
+    quantidadeVendidaFiltrada > 0 ? faturamentoFiltrado / quantidadeVendidaFiltrada : 0;
 
   return (
     <div
@@ -1843,8 +1719,7 @@ Chave: CELULAR – 41988921085
                       <button
                         style={{ ...botao, background: "#2563eb" }}
                         onClick={() => {
-                          setTipoPreview("etiquetas");
-                          setDadosPreview([
+                          abrirPreview(PREVIEW_TIPO.ETIQUETAS, [
                             {
                               ...p,
                               id: codigo,
@@ -1853,7 +1728,6 @@ Chave: CELULAR – 41988921085
                               obs,
                             },
                           ]);
-                          setPreviewAberto(true);
                         }}
                       >
                         Imprimir etiqueta
@@ -1933,6 +1807,7 @@ Chave: CELULAR – 41988921085
                   </button>
                 </div>
               </div>
+
               <div style={previewBox}>
                 <h3 style={{ marginTop: 0 }}>Scanner</h3>
                 {scannerAtivo ? (
@@ -2102,11 +1977,7 @@ Chave: CELULAR – 41988921085
 
                         <button
                           style={{ ...botaoPequeno, background: "#111827" }}
-                          onClick={() => {
-                            setTipoPreview("comanda");
-                            setDadosPreview(c);
-                            setPreviewAberto(true);
-                          }}
+                          onClick={() => gerarComanda(c)}
                         >
                           Comanda
                         </button>
@@ -2202,7 +2073,10 @@ Chave: CELULAR – 41988921085
                 placeholder="Telefone com DDD"
                 value={formCliente.telefone}
                 onChange={(e) =>
-                  setFormCliente({ ...formCliente, telefone: formatarTelefone(e.target.value) })
+                  setFormCliente({
+                    ...formCliente,
+                    telefone: formatarTelefone(e.target.value),
+                  })
                 }
               />
 
@@ -2221,21 +2095,27 @@ Chave: CELULAR – 41988921085
                 style={inputCliente}
                 placeholder="Endereço"
                 value={formCliente.endereco}
-                onChange={(e) => setFormCliente({ ...formCliente, endereco: e.target.value })}
+                onChange={(e) =>
+                  setFormCliente({ ...formCliente, endereco: e.target.value })
+                }
               />
 
               <input
                 style={inputCliente}
                 placeholder="Número"
                 value={formCliente.numero}
-                onChange={(e) => setFormCliente({ ...formCliente, numero: e.target.value })}
+                onChange={(e) =>
+                  setFormCliente({ ...formCliente, numero: e.target.value })
+                }
               />
 
               <input
                 style={inputCliente}
                 placeholder="Complemento"
                 value={formCliente.complemento}
-                onChange={(e) => setFormCliente({ ...formCliente, complemento: e.target.value })}
+                onChange={(e) =>
+                  setFormCliente({ ...formCliente, complemento: e.target.value })
+                }
               />
 
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -2262,7 +2142,9 @@ Chave: CELULAR – 41988921085
                   <div key={c.id} style={cardCliente}>
                     <strong>{c.nome}</strong>
                     <div><strong>CPF:</strong> {c.cpf ? formatarCPF(c.cpf) : "-"}</div>
-                    <div><strong>Telefone:</strong> {c.telefone ? formatarTelefone(c.telefone) : "-"}</div>
+                    <div>
+                      <strong>Telefone:</strong> {c.telefone ? formatarTelefone(c.telefone) : "-"}
+                    </div>
                     <div><strong>CEP:</strong> {c.cep || "-"}</div>
                     <div><strong>Endereço:</strong> {c.endereco || "-"}</div>
                     <div>
@@ -2486,6 +2368,28 @@ Chave: CELULAR – 41988921085
                 <div style={valorResumo}>{formatarBRL(ticketMedioFiltrado)}</div>
               </div>
             </div>
+
+            <div style={{ marginTop: 24 }}>
+              <h3 style={{ marginBottom: 12 }}>Resumo por Live</h3>
+
+              {resumoFaturamentoPorLive.length === 0 ? (
+                <p>Nenhuma live encontrada no período.</p>
+              ) : (
+                <div style={{ display: "grid", gap: 10 }}>
+                  {resumoFaturamentoPorLive.map((live) => (
+                    <div key={live.id} style={cardCliente}>
+                      <strong>{live.nome}</strong>
+                      <div>Data: {live.data}</div>
+                      <div>Status: {live.status}</div>
+                      <div>Quantidade de vendas: {live.quantidade}</div>
+                      <div>Faturamento: {formatarBRL(live.faturamento)}</div>
+                      <div>Lucro: {formatarBRL(live.lucro)}</div>
+                      <div>Ticket médio: {formatarBRL(live.ticketMedio)}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -2527,7 +2431,7 @@ Chave: CELULAR – 41988921085
               }}
             >
               <strong>
-                {tipoPreview === "comanda"
+                {tipoPreview === PREVIEW_TIPO.COMANDA
                   ? "Preview da Comanda"
                   : "Preview de Etiquetas"}
               </strong>
@@ -2542,11 +2446,7 @@ Chave: CELULAR – 41988921085
 
                 <button
                   style={{ ...botao, background: "#6b7280" }}
-                  onClick={() => {
-                    setPreviewAberto(false);
-                    setTipoPreview(null);
-                    setDadosPreview(null);
-                  }}
+                  onClick={fecharPreview}
                 >
                   Fechar
                 </button>
@@ -2561,7 +2461,7 @@ Chave: CELULAR – 41988921085
                 background: "#f8fafc",
               }}
             >
-              {tipoPreview === "comanda" && dadosPreview && (
+              {tipoPreview === PREVIEW_TIPO.COMANDA && dadosPreview && (
                 <div
                   className="comanda-print"
                   style={{
@@ -2575,7 +2475,6 @@ Chave: CELULAR – 41988921085
                     boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
                   }}
                 >
-                  {/* AÇÕES */}
                   <div
                     className="no-print"
                     style={{ display: "flex", gap: 10, flexWrap: "wrap" }}
@@ -2595,7 +2494,6 @@ Chave: CELULAR – 41988921085
                     </button>
                   </div>
 
-                  {/* TOPO */}
                   <div
                     style={{
                       display: "flex",
@@ -2607,23 +2505,18 @@ Chave: CELULAR – 41988921085
                     }}
                   >
                     <div>
-                      <h1 style={{ margin: 0, fontSize: 28 }}>
-                        Comanda da Cliente
-                      </h1>
+                      <h1 style={{ margin: 0, fontSize: 28 }}>Comanda da Cliente</h1>
                       <div style={{ color: "#6b7280", marginTop: 6 }}>
                         Brechó • Resumo da compra
                       </div>
                     </div>
 
                     <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: 13, color: "#6b7280" }}>
-                        Data
-                      </div>
+                      <div style={{ fontSize: 13, color: "#6b7280" }}>Data</div>
                       <div>{new Date().toLocaleString("pt-BR")}</div>
                     </div>
                   </div>
 
-                  {/* RESUMO */}
                   <div
                     style={{
                       background: "#f9fafb",
@@ -2665,7 +2558,6 @@ Chave: CELULAR – 41988921085
                     </div>
                   </div>
 
-                  {/* ITENS */}
                   <div
                     style={{
                       background: "#f9fafb",
@@ -2696,7 +2588,6 @@ Chave: CELULAR – 41988921085
                     </div>
                   </div>
 
-                  {/* PAGAMENTO */}
                   <div
                     style={{
                       background: "#f9fafb",
@@ -2720,9 +2611,7 @@ Chave: CELULAR – 41988921085
 
                     <br />
 
-                    <div>
-                      💳 Cartão: solicitar link (até 12x com taxas)
-                    </div>
+                    <div>💳 Cartão: solicitar link (até 12x com taxas)</div>
 
                     <br />
 
@@ -2732,7 +2621,7 @@ Chave: CELULAR – 41988921085
                 </div>
               )}
 
-              {tipoPreview === "etiquetas" && Array.isArray(dadosPreview) && (
+              {tipoPreview === PREVIEW_TIPO.ETIQUETAS && Array.isArray(dadosPreview) && (
                 <div style={{ display: "grid", gap: 0 }}>
                   {agruparEtiquetasEmPaginas(dadosPreview, 25).map((pagina, paginaIndex) => (
                     <div
@@ -2765,71 +2654,73 @@ Chave: CELULAR – 41988921085
           </div>
         </div>
       )}
+
       <style>
         {`
-    @media print {
-      body * {
-        visibility: hidden !important;
-      }
+          @media print {
+            body * {
+              visibility: hidden !important;
+            }
 
-      #area-preview-impressao,
-      #area-preview-impressao * {
-        visibility: visible !important;
-      }
+            #area-preview-impressao,
+            #area-preview-impressao * {
+              visibility: visible !important;
+            }
 
-      #area-preview-impressao {
-        position: absolute !important;
-        left: 0 !important;
-        top: 1mm !important;
-        width: 210mm !important;
-        min-height: 297mm !important;
-        background: #fff !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        overflow: visible !important;
-      }
+            #area-preview-impressao {
+              position: absolute !important;
+              left: 0 !important;
+              top: 1mm !important;
+              width: 210mm !important;
+              min-height: 297mm !important;
+              background: #fff !important;
+              padding: 0 !important;
+              margin: 0 !important;
+              overflow: visible !important;
+            }
 
-      .no-print {
-        display: none !important;
-      }
+            .no-print {
+              display: none !important;
+            }
 
-      .pagina-etiquetas {
-        width: 210mm !important;
-        min-height: 297mm !important;
-        padding: 10mm 4mm 6mm 4mm !important;
-        box-sizing: border-box !important;
-        display: grid !important;
-        grid-template-columns: repeat(5, 37mm) !important;
-        grid-auto-rows: 46mm !important;
-        column-gap: 2mm !important;
-        row-gap: 3mm !important;
-        justify-content: center !important;
-        align-content: start !important;
-        page-break-after: always !important;
-        break-after: page !important;
-      }
+            .pagina-etiquetas {
+              width: 210mm !important;
+              min-height: 297mm !important;
+              padding: 10mm 4mm 6mm 4mm !important;
+              box-sizing: border-box !important;
+              display: grid !important;
+              grid-template-columns: repeat(5, 37mm) !important;
+              grid-auto-rows: 46mm !important;
+              column-gap: 2mm !important;
+              row-gap: 3mm !important;
+              justify-content: center !important;
+              align-content: start !important;
+              page-break-after: always !important;
+              break-after: page !important;
+            }
 
-      .pagina-etiquetas:last-child {
-        page-break-after: auto !important;
-        break-after: auto !important;
-      }
+            .pagina-etiquetas:last-child {
+              page-break-after: auto !important;
+              break-after: auto !important;
+            }
 
-      @page {
-        size: A4 portrait;
-        margin-top: 1mm;
-        margin-left: 0;
-        margin-right: 0;
-        margin-bottom: 0;
-      }
+            @page {
+              size: A4 portrait;
+              margin-top: 1mm;
+              margin-left: 0;
+              margin-right: 0;
+              margin-bottom: 0;
+            }
 
-      html, body {
-        width: 210mm !important;
-        height: auto !important;
-        margin: 0 !important;
-        padding: 0 !important;
-      }
-    }
-  `}
+            html,
+            body {
+              width: 210mm !important;
+              height: auto !important;
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+          }
+        `}
       </style>
     </div>
   );
@@ -2842,21 +2733,6 @@ const topoApp = {
   gap: 16,
   flexWrap: "wrap",
   marginBottom: 24,
-};
-
-const etiqueta40x46 = {
-  width: "36mm",
-  height: "42mm",
-  padding: "1mm",
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "flex-start",
-  fontFamily: "Arial, sans-serif",
-  boxSizing: "border-box",
-  textAlign: "center",
-  overflow: "hidden",
-  lineHeight: 1.05,
 };
 
 const inputCliente = {
@@ -3023,13 +2899,6 @@ const valorResumo = {
 
 const textoItem = {
   margin: "4px 0",
-};
-
-const linhaClienteTopo = {
-  display: "grid",
-  gridTemplateColumns: "1.5fr 1fr 1fr",
-  gap: 12,
-  alignItems: "center",
 };
 
 const cardCliente = {
