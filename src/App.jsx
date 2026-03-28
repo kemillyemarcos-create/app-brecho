@@ -195,33 +195,37 @@ function EtiquetaPrint({ peca }) {
 
   return (
     <div
+      className="etiqueta"
       style={{
         width: "37mm",
         height: "46mm",
-        padding: "1.2mm 1mm 1mm 1mm",
+        padding: "1mm 0.8mm 0.8mm 0.8mm",
         boxSizing: "border-box",
         fontFamily: "Arial, sans-serif",
         textAlign: "center",
         overflow: "hidden",
         display: "grid",
-        gridTemplateRows: "8mm 4mm 4mm 5mm 20mm",
+        gridTemplateRows: "9mm 4.5mm 4.5mm 5mm 18mm",
         alignItems: "start",
         justifyItems: "center",
-        rowGap: "0.5mm",
+        rowGap: "0.2mm",
+        breakInside: "avoid",
+        pageBreakInside: "avoid",
       }}
     >
       <div
         style={{
           width: "100%",
           fontWeight: "bold",
-          fontSize: "8px",
-          lineHeight: 1,
+          fontSize: "9.5px",
+          lineHeight: 1.05,
           overflow: "hidden",
           display: "-webkit-box",
           WebkitLineClamp: 2,
           WebkitBoxOrient: "vertical",
-          wordBreak: "break-word",
+          wordBreak: "keep-all",
           overflowWrap: "break-word",
+          hyphens: "auto",
         }}
       >
         {peca.nome}
@@ -230,7 +234,7 @@ function EtiquetaPrint({ peca }) {
       <div
         style={{
           width: "100%",
-          fontSize: "6.5px",
+          fontSize: "7px",
           lineHeight: 1,
           overflow: "hidden",
           display: "-webkit-box",
@@ -247,7 +251,7 @@ function EtiquetaPrint({ peca }) {
       <div
         style={{
           width: "100%",
-          fontSize: "8px",
+          fontSize: "8.5px",
           fontWeight: "bold",
           lineHeight: 1,
           overflow: "hidden",
@@ -259,7 +263,7 @@ function EtiquetaPrint({ peca }) {
       <div
         style={{
           width: "100%",
-          fontSize: "6px",
+          fontSize: "6.5px",
           lineHeight: 1,
           overflow: "hidden",
           display: "-webkit-box",
@@ -279,9 +283,10 @@ function EtiquetaPrint({ peca }) {
           justifyContent: "center",
           width: "100%",
           height: "100%",
+          marginTop: "-0.5mm",
         }}
       >
-        <QRCodeCanvas value={peca.id} size={56} />
+        <QRCodeCanvas value={peca.id} size={65} />
       </div>
     </div>
   );
@@ -325,6 +330,9 @@ export default function App() {
   const [sacolinhasLive, setSacolinhasLive] = useState([]);
   const [carregandoSacolinhas, setCarregandoSacolinhas] = useState(false);
   const [sacolinhasExpandidas, setSacolinhasExpandidas] = useState({});
+
+  const [mostrarAbertas, setMostrarAbertas] = useState(true);
+  const [mostrarEnviadas, setMostrarEnviadas] = useState(true);
 
   const [previewAberto, setPreviewAberto] = useState(false);
   const [tipoPreview, setTipoPreview] = useState(null);
@@ -1238,6 +1246,111 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     await carregarSacolinhasLive();
   }
 
+  async function corrigirSacolinhasAntigas() {
+    const confirmar = window.confirm(
+      "Isso vai criar sacolinhas para vendas antigas sem vínculo. Deseja continuar?"
+    );
+    if (!confirmar) return;
+
+    try {
+      const { data: vendasSemSacolinha, error: erroBuscar } = await supabase
+        .from("vendas_live")
+        .select("*")
+        .is("sacolinha_id", null);
+
+      if (erroBuscar) {
+        console.error("ERRO AO BUSCAR VENDAS SEM SACOLINHA:", erroBuscar);
+        alert(`Erro ao buscar vendas antigas: ${erroBuscar.message}`);
+        return;
+      }
+
+      if (!vendasSemSacolinha || vendasSemSacolinha.length === 0) {
+        alert("Nenhuma venda antiga sem sacolinha foi encontrada.");
+        return;
+      }
+
+      const grupos = {};
+
+      vendasSemSacolinha.forEach((venda) => {
+        const clienteNome = String(venda.cliente_nome || "").trim();
+        const liveId = String(venda.live_id || "").trim();
+
+        if (!clienteNome || !liveId) return;
+
+        const chave = `${liveId}__${clienteNome}`;
+
+        if (!grupos[chave]) {
+          grupos[chave] = {
+            live_id: liveId,
+            cliente_nome: clienteNome,
+            vendas: [],
+          };
+        }
+
+        grupos[chave].vendas.push(venda);
+      });
+
+      const gruposLista = Object.values(grupos);
+
+      if (gruposLista.length === 0) {
+        alert("Não encontrei grupos válidos para corrigir.");
+        return;
+      }
+
+      for (const grupo of gruposLista) {
+        const novoIdSacolinha = `SAC-${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2, 8)}`;
+
+        const { error: erroCriarSacolinha } = await supabase
+          .from("sacolinhas_live")
+          .insert([
+            {
+              id: novoIdSacolinha,
+              live_id: grupo.live_id,
+              cliente_nome: grupo.cliente_nome,
+              status: "aberta",
+              criado_em: new Date().toLocaleString("pt-BR"),
+            },
+          ]);
+
+        if (erroCriarSacolinha) {
+          console.error("ERRO AO CRIAR SACOLINHA:", erroCriarSacolinha, grupo);
+          alert(
+            `Erro ao criar sacolinha de ${grupo.cliente_nome}: ${erroCriarSacolinha.message}`
+          );
+          return;
+        }
+
+        const idsVendas = grupo.vendas.map((v) => v.id);
+
+        const { error: erroAtualizarVendas } = await supabase
+          .from("vendas_live")
+          .update({ sacolinha_id: novoIdSacolinha })
+          .in("id", idsVendas);
+
+        if (erroAtualizarVendas) {
+          console.error("ERRO AO ATUALIZAR VENDAS:", erroAtualizarVendas, grupo);
+          alert(
+            `Erro ao vincular vendas de ${grupo.cliente_nome}: ${erroAtualizarVendas.message}`
+          );
+          return;
+        }
+      }
+
+      await Promise.all([
+        carregarSacolinhasLive(),
+        carregarTodasVendasLive(),
+        carregarLives(),
+      ]);
+
+      alert("Sacolinhas antigas corrigidas com sucesso.");
+    } catch (err) {
+      console.error("ERRO GERAL AO CORRIGIR SACOLINHAS ANTIGAS:", err);
+      alert("Erro inesperado ao corrigir sacolinhas antigas.");
+    }
+  }
+
   function abrirWhatsappComanda(clienteResumo) {
     const textoCodificado = encodeURIComponent(montarTextoComanda(clienteResumo));
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -1550,7 +1663,14 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         quantidade: itens.length,
       };
     })
-    .filter((sacolinha) => sacolinha.quantidade > 0);
+    .filter((sacolinha) => sacolinha.quantidade > 0)
+    .sort((a, b) =>
+      String(a.cliente_nome || "").localeCompare(
+        String(b.cliente_nome || ""),
+        "pt-BR",
+        { sensitivity: "base" }
+      )
+    );
 
   const sacolinhasAbertas = sacolinhasAgrupadas.filter(
     (s) => s.status === "aberta"
@@ -2650,15 +2770,26 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 ) : (
                   <div style={{ display: "grid", gap: 20 }}>
                     <div>
-                      <h3 style={{ marginTop: 0, marginBottom: 12 }}>Sacolinhas abertas</h3>
+                      <div
+                        onClick={() => setMostrarAbertas((prev) => !prev)}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          cursor: "pointer",
+                          marginBottom: 12,
+                        }}
+                      >
+                        <h3 style={{ margin: 0 }}>Sacolinhas abertas</h3>
+                        <span>{mostrarAbertas ? "▼" : "▶"}</span>
+                      </div>
 
-                      {sacolinhasAgrupadas.filter((s) => s.status === "aberta").length === 0 ? (
-                        <p>Nenhuma sacolinha aberta.</p>
-                      ) : (
-                        <div style={{ display: "grid", gap: 12 }}>
-                          {sacolinhasAgrupadas
-                            .filter((s) => s.status === "aberta")
-                            .map((s) => (
+                      {mostrarAbertas &&
+                        (sacolinhasAbertas.length === 0 ? (
+                          <p>Nenhuma sacolinha aberta.</p>
+                        ) : (
+                          <div style={{ display: "grid", gap: 12 }}>
+                            {sacolinhasAbertas.map((s) => (
                               <div key={s.id} style={cardCliente}>
                                 <div
                                   style={{
@@ -2728,20 +2859,31 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                                 )}
                               </div>
                             ))}
-                        </div>
-                      )}
+                          </div>
+                        ))}
                     </div>
 
                     <div>
-                      <h3 style={{ marginTop: 0, marginBottom: 12 }}>Enviadas</h3>
+                      <div
+                        onClick={() => setMostrarEnviadas((prev) => !prev)}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          cursor: "pointer",
+                          marginBottom: 12,
+                        }}
+                      >
+                        <h3 style={{ margin: 0 }}>Enviadas</h3>
+                        <span>{mostrarEnviadas ? "▼" : "▶"}</span>
+                      </div>
 
-                      {sacolinhasAgrupadas.filter((s) => s.status === "enviada").length === 0 ? (
-                        <p>Nenhuma sacolinha enviada ainda.</p>
-                      ) : (
-                        <div style={{ display: "grid", gap: 12 }}>
-                          {sacolinhasAgrupadas
-                            .filter((s) => s.status === "enviada")
-                            .map((s) => (
+                      {mostrarEnviadas &&
+                        (sacolinhasEnviadas.length === 0 ? (
+                          <p>Nenhuma sacolinha enviada ainda.</p>
+                        ) : (
+                          <div style={{ display: "grid", gap: 12 }}>
+                            {sacolinhasEnviadas.map((s) => (
                               <div key={s.id} style={{ ...cardCliente, opacity: 0.8 }}>
                                 <div
                                   style={{
@@ -2804,8 +2946,8 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                                 )}
                               </div>
                             ))}
-                        </div>
-                      )}
+                          </div>
+                        ))}
                     </div>
                   </div>
                 )}
@@ -3050,18 +3192,20 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                         className="pagina-etiquetas"
                         style={{
                           width: "210mm",
-                          minHeight: "297mm",
-                          padding: "10mm 4mm 6mm 4mm",
+                          height: "297mm",
+                          padding: "6mm 4mm 4mm 4mm",
                           boxSizing: "border-box",
                           background: "#fff",
                           display: "grid",
                           gridTemplateColumns: "repeat(5, 37mm)",
-                          gridAutoRows: "46mm",
+                          gridTemplateRows: "repeat(5, 46mm)",
                           columnGap: "2mm",
-                          rowGap: "3mm",
+                          rowGap: "2mm",
                           justifyContent: "center",
                           alignContent: "start",
+                          overflow: "hidden",
                           pageBreakAfter: "always",
+                          breakAfter: "page",
                         }}
                       >
                         {pagina.map((peca) => (
@@ -3144,21 +3288,47 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
             }
 
             @page {
-              size: A4 portrait;
-              margin-top: 1mm;
-              margin-left: 0;
-              margin-right: 0;
-              margin-bottom: 0;
-            }
+  size: A4 portrait;
+  margin: 2mm 2mm 2mm 2mm; /* 🔥 equilíbrio ideal */
+}
 
-            html,
-            body {
-              width: 210mm !important;
-              height: auto !important;
-              margin: 0 !important;
-              padding: 0 !important;
-            }
-          }
+html,
+body {
+  width: 210mm !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+@media print {
+
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* 🔥 remove espaço invisível do topo */
+  body::before {
+    content: "";
+    display: block;
+    height: 0;
+  }
+
+  /* 🔥 evita quebra feia */
+  .etiqueta {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* 🔥 organiza páginas */
+  .pagina-etiquetas {
+    page-break-after: always;
+  }
+
+  .pagina-etiquetas:last-child {
+    page-break-after: auto;
+  }
+}
         `}
         </style>
       </div>
