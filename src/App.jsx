@@ -332,6 +332,7 @@ export default function App() {
   const [sacolinhasExpandidas, setSacolinhasExpandidas] = useState({});
 
   const [mostrarAbertas, setMostrarAbertas] = useState(true);
+  const [mostrarSeparadas, setMostrarSeparadas] = useState(true);
   const [mostrarEnviadas, setMostrarEnviadas] = useState(true);
 
   const [previewAberto, setPreviewAberto] = useState(false);
@@ -1226,7 +1227,12 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     }
   }
 
-  async function marcarSacolinhaComoEnviada(sacolinhaId) {
+  async function marcarSacolinhaComoEnviada(sacolinhaId, sacolinha) {
+    if (!sacolinhaEstaPaga(sacolinha)) {
+      alert("Só é possível enviar após pagamento.");
+      return;
+    }
+
     const confirmar = window.confirm("Deseja marcar essa sacolinha como enviada?");
     if (!confirmar) return;
 
@@ -1240,6 +1246,84 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     if (error) {
       console.error("ERRO AO MARCAR SACOLINHA COMO ENVIADA:", error);
       alert(`Erro ao atualizar envio: ${error.message}`);
+      return;
+    }
+
+    await carregarSacolinhasLive();
+  }
+
+  async function marcarSacolinhaComoSeparada(sacolinhaId) {
+    const { error } = await supabase
+      .from("sacolinhas_live")
+      .update({
+        status: "separada",
+      })
+      .eq("id", sacolinhaId);
+
+    if (error) {
+      alert("Erro ao marcar como separada");
+      return;
+    }
+
+    await carregarSacolinhasLive();
+  }
+
+  async function marcarSacolinhaComoSeparada(sacolinhaId) {
+    const { error } = await supabase
+      .from("sacolinhas_live")
+      .update({
+        status: "separada",
+      })
+      .eq("id", sacolinhaId);
+
+    if (error) {
+      console.error("ERRO AO MARCAR SACOLINHA COMO SEPARADA:", error);
+      alert(`Erro ao atualizar separação: ${error.message}`);
+      return;
+    }
+
+    await carregarSacolinhasLive();
+  }
+
+  function sacolinhaEstaVencida(s) {
+    if (!s?.criado_em) return false;
+
+    const parteDataHora = String(s.criado_em).split(",").map((p) => p.trim());
+    const parteData = parteDataHora[0];
+    if (!parteData) return false;
+
+    const [dia, mes, ano] = parteData.split("/");
+    if (!dia || !mes || !ano) return false;
+
+    const dataCriacao = new Date(`${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}T00:00:00`);
+    const hoje = new Date();
+
+    const diffDias = (hoje - dataCriacao) / (1000 * 60 * 60 * 24);
+
+    return diffDias > 30 && s.status !== "enviada";
+  }
+
+  function sacolinhaEstaPaga(s) {
+    const itensDaSacolinha = todasVendasLive.filter(
+      (v) => String(v.sacolinha_id) === String(s.id)
+    );
+
+    if (itensDaSacolinha.length === 0) return false;
+
+    return itensDaSacolinha.every((v) => v.status_pagamento === "pago");
+  }
+
+  async function marcarSacolinhaComoSeparada(sacolinhaId) {
+    const { error } = await supabase
+      .from("sacolinhas_live")
+      .update({
+        status: "separada",
+      })
+      .eq("id", sacolinhaId);
+
+    if (error) {
+      console.error("ERRO AO MARCAR SACOLINHA COMO SEPARADA:", error);
+      alert(`Erro ao atualizar separação: ${error.message}`);
       return;
     }
 
@@ -1674,6 +1758,10 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
   const sacolinhasAbertas = sacolinhasAgrupadas.filter(
     (s) => s.status === "aberta"
+  );
+
+  const sacolinhasSeparadas = sacolinhasAgrupadas.filter(
+  (s) => s.status === "separada"
   );
 
   const sacolinhasEnviadas = sacolinhasAgrupadas.filter(
@@ -2825,7 +2913,12 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                                       style={{
                                         padding: "4px 10px",
                                         borderRadius: 10,
-                                        background: "#b45309",
+                                        background:
+                                          s.status === "aberta"
+                                            ? "#b45309"
+                                            : s.status === "separada"
+                                              ? "#f59e0b"
+                                              : "#15803d",
                                         color: "#fff",
                                         fontSize: 12,
                                         fontWeight: "bold",
@@ -2837,12 +2930,166 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
                                     <span>{s.quantidade} peça(s)</span>
 
+                                    {sacolinhaEstaVencida(s) && (
+                                      <span
+                                        style={{
+                                          padding: "4px 10px",
+                                          borderRadius: 10,
+                                          background: "#dc2626",
+                                          color: "#fff",
+                                          fontSize: 12,
+                                          fontWeight: "bold",
+                                          textTransform: "capitalize",
+                                        }}
+                                      >
+                                        vencida
+                                      </span>
+                                    )}
+
                                     <button
-                                      style={{ ...botaoPequeno, background: "#15803d" }}
-                                      onClick={() => marcarSacolinhaComoEnviada(s.id)}
+                                      style={{ ...botaoPequeno, background: "#f59e0b" }}
+                                      onClick={() => marcarSacolinhaComoSeparada(s.id)}
                                     >
-                                      Marcar como enviada
+                                      Marcar como separada
                                     </button>
+                                  </div>
+                                </div>
+
+                                {sacolinhasExpandidas[s.id] && (
+                                  <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                                    {s.itens.map((item) => (
+                                      <div key={item.id} style={itemCliente}>
+                                        <div><strong>Peça:</strong> {item.nome_peca}</div>
+                                        <div><strong>Código:</strong> {item.peca_id}</div>
+                                        <div><strong>Valor:</strong> {formatarBRL(item.valor_venda)}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                    </div>
+
+                    <div>
+                      <div
+                        onClick={() => setMostrarSeparadas((prev) => !prev)}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          cursor: "pointer",
+                          marginBottom: 12,
+                        }}
+                      >
+                        <h3 style={{ margin: 0 }}>Separadas</h3>
+                        <span>{mostrarSeparadas ? "▼" : "▶"}</span>
+                      </div>
+
+                      {mostrarSeparadas &&
+                        (sacolinhasSeparadas.length === 0 ? (
+                          <p>Nenhuma sacolinha separada.</p>
+                        ) : (
+                          <div style={{ display: "grid", gap: 12 }}>
+                            {sacolinhasSeparadas.map((s) => (
+                              <div key={s.id} style={cardCliente}>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    gap: 12,
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <button
+                                      onClick={() => toggleExpandirSacolinha(s.id)}
+                                      style={{
+                                        background: "transparent",
+                                        border: "none",
+                                        cursor: "pointer",
+                                        fontSize: 18,
+                                      }}
+                                    >
+                                      {sacolinhasExpandidas[s.id] ? "▼" : "▶"}
+                                    </button>
+
+                                    <strong>{s.cliente_nome}</strong>
+                                  </div>
+
+                                  <div style={{ fontSize: 14, color: "#555" }}>
+                                    Live: {listaLives.find((l) => String(l.id) === String(s.live_id))?.nome || s.live_id}
+                                  </div>
+
+                                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                                    <span
+                                      style={{
+                                        padding: "4px 10px",
+                                        borderRadius: 10,
+                                        background:
+                                          s.status === "aberta"
+                                            ? "#b45309"
+                                            : s.status === "separada"
+                                              ? "#f59e0b"
+                                              : "#15803d",
+                                        color: "#fff",
+                                        fontSize: 12,
+                                        fontWeight: "bold",
+                                        textTransform: "capitalize",
+                                      }}
+                                    >
+                                      {s.status}
+                                    </span>
+
+                                    <span>{s.quantidade} peça(s)</span>
+
+                                    {sacolinhaEstaVencida(s) && (
+                                      <span
+                                        style={{
+                                          padding: "4px 10px",
+                                          borderRadius: 10,
+                                          background: "#dc2626",
+                                          color: "#fff",
+                                          fontSize: 12,
+                                          fontWeight: "bold",
+                                          textTransform: "capitalize",
+                                        }}
+                                      >
+                                        vencida
+                                      </span>
+                                    )}
+
+                                    <>
+                                      <button
+                                        style={{
+                                          ...botaoPequeno,
+                                          background: sacolinhaEstaPaga(s) ? "#15803d" : "#9ca3af",
+                                          cursor: sacolinhaEstaPaga(s) ? "pointer" : "not-allowed",
+                                        }}
+                                        onClick={() => {
+                                          if (!sacolinhaEstaPaga(s)) return;
+                                          marcarSacolinhaComoEnviada(s.id, s);
+                                        }}
+                                      >
+                                        {sacolinhaEstaPaga(s) ? "Marcar como enviada" : "Aguardando pagamento"}
+                                      </button>
+
+                                      <span
+                                        style={{
+                                          padding: "4px 10px",
+                                          borderRadius: 10,
+                                          background: sacolinhaEstaPaga(s) ? "#15803d" : "#dc2626",
+                                          color: "#fff",
+                                          fontSize: 12,
+                                          fontWeight: "bold",
+                                          textTransform: "capitalize",
+                                        }}
+                                      >
+                                        {sacolinhaEstaPaga(s) ? "pago" : "pendente"}
+                                      </span>
+                                    </>
                                   </div>
                                 </div>
 
@@ -2919,7 +3166,12 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                                       style={{
                                         padding: "4px 10px",
                                         borderRadius: 10,
-                                        background: "#15803d",
+                                        background:
+                                          s.status === "aberta"
+                                            ? "#b45309"
+                                            : s.status === "separada"
+                                              ? "#f59e0b"
+                                              : "#15803d",
                                         color: "#fff",
                                         fontSize: 12,
                                         fontWeight: "bold",
@@ -2930,6 +3182,22 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                                     </span>
 
                                     <span>{s.quantidade} peça(s)</span>
+
+                                    {sacolinhaEstaVencida(s) && (
+                                      <span
+                                        style={{
+                                          padding: "4px 10px",
+                                          borderRadius: 10,
+                                          background: "#dc2626",
+                                          color: "#fff",
+                                          fontSize: 12,
+                                          fontWeight: "bold",
+                                          textTransform: "capitalize",
+                                        }}
+                                      >
+                                        vencida
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
 
