@@ -339,6 +339,11 @@ export default function App() {
   const [tipoPreview, setTipoPreview] = useState(null);
   const [dadosPreview, setDadosPreview] = useState(null);
 
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+  const [menuMobileAberto, setMenuMobileAberto] = useState(false);
+
   const scannerRef = useRef(null);
   const scannerElementId = "reader";
 
@@ -665,6 +670,17 @@ export default function App() {
         });
     }
   }, [scannerAtivo]);
+
+  useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth < 768);
+    }
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   async function salvarCliente() {
     if (!formCliente.nome.trim()) {
@@ -1761,7 +1777,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   );
 
   const sacolinhasSeparadas = sacolinhasAgrupadas.filter(
-  (s) => s.status === "separada"
+    (s) => s.status === "separada"
   );
 
   const sacolinhasEnviadas = sacolinhasAgrupadas.filter(
@@ -1772,64 +1788,246 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     <>
       <style>
         {`
-        @media (max-width: 767px) {
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
 
-          .layout-app {
-            display: grid !important;
-            grid-template-columns: 1fr !important;
-            padding: 8px !important;
-            gap: 8px !important;
-          }
+    * {
+      box-sizing: border-box;
+    }
 
-          .sidebar-app {
-            width: 100% !important;
-          }
+    img {
+      max-width: 100%;
+      height: auto;
+    }
 
-          .painel-principal {
-            padding: 14px !important;
-            min-height: auto !important;
-          }
+    .layout-app,
+    .sidebar-app,
+    .painel-principal,
+    .grid-cadastro,
+    .grid-vendas,
+    .grid-clientes,
+    .linha-resumo,
+    .menu-lista,
+    .area-principal {
+      min-width: 0;
+    }
 
-          .area-principal {
-            width: 100% !important;
-          }
+    @media (max-width: 767px) {
+  .layout-app {
+    grid-template-columns: 1fr !important;
+    padding: 8px !important;
+    gap: 8px !important;
+  }
 
-          .grid-cadastro,
-          .grid-vendas,
-          .grid-clientes {
-            grid-template-columns: 1fr !important;
-          }
+  .sidebar-app {
+    width: 100% !important;
+    border-radius: 18px !important;
+    padding: 14px !important;
+  }
 
-          .linha-resumo {
-            display: grid !important;
-            grid-template-columns: 1fr !important;
-            gap: 8px !important;
-          }
+  .painel-principal {
+    min-height: auto !important;
+    padding: 14px !important;
+    border-radius: 18px !important;
+  }
 
-          .menu-lista {
-            display: flex !important;
-            flex-wrap: wrap !important;
-            gap: 6px !important;
-          }
+  .area-principal {
+    width: 100% !important;
+  }
 
-          button {
-            font-size: 14px !important;
-          }
+  .grid-cadastro,
+  .grid-vendas,
+  .grid-clientes,
+  .linha-resumo {
+    grid-template-columns: 1fr !important;
+  }
 
-          input {
-            width: 100% !important;
-          }
+  .menu-lista {
+    display: grid !important;
+    gap: 8px !important;
+  }
 
-          img {
-            max-width: 100% !important;
-            height: auto !important;
-          }
-        }
-      `}
+  .topo-mobile {
+    display: flex !important;
+  }
+
+  /* 🔥 MELHORIAS IMPORTANTES */
+  button {
+  font-size: 14px;
+}
+
+.painel-principal button,
+.grid-cadastro button,
+.grid-vendas button,
+.grid-clientes button,
+.linha-resumo button {
+  width: 100%;
+}
+
+.topo-mobile {
+  position: sticky !important;
+  top: 8px !important;
+}
+
+.topo-mobile strong {
+  font-size: 18px !important;
+}
+
+  input {
+    width: 100% !important;
+  }
+
+  /* evita quebra e scroll lateral */
+  * {
+    min-width: 0;
+  }
+}
+
+    @media print {
+      body * {
+        visibility: hidden !important;
+      }
+
+      #area-preview-impressao,
+      #area-preview-impressao * {
+        visibility: visible !important;
+      }
+
+      #area-preview-impressao {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 210mm !important;
+        min-height: 297mm !important;
+        background: #fff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
+      }
+
+      .no-print {
+        display: none !important;
+      }
+
+      .pagina-etiquetas {
+        width: 210mm !important;
+        height: 297mm !important;
+        padding: 6mm 4mm 4mm 4mm !important;
+        box-sizing: border-box !important;
+        display: grid !important;
+        grid-template-columns: repeat(5, 37mm) !important;
+        grid-template-rows: repeat(5, 46mm) !important;
+        column-gap: 2mm !important;
+        row-gap: 2mm !important;
+        justify-content: center !important;
+        align-content: start !important;
+        overflow: hidden !important;
+        page-break-after: always !important;
+        break-after: page !important;
+      }
+
+      .pagina-etiquetas:last-child {
+        page-break-after: auto !important;
+        break-after: auto !important;
+      }
+
+      @page {
+        size: A4 portrait;
+        margin: 0mm;
+      }
+
+      html,
+      body {
+        width: 210mm !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      .etiqueta {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+    }
+  `}
       </style>
 
+      {isMobile && (
+        <div
+          className="topo-mobile"
+          style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 1000,
+            marginBottom: 8,
+            background: "rgba(255,255,255,0.95)",
+            backdropFilter: "blur(8px)",
+            borderRadius: 18,
+            padding: "12px 14px",
+            display: "grid",
+            gridTemplateColumns: "1fr auto",
+            alignItems: "center",
+            gap: 12,
+            boxShadow: "0 8px 20px rgba(0,0,0,0.10)",
+          }}
+        >
+          <div
+            style={{
+              minWidth: 0,
+              overflow: "hidden",
+            }}
+          >
+            <strong
+              style={{
+                display: "block",
+                fontSize: 18,
+                color: "#8f2745",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {abaAtiva === "cadastro" && "Cadastro"}
+              {abaAtiva === "pecas" && "Estoque"}
+              {abaAtiva === "vendas" && "Vendas"}
+              {abaAtiva === "lives" && "Lives"}
+              {abaAtiva === "clientes" && "Clientes"}
+              {abaAtiva === "faturamento" && "Faturamento"}
+              {abaAtiva === "expedicao" && "Expedição"}
+            </strong>
+          </div>
+
+          <button
+            onClick={() => setMenuMobileAberto((prev) => !prev)}
+            style={{
+              background: "#8f2745",
+              color: "#fff",
+              border: "none",
+              borderRadius: 12,
+              padding: "10px 14px",
+              fontWeight: "bold",
+              cursor: "pointer",
+              width: "auto",
+              minWidth: 96,
+              flexShrink: 0,
+            }}
+          >
+            {menuMobileAberto ? "Fechar" : "Menu"}
+          </button>
+        </div>
+      )}
+
       <div className="layout-app" style={layoutApp}>
-        <aside className="sidebar-app" style={sidebar}>
+        <aside
+          className="sidebar-app"
+          style={{
+            ...sidebar,
+            display: isMobile ? (menuMobileAberto ? "flex" : "none") : "flex",
+          }}
+        >
           <div style={sidebarTopo}>
             <div style={logoWrap}>
               <img src={logoKchic} alt="K.chic" style={logoImagem} />
@@ -1844,49 +2042,84 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           <div className="menu-lista" style={menuLista}>
             <button
               style={abaAtiva === "cadastro" ? menuBotaoAtivo : menuBotao}
-              onClick={() => setAbaAtiva("cadastro")}
+              onClick={() => {
+                setAbaAtiva("cadastro");
+                if (isMobile) {
+                  setMenuMobileAberto(false);
+                }
+              }}
             >
               Cadastro
             </button>
 
             <button
               style={abaAtiva === "pecas" ? menuBotaoAtivo : menuBotao}
-              onClick={() => setAbaAtiva("pecas")}
+              onClick={() => {
+                setAbaAtiva("pecas");
+                if (isMobile) {
+                  setMenuMobileAberto(false);
+                }
+              }}
             >
               Estoque
             </button>
 
             <button
               style={abaAtiva === "vendas" ? menuBotaoAtivo : menuBotao}
-              onClick={() => setAbaAtiva("vendas")}
+              onClick={() => {
+                setAbaAtiva("vendas");
+                if (isMobile) {
+                  setMenuMobileAberto(false);
+                }
+              }}
             >
               Vendas
             </button>
 
             <button
               style={abaAtiva === "lives" ? menuBotaoAtivo : menuBotao}
-              onClick={() => setAbaAtiva("lives")}
+              onClick={() => {
+                setAbaAtiva("lives");
+                if (isMobile) {
+                  setMenuMobileAberto(false);
+                }
+              }}
             >
               Lives
             </button>
 
             <button
               style={abaAtiva === "clientes" ? menuBotaoAtivo : menuBotao}
-              onClick={() => setAbaAtiva("clientes")}
+              onClick={() => {
+                setAbaAtiva("clientes");
+                if (isMobile) {
+                  setMenuMobileAberto(false);
+                }
+              }}
             >
               Clientes
             </button>
 
             <button
               style={abaAtiva === "faturamento" ? menuBotaoAtivo : menuBotao}
-              onClick={() => setAbaAtiva("faturamento")}
+              onClick={() => {
+                setAbaAtiva("faturamento");
+                if (isMobile) {
+                  setMenuMobileAberto(false);
+                }
+              }}
             >
               Faturamento
             </button>
 
             <button
               style={abaAtiva === "expedicao" ? menuBotaoAtivo : menuBotao}
-              onClick={() => setAbaAtiva("expedicao")}
+              onClick={() => {
+                setAbaAtiva("expedicao");
+                if (isMobile) {
+                  setMenuMobileAberto(false);
+                }
+              }}
             >
               Expedição
             </button>
@@ -1923,7 +2156,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
               <div style={boxGrande}>
                 <h2 style={tituloSecao}>Cadastro de Peças</h2>
 
-                <div style={gridCadastro}>
+                <div className="grid-cadastro" style={gridCadastro}>
                   <div style={gridForm}>
                     <input
                       style={input}
@@ -2216,7 +2449,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 <div style={boxGrande}>
                   <h2 style={tituloSecao}>Registro de Vendas</h2>
 
-                  <div style={gridVendas}>
+                  <div className="grid-vendas" style={gridVendas}>
                     <div style={gridForm}>
                       <input
                         style={input}
@@ -2240,12 +2473,20 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                         inputMode="numeric"
                       />
 
-                      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: isMobile ? "1fr" : "repeat(2, auto)",
+                          gap: 12,
+                          width: "100%",
+                        }}
+                      >
                         <button
                           style={{
                             ...botao,
                             opacity: salvandoVenda ? 0.7 : 1,
                             cursor: salvandoVenda ? "not-allowed" : "pointer",
+                            width: "100%",
                           }}
                           onClick={registrarVenda}
                           disabled={salvandoVenda}
@@ -2254,7 +2495,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                         </button>
 
                         <button
-                          style={{ ...botao, background: "#0f766e" }}
+                          style={{ ...botao, background: "#0f766e", width: "100%" }}
                           onClick={() => setScannerAtivo((prev) => !prev)}
                         >
                           {scannerAtivo ? "Fechar scanner" : "Ler QR Code"}
@@ -2262,27 +2503,46 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                       </div>
                     </div>
 
-                    <div style={previewBox}>
-                      <h3 style={{ marginTop: 0 }}>Scanner</h3>
+                    <div
+                      style={{
+                        ...previewBox,
+                        minHeight: isMobile ? "auto" : undefined,
+                        padding: isMobile ? 16 : previewBox.padding,
+                      }}
+                    >
+                      <h3 style={{ marginTop: 0, marginBottom: 12 }}>Scanner</h3>
+
                       {scannerAtivo ? (
                         <div>
                           <div
                             id={scannerElementId}
                             style={{
                               width: "100%",
+                              minHeight: isMobile ? 220 : 280,
                               overflow: "hidden",
                               borderRadius: 12,
                               border: "1px solid #ddd",
                               padding: 8,
                               background: "#fff",
+                              boxSizing: "border-box",
                             }}
                           />
-                          <p style={{ fontSize: 14, color: "#555" }}>
+                          <p style={{ fontSize: 14, color: "#555", marginTop: 10 }}>
                             Aponte a câmera para o QR Code da peça.
                           </p>
                         </div>
                       ) : (
-                        <div style={semFoto}>Scanner fechado</div>
+                        <div
+                          style={{
+                            ...semFoto,
+                            minHeight: isMobile ? 120 : 180,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          Scanner fechado
+                        </div>
                       )}
                     </div>
                   </div>
@@ -2340,7 +2600,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                   </div>
 
                   {liveEmVisualizacao && (
-                    <div style={linhaResumo}>
+                    <div className="linha-resumo" style={linhaResumo}>
                       <div style={cardResumo}>
                         <strong>Peças da live</strong>
                         <div style={valorResumo}>{totalPecasLive}</div>
@@ -2367,12 +2627,21 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                       {clientesFiltrados.map((c) => (
                         <div key={c.nome} style={cardCliente}>
                           <div
-                            style={{
-                              display: "grid",
-                              gridTemplateColumns: "minmax(220px, 320px) minmax(260px, 360px) 180px",
-                              gap: 22,
-                              alignItems: "center",
-                            }}
+                            style={
+                              isMobile
+                                ? {
+                                  display: "grid",
+                                  gap: 12,
+                                  alignItems: "start",
+                                }
+                                : {
+                                  display: "grid",
+                                  gridTemplateColumns:
+                                    "minmax(220px, 1.2fr) minmax(160px, 1fr) 140px 120px",
+                                  gap: 16,
+                                  alignItems: "center",
+                                }
+                            }
                           >
                             <div
                               style={{
@@ -2393,6 +2662,8 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                                   padding: "4px 6px",
                                   lineHeight: 1,
                                   flexShrink: 0,
+                                  width: "auto",
+                                  minWidth: "auto",
                                 }}
                               >
                                 {clientesExpandidos[c.nome] ? "▼" : "▶"}
@@ -2412,25 +2683,41 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                             </div>
 
                             <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "flex-start",
-                                gap: 8,
-                                flexWrap: "nowrap",
-                                whiteSpace: "nowrap",
-                                paddingLeft: 8,
-                              }}
+                              style={
+                                isMobile
+                                  ? {
+                                    display: "grid",
+                                    gridTemplateColumns: "1fr",
+                                    gap: 8,
+                                  }
+                                  : {
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "flex-start",
+                                    gap: 8,
+                                    flexWrap: "nowrap",
+                                    whiteSpace: "nowrap",
+                                    paddingLeft: 8,
+                                  }
+                              }
                             >
                               <button
-                                style={{ ...botaoPequeno, background: "#2563eb" }}
+                                style={{
+                                  ...botaoPequeno,
+                                  background: "#2563eb",
+                                  width: isMobile ? "100%" : "auto",
+                                }}
                                 onClick={() => exportarClienteCSV(c)}
                               >
                                 CSV
                               </button>
 
                               <button
-                                style={{ ...botaoPequeno, background: "#111827" }}
+                                style={{
+                                  ...botaoPequeno,
+                                  background: "#111827",
+                                  width: isMobile ? "100%" : "auto",
+                                }}
                                 onClick={() => gerarComanda(c)}
                               >
                                 Comanda
@@ -2440,6 +2727,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                                 style={{
                                   ...botaoPequeno,
                                   background: c.pago ? "#15803d" : "#b45309",
+                                  width: isMobile ? "100%" : "auto",
                                 }}
                                 onClick={() => togglePagamentoClienteLive(c.nome, c.pago)}
                               >
@@ -2448,16 +2736,25 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                             </div>
 
                             <div
-                              style={{
-                                display: "grid",
-                                gridTemplateColumns: "90px 90px",
-                                justifyContent: "start",
-                                alignItems: "center",
-                                columnGap: 12,
-                                textAlign: "right",
-                                whiteSpace: "nowrap",
-                                paddingLeft: 10,
-                              }}
+                              className="expedicao-info-direita"
+                              style={
+                                isMobile
+                                  ? {
+                                    display: "grid",
+                                    gap: 4,
+                                    textAlign: "left",
+                                  }
+                                  : {
+                                    display: "grid",
+                                    gridTemplateColumns: "90px 90px",
+                                    justifyContent: "start",
+                                    alignItems: "center",
+                                    columnGap: 12,
+                                    textAlign: "right",
+                                    whiteSpace: "nowrap",
+                                    paddingLeft: 10,
+                                  }
+                              }
                             >
                               <span>{c.pecas} peça(s)</span>
                               <strong>{formatarBRL(c.total)}</strong>
@@ -2475,7 +2772,11 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
                                   <div style={{ marginTop: 8 }}>
                                     <button
-                                      style={{ ...botaoPequeno, background: "#b91c1c" }}
+                                      style={{
+                                        ...botaoPequeno,
+                                        background: "#b91c1c",
+                                        width: isMobile ? "100%" : "auto",
+                                      }}
                                       onClick={() => cancelarVenda(item.codigo)}
                                     >
                                       Cancelar venda
@@ -2498,6 +2799,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 <h2 style={tituloSecao}>Cadastro de Clientes</h2>
 
                 <div
+                  className="grid-clientes"
                   style={{
                     display: "grid",
                     gridTemplateColumns: "1.1fr 0.9fr",
@@ -2668,7 +2970,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                     </button>
 
                     <div style={{ marginTop: 10, display: "grid", gap: 12 }}>
-                      <div style={linhaResumo}>
+                      <div className="linha-resumo" style={linhaResumo}>
                         <div style={cardResumo}>
                           <strong>Peças na live</strong>
                           <div style={valorResumo}>{vendasLive.length}</div>
@@ -2802,7 +3104,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                     </button>
                   </div>
 
-                  <div style={linhaResumo}>
+                  <div className="linha-resumo" style={linhaResumo}>
                     <div style={cardResumo}>
                       <strong>Faturamento</strong>
                       <div style={valorResumo}>{formatarBRL(faturamentoFiltrado)}</div>
@@ -2896,6 +3198,10 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                                         border: "none",
                                         cursor: "pointer",
                                         fontSize: 18,
+                                        width: "auto",
+                                        minWidth: "auto",
+                                        padding: "4px 6px",
+                                        flexShrink: 0,
                                       }}
                                     >
                                       {sacolinhasExpandidas[s.id] ? "▼" : "▶"}
@@ -3011,6 +3317,10 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                                         border: "none",
                                         cursor: "pointer",
                                         fontSize: 18,
+                                        width: "auto",
+                                        minWidth: "auto",
+                                        padding: "4px 6px",
+                                        flexShrink: 0,
                                       }}
                                     >
                                       {sacolinhasExpandidas[s.id] ? "▼" : "▶"}
@@ -3149,6 +3459,10 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                                         border: "none",
                                         cursor: "pointer",
                                         fontSize: 18,
+                                        width: "auto",
+                                        minWidth: "auto",
+                                        padding: "4px 6px",
+                                        flexShrink: 0,
                                       }}
                                     >
                                       {sacolinhasExpandidas[s.id] ? "▼" : "▶"}
@@ -3828,13 +4142,13 @@ const itemCliente = {
 };
 
 const layoutApp = {
-  display: "grid",
-  gridTemplateColumns: "240px 1fr",
   minHeight: "100vh",
-  background: "linear-gradient(135deg, #f7e8ec 0%, #f2d9df 45%, #efd3da 100%)",
-  padding: 16,
-  boxSizing: "border-box",
+  display: "grid",
+  gridTemplateColumns: "280px 1fr",
   gap: 16,
+  padding: 16,
+  background: "linear-gradient(180deg, #052c3b 0%, #08364a 100%)",
+  boxSizing: "border-box",
 };
 
 const sidebar = {
@@ -3908,14 +4222,16 @@ const areaPrincipal = {
 };
 
 const painelPrincipal = {
-  background: "rgba(255,255,255,0.88)",
+  background: "rgba(255,255,255,0.90)",
   backdropFilter: "blur(6px)",
   borderRadius: 24,
   minHeight: "calc(100vh - 32px)",
   padding: 24,
   boxShadow: "0 12px 30px rgba(149,79,96,0.14)",
   overflow: "hidden",
-  border: "1px solid rgba(255,255,255,0.7)",
+  width: "100%",
+  overflowX: "hidden",
+  boxSizing: "border-box",
 };
 
 const topoPainel = {
