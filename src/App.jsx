@@ -195,33 +195,37 @@ function EtiquetaPrint({ peca }) {
 
   return (
     <div
+      className="etiqueta"
       style={{
         width: "37mm",
         height: "46mm",
-        padding: "1.2mm 1mm 1mm 1mm",
+        padding: "1mm 0.8mm 0.8mm 0.8mm",
         boxSizing: "border-box",
         fontFamily: "Arial, sans-serif",
         textAlign: "center",
         overflow: "hidden",
         display: "grid",
-        gridTemplateRows: "8mm 4mm 4mm 5mm 20mm",
+        gridTemplateRows: "9mm 4.5mm 4.5mm 5mm 18mm",
         alignItems: "start",
         justifyItems: "center",
-        rowGap: "0.5mm",
+        rowGap: "0.2mm",
+        breakInside: "avoid",
+        pageBreakInside: "avoid",
       }}
     >
       <div
         style={{
           width: "100%",
           fontWeight: "bold",
-          fontSize: "8px",
-          lineHeight: 1,
+          fontSize: "9.5px",
+          lineHeight: 1.05,
           overflow: "hidden",
           display: "-webkit-box",
           WebkitLineClamp: 2,
           WebkitBoxOrient: "vertical",
-          wordBreak: "break-word",
+          wordBreak: "keep-all",
           overflowWrap: "break-word",
+          hyphens: "auto",
         }}
       >
         {peca.nome}
@@ -230,7 +234,7 @@ function EtiquetaPrint({ peca }) {
       <div
         style={{
           width: "100%",
-          fontSize: "6.5px",
+          fontSize: "7px",
           lineHeight: 1,
           overflow: "hidden",
           display: "-webkit-box",
@@ -247,7 +251,7 @@ function EtiquetaPrint({ peca }) {
       <div
         style={{
           width: "100%",
-          fontSize: "8px",
+          fontSize: "8.5px",
           fontWeight: "bold",
           lineHeight: 1,
           overflow: "hidden",
@@ -259,7 +263,7 @@ function EtiquetaPrint({ peca }) {
       <div
         style={{
           width: "100%",
-          fontSize: "6px",
+          fontSize: "6.5px",
           lineHeight: 1,
           overflow: "hidden",
           display: "-webkit-box",
@@ -279,9 +283,10 @@ function EtiquetaPrint({ peca }) {
           justifyContent: "center",
           width: "100%",
           height: "100%",
+          marginTop: "-0.5mm",
         }}
       >
-        <QRCodeCanvas value={peca.id} size={56} />
+        <QRCodeCanvas value={peca.id} size={65} />
       </div>
     </div>
   );
@@ -326,9 +331,18 @@ export default function App() {
   const [carregandoSacolinhas, setCarregandoSacolinhas] = useState(false);
   const [sacolinhasExpandidas, setSacolinhasExpandidas] = useState({});
 
+  const [mostrarAbertas, setMostrarAbertas] = useState(true);
+  const [mostrarSeparadas, setMostrarSeparadas] = useState(true);
+  const [mostrarEnviadas, setMostrarEnviadas] = useState(true);
+
   const [previewAberto, setPreviewAberto] = useState(false);
   const [tipoPreview, setTipoPreview] = useState(null);
   const [dadosPreview, setDadosPreview] = useState(null);
+
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+  const [menuMobileAberto, setMenuMobileAberto] = useState(false);
 
   const scannerRef = useRef(null);
   const scannerElementId = "reader";
@@ -656,6 +670,17 @@ export default function App() {
         });
     }
   }, [scannerAtivo]);
+
+  useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth < 768);
+    }
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   async function salvarCliente() {
     if (!formCliente.nome.trim()) {
@@ -1218,7 +1243,12 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     }
   }
 
-  async function marcarSacolinhaComoEnviada(sacolinhaId) {
+  async function marcarSacolinhaComoEnviada(sacolinhaId, sacolinha) {
+    if (!sacolinhaEstaPaga(sacolinha)) {
+      alert("Só é possível enviar após pagamento.");
+      return;
+    }
+
     const confirmar = window.confirm("Deseja marcar essa sacolinha como enviada?");
     if (!confirmar) return;
 
@@ -1226,7 +1256,6 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       .from("sacolinhas_live")
       .update({
         status: "enviada",
-        enviados_em: new Date().toLocaleString("pt-BR"),
       })
       .eq("id", sacolinhaId);
 
@@ -1237,6 +1266,189 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     }
 
     await carregarSacolinhasLive();
+  }
+
+  async function marcarSacolinhaComoSeparada(sacolinhaId) {
+    const { error } = await supabase
+      .from("sacolinhas_live")
+      .update({
+        status: "separada",
+      })
+      .eq("id", sacolinhaId);
+
+    if (error) {
+      alert("Erro ao marcar como separada");
+      return;
+    }
+
+    await carregarSacolinhasLive();
+  }
+
+  async function marcarSacolinhaComoSeparada(sacolinhaId) {
+    const { error } = await supabase
+      .from("sacolinhas_live")
+      .update({
+        status: "separada",
+      })
+      .eq("id", sacolinhaId);
+
+    if (error) {
+      console.error("ERRO AO MARCAR SACOLINHA COMO SEPARADA:", error);
+      alert(`Erro ao atualizar separação: ${error.message}`);
+      return;
+    }
+
+    await carregarSacolinhasLive();
+  }
+
+  function sacolinhaEstaVencida(s) {
+    if (!s?.criado_em) return false;
+
+    const parteDataHora = String(s.criado_em).split(",").map((p) => p.trim());
+    const parteData = parteDataHora[0];
+    if (!parteData) return false;
+
+    const [dia, mes, ano] = parteData.split("/");
+    if (!dia || !mes || !ano) return false;
+
+    const dataCriacao = new Date(`${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}T00:00:00`);
+    const hoje = new Date();
+
+    const diffDias = (hoje - dataCriacao) / (1000 * 60 * 60 * 24);
+
+    return diffDias > 30 && s.status !== "enviada";
+  }
+
+  function sacolinhaEstaPaga(s) {
+    const itensDaSacolinha = todasVendasLive.filter(
+      (v) => String(v.sacolinha_id) === String(s.id)
+    );
+
+    if (itensDaSacolinha.length === 0) return false;
+
+    return itensDaSacolinha.every((v) => v.status_pagamento === "pago");
+  }
+
+  async function marcarSacolinhaComoSeparada(sacolinhaId) {
+    const { error } = await supabase
+      .from("sacolinhas_live")
+      .update({
+        status: "separada",
+      })
+      .eq("id", sacolinhaId);
+
+    if (error) {
+      console.error("ERRO AO MARCAR SACOLINHA COMO SEPARADA:", error);
+      alert(`Erro ao atualizar separação: ${error.message}`);
+      return;
+    }
+
+    await carregarSacolinhasLive();
+  }
+
+  async function corrigirSacolinhasAntigas() {
+    const confirmar = window.confirm(
+      "Isso vai criar sacolinhas para vendas antigas sem vínculo. Deseja continuar?"
+    );
+    if (!confirmar) return;
+
+    try {
+      const { data: vendasSemSacolinha, error: erroBuscar } = await supabase
+        .from("vendas_live")
+        .select("*")
+        .is("sacolinha_id", null);
+
+      if (erroBuscar) {
+        console.error("ERRO AO BUSCAR VENDAS SEM SACOLINHA:", erroBuscar);
+        alert(`Erro ao buscar vendas antigas: ${erroBuscar.message}`);
+        return;
+      }
+
+      if (!vendasSemSacolinha || vendasSemSacolinha.length === 0) {
+        alert("Nenhuma venda antiga sem sacolinha foi encontrada.");
+        return;
+      }
+
+      const grupos = {};
+
+      vendasSemSacolinha.forEach((venda) => {
+        const clienteNome = String(venda.cliente_nome || "").trim();
+        const liveId = String(venda.live_id || "").trim();
+
+        if (!clienteNome || !liveId) return;
+
+        const chave = `${liveId}__${clienteNome}`;
+
+        if (!grupos[chave]) {
+          grupos[chave] = {
+            live_id: liveId,
+            cliente_nome: clienteNome,
+            vendas: [],
+          };
+        }
+
+        grupos[chave].vendas.push(venda);
+      });
+
+      const gruposLista = Object.values(grupos);
+
+      if (gruposLista.length === 0) {
+        alert("Não encontrei grupos válidos para corrigir.");
+        return;
+      }
+
+      for (const grupo of gruposLista) {
+        const novoIdSacolinha = `SAC-${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2, 8)}`;
+
+        const { error: erroCriarSacolinha } = await supabase
+          .from("sacolinhas_live")
+          .insert([
+            {
+              id: novoIdSacolinha,
+              live_id: grupo.live_id,
+              cliente_nome: grupo.cliente_nome,
+              status: "aberta",
+              criado_em: new Date().toLocaleString("pt-BR"),
+            },
+          ]);
+
+        if (erroCriarSacolinha) {
+          console.error("ERRO AO CRIAR SACOLINHA:", erroCriarSacolinha, grupo);
+          alert(
+            `Erro ao criar sacolinha de ${grupo.cliente_nome}: ${erroCriarSacolinha.message}`
+          );
+          return;
+        }
+
+        const idsVendas = grupo.vendas.map((v) => v.id);
+
+        const { error: erroAtualizarVendas } = await supabase
+          .from("vendas_live")
+          .update({ sacolinha_id: novoIdSacolinha })
+          .in("id", idsVendas);
+
+        if (erroAtualizarVendas) {
+          console.error("ERRO AO ATUALIZAR VENDAS:", erroAtualizarVendas, grupo);
+          alert(
+            `Erro ao vincular vendas de ${grupo.cliente_nome}: ${erroAtualizarVendas.message}`
+          );
+          return;
+        }
+      }
+
+      await Promise.all([
+        carregarSacolinhasLive(),
+        carregarTodasVendasLive(),
+        carregarLives(),
+      ]);
+
+      alert("Sacolinhas antigas corrigidas com sucesso.");
+    } catch (err) {
+      console.error("ERRO GERAL AO CORRIGIR SACOLINHAS ANTIGAS:", err);
+      alert("Erro inesperado ao corrigir sacolinhas antigas.");
+    }
   }
 
   function abrirWhatsappComanda(clienteResumo) {
@@ -1336,6 +1548,14 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       .sort((a, b) => b.total - a.total);
   }, [pecas, pagamentosClientes]);
 
+  const pecaIdsEnviados = todasVendasLive
+    .filter((v) =>
+      sacolinhasLive.some(
+        (s) => String(s.id) === String(v.sacolinha_id) && s.status === "enviada"
+      )
+    )
+    .map((v) => String(v.peca_id));
+
   const pecasFiltradas = useMemo(() => {
     const termo = buscaPeca.trim().toLowerCase();
 
@@ -1350,6 +1570,8 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         codigo.includes(termo) ||
         clienteNome.includes(termo);
 
+      if (pecaIdsEnviados.includes(String(p?.id))) return false;
+
       if (!bateBusca) return false;
 
       if (filtroEstoque === "todas") return true;
@@ -1358,7 +1580,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
       return true;
     });
-  }, [pecas, buscaPeca, filtroEstoque]);
+  }, [pecas, buscaPeca, filtroEstoque, pecaIdsEnviados]);
 
   const resumoClientesLive = useMemo(
     () =>
@@ -1541,1385 +1763,29 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         quantidade: itens.length,
       };
     })
-    .filter((sacolinha) => sacolinha.quantidade > 0);
+    .filter((sacolinha) => sacolinha.quantidade > 0)
+    .sort((a, b) =>
+      String(a.cliente_nome || "").localeCompare(
+        String(b.cliente_nome || ""),
+        "pt-BR",
+        { sensitivity: "base" }
+      )
+    );
+
+  const sacolinhasAbertas = sacolinhasAgrupadas.filter(
+    (s) => s.status === "aberta"
+  );
+
+  const sacolinhasSeparadas = sacolinhasAgrupadas.filter(
+    (s) => s.status === "separada"
+  );
+
+  const sacolinhasEnviadas = sacolinhasAgrupadas.filter(
+    (s) => s.status === "enviada"
+  );
 
   return (
-    <div style={layoutApp}>
-      <aside style={sidebar}>
-        <div style={sidebarTopo}>
-          <div style={logoWrap}>
-            <img src={logoKchic} alt="K.chic" style={logoImagem} />
-          </div>
-
-          <div style={marcaBadge}>Painel de gestão</div>
-          <p style={sidebarSubtitulo}>
-            Estoque, vendas, clientes e lives em um só lugar.
-          </p>
-        </div>
-
-        <div style={menuLista}>
-          <button
-            style={abaAtiva === "cadastro" ? menuBotaoAtivo : menuBotao}
-            onClick={() => setAbaAtiva("cadastro")}
-          >
-            Cadastro
-          </button>
-
-          <button
-            style={abaAtiva === "pecas" ? menuBotaoAtivo : menuBotao}
-            onClick={() => setAbaAtiva("pecas")}
-          >
-            Estoque
-          </button>
-
-          <button
-            style={abaAtiva === "vendas" ? menuBotaoAtivo : menuBotao}
-            onClick={() => setAbaAtiva("vendas")}
-          >
-            Vendas
-          </button>
-
-          <button
-            style={abaAtiva === "lives" ? menuBotaoAtivo : menuBotao}
-            onClick={() => setAbaAtiva("lives")}
-          >
-            Lives
-          </button>
-
-          <button
-            style={abaAtiva === "clientes" ? menuBotaoAtivo : menuBotao}
-            onClick={() => setAbaAtiva("clientes")}
-          >
-            Clientes
-          </button>
-
-          <button
-            style={abaAtiva === "faturamento" ? menuBotaoAtivo : menuBotao}
-            onClick={() => setAbaAtiva("faturamento")}
-          >
-            Faturamento
-          </button>
-        </div>
-
-        <button
-          style={abaAtiva === "expedicao" ? menuBotaoAtivo : menuBotao}
-          onClick={() => setAbaAtiva("expedicao")}
-        >
-          Expedição
-        </button>
-
-        <div style={sidebarRodape}>
-          {carregando ? "Carregando dados..." : "Dados sincronizados com Supabase"}
-        </div>
-      </aside>
-
-      <main style={areaPrincipal}>
-        <div style={painelPrincipal}>
-          <div style={topoPainel}>
-            <div>
-              <h2 style={topoPainelTitulo}>
-                {abaAtiva === "cadastro" && "Cadastro de Peças"}
-                {abaAtiva === "pecas" && "Estoque"}
-                {abaAtiva === "vendas" && "Registro de Vendas"}
-                {abaAtiva === "lives" && "Controle de Lives"}
-                {abaAtiva === "clientes" && "Cadastro de Clientes"}
-                {abaAtiva === "faturamento" && "Faturamento"}
-                {abaAtiva === "expedicao" && "Expedição"}
-              </h2>
-
-              <p style={topoPainelTexto}>
-                {carregando
-                  ? "Atualizando informações do sistema..."
-                  : "Painel operacional do brechó"}
-              </p>
-            </div>
-          </div>
-
-          {abaAtiva === "cadastro" && (
-            <div style={boxGrande}>
-              <h2 style={tituloSecao}>Cadastro de Peças</h2>
-
-              <div style={gridCadastro}>
-                <div style={gridForm}>
-                  <input
-                    style={input}
-                    placeholder="Nome da peça"
-                    value={form.nome}
-                    onChange={(e) => setForm({ ...form, nome: e.target.value })}
-                  />
-
-                  <input
-                    style={input}
-                    placeholder="Valor de compra"
-                    value={form.custo}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        custo: formatarMoeda(e.target.value),
-                      })
-                    }
-                  />
-
-                  <input
-                    style={input}
-                    placeholder="Valor de venda"
-                    value={form.venda}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        venda: formatarMoeda(e.target.value),
-                      })
-                    }
-                  />
-
-                  <input
-                    style={input}
-                    placeholder="Observações"
-                    value={form.obs}
-                    onChange={(e) => setForm({ ...form, obs: e.target.value })}
-                  />
-
-                  <div>
-                    <label style={{ display: "block", marginBottom: 8 }}>
-                      Foto da peça
-                    </label>
-                    <input type="file" accept="image/*" onChange={handleFoto} />
-                  </div>
-
-                  <button style={botao} onClick={adicionarPeca}>
-                    Adicionar peça
-                  </button>
-                </div>
-
-                <div style={previewBox}>
-                  <h3 style={{ marginTop: 0 }}>Pré-visualização</h3>
-                  {form.foto ? (
-                    <img
-                      src={form.foto}
-                      alt="Prévia"
-                      style={{
-                        width: "100%",
-                        maxWidth: 280,
-                        height: 280,
-                        objectFit: "cover",
-                        borderRadius: 12,
-                        border: "1px solid #ddd",
-                      }}
-                    />
-                  ) : (
-                    <div style={semFoto}>Sem foto selecionada</div>
-                  )}
-
-                  <div style={{ marginTop: 16 }}>
-                    <p style={{ margin: "6px 0" }}>
-                      <strong>Peça:</strong> {form.nome || "-"}
-                    </p>
-                    <p style={{ margin: "6px 0" }}>
-                      <strong>Compra:</strong> {form.custo || "R$ 0,00"}
-                    </p>
-                    <p style={{ margin: "6px 0" }}>
-                      <strong>Venda:</strong> {form.venda || "R$ 0,00"}
-                    </p>
-                    <p style={{ margin: "6px 0" }}>
-                      <strong>Obs:</strong> {form.obs || "-"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {abaAtiva === "pecas" && (
-            <div style={boxGrande}>
-              <div style={cabecalhoSecao}>
-                <h2 style={tituloSecao}>Peças</h2>
-
-                <div style={linhaResumoHorizontal}>
-                  <div style={cardResumo}>
-                    <strong>Total de peças</strong>
-                    <div style={valorResumo}>{totalPecas}</div>
-                  </div>
-
-                  <div style={cardResumo}>
-                    <strong>Disponíveis</strong>
-                    <div style={valorResumo}>{totalDisponiveis}</div>
-                  </div>
-
-                  <div style={cardResumo}>
-                    <strong>Vendidas</strong>
-                    <div style={valorResumo}>{totalVendidas}</div>
-                  </div>
-                </div>
-
-
-                <div style={linhaFiltros}>
-                  <input
-                    style={{ ...input, maxWidth: 340 }}
-                    placeholder="Buscar por peça, código ou cliente"
-                    value={buscaPeca}
-                    onChange={(e) => setBuscaPeca(e.target.value)}
-                  />
-
-                  <button
-                    style={
-                      filtroEstoque === "todas"
-                        ? { ...botaoPequeno, background: "#111827" }
-                        : { ...botaoPequeno, background: "#6b7280" }
-                    }
-                    onClick={() => setFiltroEstoque("todas")}
-                  >
-                    Todas
-                  </button>
-
-                  <button
-                    style={
-                      filtroEstoque === "disponiveis"
-                        ? { ...botaoPequeno, background: "#2563eb" }
-                        : { ...botaoPequeno, background: "#6b7280" }
-                    }
-                    onClick={() => setFiltroEstoque("disponiveis")}
-                  >
-                    Disponíveis
-                  </button>
-
-                  <button
-                    style={
-                      filtroEstoque === "vendidas"
-                        ? { ...botaoPequeno, background: "#15803d" }
-                        : { ...botaoPequeno, background: "#6b7280" }
-                    }
-                    onClick={() => setFiltroEstoque("vendidas")}
-                  >
-                    Vendidas
-                  </button>
-                </div>
-              </div>
-
-              <div style={linhaAcoes}>
-                <button
-                  style={{ ...botao, background: "#111827" }}
-                  onClick={marcarTodasEtiquetas}
-                >
-                  Marcar todas
-                </button>
-
-                <button
-                  style={{ ...botao, background: "#6b7280" }}
-                  onClick={desmarcarTodasEtiquetas}
-                >
-                  Desmarcar todas
-                </button>
-
-                <button
-                  style={{ ...botao, background: "#2563eb" }}
-                  onClick={imprimirEtiquetasSelecionadas}
-                >
-                  Imprimir selecionadas
-                </button>
-              </div>
-
-              {pecasFiltradas.length === 0 ? (
-                <p>Nenhuma peça encontrada.</p>
-              ) : (
-                <div style={gridPecas}>
-                  {pecasFiltradas.map((p, index) => {
-                    const codigo = String(p?.id || `sem-codigo-${index}`);
-                    const nome = p?.nome || "Sem nome";
-                    const custo = p?.custo ? p.custo : formatarBRL(0);
-                    const venda = p?.venda ? p.venda : formatarBRL(0);
-                    const obs = p?.obs || "-";
-                    const cadastro = p?.data_cadastro || "-";
-                    const clienteNome = p?.cliente || "";
-                    const vendido = !!p?.vendido;
-                    const dataVenda = p?.data_venda || "";
-
-                    return (
-                      <div key={codigo} style={cardPeca}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                          <input
-                            type="checkbox"
-                            checked={etiquetasSelecionadas.includes(codigo)}
-                            onChange={() => toggleEtiqueta(codigo)}
-                          />
-                          <span style={{ fontSize: 14, color: "#374151" }}>
-                            Selecionar etiqueta
-                          </span>
-                        </div>
-
-                        {p?.foto ? (
-                          <img
-                            src={p.foto}
-                            alt={nome}
-                            style={{
-                              width: "100%",
-                              height: 220,
-                              objectFit: "cover",
-                              borderRadius: 10,
-                              marginBottom: 12,
-                            }}
-                            onError={(e) => {
-                              e.currentTarget.style.display = "none";
-                            }}
-                          />
-                        ) : null}
-
-                        <p style={{ margin: "0 0 8px 0", fontSize: 18 }}>
-                          <strong>{nome}</strong>
-                        </p>
-
-                        <p style={textoItem}>Código: {codigo}</p>
-                        <p style={textoItem}>Compra: {custo}</p>
-                        <p style={textoItem}>Venda: {venda}</p>
-                        <p style={textoItem}>Obs: {obs}</p>
-                        <p style={textoItem}>Cadastro: {cadastro}</p>
-                        <p style={textoItem}>
-                          Status:{" "}
-                          <strong style={{ color: vendido ? "green" : "#333" }}>
-                            {vendido ? `Vendido para ${clienteNome}` : "Disponível"}
-                          </strong>
-                        </p>
-
-                        {vendido && <p style={textoItem}>Data da venda: {dataVenda}</p>}
-
-                        <div style={{ marginTop: 12, marginBottom: 12 }}>
-                          <QRCodeCanvas value={codigo} size={120} />
-                        </div>
-
-                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                          <button
-                            style={{ ...botao, background: "#2563eb" }}
-                            onClick={() => {
-                              abrirPreview(PREVIEW_TIPO.ETIQUETAS, [
-                                {
-                                  ...p,
-                                  id: codigo,
-                                  nome,
-                                  venda,
-                                  obs,
-                                },
-                              ]);
-                            }}
-                          >
-                            Imprimir etiqueta
-                          </button>
-
-                          {vendido ? (
-                            <button
-                              style={{ ...botao, background: "#b8860b" }}
-                              onClick={() => cancelarVenda(codigo)}
-                            >
-                              Cancelar venda
-                            </button>
-                          ) : null}
-
-                          <button
-                            style={{ ...botao, background: "#555" }}
-                            onClick={() => removerPeca(codigo)}
-                          >
-                            Remover peça
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {abaAtiva === "vendas" && (
-            <div style={{ display: "grid", gap: 24 }}>
-              <div style={boxGrande}>
-                <h2 style={tituloSecao}>Registro de Vendas</h2>
-
-                <div style={gridVendas}>
-                  <div style={gridForm}>
-                    <input
-                      style={input}
-                      placeholder="Código da peça"
-                      value={vendaId}
-                      onChange={(e) => setVendaId(e.target.value)}
-                    />
-
-                    <input
-                      style={input}
-                      placeholder="Nome da cliente"
-                      value={cliente}
-                      onChange={(e) => setCliente(e.target.value)}
-                    />
-
-                    <input
-                      style={input}
-                      placeholder="Valor com desconto (opcional)"
-                      value={valorDesconto}
-                      onChange={(e) => setValorDesconto(formatarValorDescontoInput(e.target.value))}
-                      inputMode="numeric"
-                    />
-
-                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                      <button
-                        style={{
-                          ...botao,
-                          opacity: salvandoVenda ? 0.7 : 1,
-                          cursor: salvandoVenda ? "not-allowed" : "pointer",
-                        }}
-                        onClick={registrarVenda}
-                        disabled={salvandoVenda}
-                      >
-                        {salvandoVenda ? "Salvando..." : "Registrar venda"}
-                      </button>
-
-                      <button
-                        style={{ ...botao, background: "#0f766e" }}
-                        onClick={() => setScannerAtivo((prev) => !prev)}
-                      >
-                        {scannerAtivo ? "Fechar scanner" : "Ler QR Code"}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div style={previewBox}>
-                    <h3 style={{ marginTop: 0 }}>Scanner</h3>
-                    {scannerAtivo ? (
-                      <div>
-                        <div
-                          id={scannerElementId}
-                          style={{
-                            width: "100%",
-                            overflow: "hidden",
-                            borderRadius: 12,
-                            border: "1px solid #ddd",
-                            padding: 8,
-                            background: "#fff",
-                          }}
-                        />
-                        <p style={{ fontSize: 14, color: "#555" }}>
-                          Aponte a câmera para o QR Code da peça.
-                        </p>
-                      </div>
-                    ) : (
-                      <div style={semFoto}>Scanner fechado</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div style={boxGrande}>
-                <div style={cabecalhoSecao}>
-                  <h2 style={tituloSecao}>
-                    {liveEmVisualizacao
-                      ? `Resumo por Clientes - ${liveEmVisualizacao.nome}`
-                      : "Resumo por Clientes"}
-                  </h2>
-
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-                    <input
-                      style={{ ...input, maxWidth: 320 }}
-                      placeholder="Buscar cliente"
-                      value={buscaCliente}
-                      onChange={(e) => setBuscaCliente(e.target.value)}
-                    />
-
-                    <button
-                      style={
-                        filtroPagamentoCliente === "todos"
-                          ? { ...botaoPequeno, background: "#111827" }
-                          : { ...botaoPequeno, background: "#6b7280" }
-                      }
-                      onClick={() => setFiltroPagamentoCliente("todos")}
-                    >
-                      Todos
-                    </button>
-
-                    <button
-                      style={
-                        filtroPagamentoCliente === "pendentes"
-                          ? { ...botaoPequeno, background: "#b45309" }
-                          : { ...botaoPequeno, background: "#6b7280" }
-                      }
-                      onClick={() => setFiltroPagamentoCliente("pendentes")}
-                    >
-                      Pendentes
-                    </button>
-
-                    <button
-                      style={
-                        filtroPagamentoCliente === "pagos"
-                          ? { ...botaoPequeno, background: "#15803d" }
-                          : { ...botaoPequeno, background: "#6b7280" }
-                      }
-                      onClick={() => setFiltroPagamentoCliente("pagos")}
-                    >
-                      Pagos
-                    </button>
-                  </div>
-                </div>
-
-                {liveEmVisualizacao && (
-                  <div style={linhaResumo}>
-                    <div style={cardResumo}>
-                      <strong>Peças da live</strong>
-                      <div style={valorResumo}>{totalPecasLive}</div>
-                    </div>
-
-                    <div style={cardResumo}>
-                      <strong>Faturamento da live</strong>
-                      <div style={valorResumo}>{formatarBRL(faturamentoLive)}</div>
-                    </div>
-
-                    <div style={cardResumo}>
-                      <strong>Lucro estimado da live</strong>
-                      <div style={valorResumo}>{formatarBRL(lucroEstimadoLive)}</div>
-                    </div>
-                  </div>
-                )}
-
-                {!liveEmVisualizacao ? (
-                  <p>Inicie uma live ou abra uma live do histórico para visualizar o resumo por clientes.</p>
-                ) : clientesFiltrados.length === 0 ? (
-                  <p>Nenhuma cliente registrada nessa live ainda.</p>
-                ) : (
-                  <div style={{ display: "grid", gap: 14 }}>
-                    {clientesFiltrados.map((c) => (
-                      <div key={c.nome} style={cardCliente}>
-                        <div
-                          style={{
-                            display: "grid",
-                            gridTemplateColumns: "minmax(220px, 320px) minmax(260px, 360px) 180px",
-                            gap: 22,
-                            alignItems: "center",
-                          }}
-                        >
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 8,
-                              minWidth: 0,
-                              overflow: "hidden",
-                            }}
-                          >
-                            <button
-                              onClick={() => toggleExpandirCliente(c.nome)}
-                              style={{
-                                background: "transparent",
-                                border: "none",
-                                cursor: "pointer",
-                                fontSize: 18,
-                                padding: "4px 6px",
-                                lineHeight: 1,
-                                flexShrink: 0,
-                              }}
-                            >
-                              {clientesExpandidos[c.nome] ? "▼" : "▶"}
-                            </button>
-
-                            <strong
-                              style={{
-                                fontSize: 18,
-                                whiteSpace: "nowrap",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                              }}
-                              title={c.nome}
-                            >
-                              {c.nome}
-                            </strong>
-                          </div>
-
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "flex-start",
-                              gap: 8,
-                              flexWrap: "nowrap",
-                              whiteSpace: "nowrap",
-                              paddingLeft: 8,
-                            }}
-                          >
-                            <button
-                              style={{ ...botaoPequeno, background: "#2563eb" }}
-                              onClick={() => exportarClienteCSV(c)}
-                            >
-                              CSV
-                            </button>
-
-                            <button
-                              style={{ ...botaoPequeno, background: "#111827" }}
-                              onClick={() => gerarComanda(c)}
-                            >
-                              Comanda
-                            </button>
-
-                            <button
-                              style={{
-                                ...botaoPequeno,
-                                background: c.pago ? "#15803d" : "#b45309",
-                              }}
-                              onClick={() => togglePagamentoClienteLive(c.nome, c.pago)}
-                            >
-                              {c.pago ? "Pago" : "Pendente"}
-                            </button>
-                          </div>
-
-                          <div
-                            style={{
-                              display: "grid",
-                              gridTemplateColumns: "90px 90px",
-                              justifyContent: "start",
-                              alignItems: "center",
-                              columnGap: 12,
-                              textAlign: "right",
-                              whiteSpace: "nowrap",
-                              paddingLeft: 10,
-                            }}
-                          >
-                            <span>{c.pecas} peça(s)</span>
-                            <strong>{formatarBRL(c.total)}</strong>
-                          </div>
-                        </div>
-
-                        {clientesExpandidos[c.nome] && (
-                          <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
-                            {c.itens.map((item, index) => (
-                              <div key={`${item.codigo}-${index}`} style={itemCliente}>
-                                <div><strong>Peça:</strong> {item.nomePeca}</div>
-                                <div><strong>Código:</strong> {item.codigo}</div>
-                                <div><strong>Valor:</strong> {formatarBRL(item.valor)}</div>
-                                <div><strong>Vendido em:</strong> {item.dataVenda || "-"}</div>
-
-                                <div style={{ marginTop: 8 }}>
-                                  <button
-                                    style={{ ...botaoPequeno, background: "#b91c1c" }}
-                                    onClick={() => cancelarVenda(item.codigo)}
-                                  >
-                                    Cancelar venda
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {abaAtiva === "clientes" && (
-            <div style={boxGrande}>
-              <h2 style={tituloSecao}>Cadastro de Clientes</h2>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1.1fr 0.9fr",
-                  gap: 20,
-                  alignItems: "start",
-                }}
-              >
-                <div style={{ display: "grid", gap: 10, alignContent: "start" }}>
-                  <input
-                    style={inputCliente}
-                    placeholder="Nome completo"
-                    value={formCliente.nome}
-                    onChange={(e) => setFormCliente({ ...formCliente, nome: e.target.value })}
-                  />
-
-                  <input
-                    style={inputCliente}
-                    placeholder="CPF"
-                    value={formCliente.cpf}
-                    onChange={(e) =>
-                      setFormCliente({ ...formCliente, cpf: formatarCPF(e.target.value) })
-                    }
-                  />
-
-                  <input
-                    style={inputCliente}
-                    placeholder="Telefone com DDD"
-                    value={formCliente.telefone}
-                    onChange={(e) =>
-                      setFormCliente({
-                        ...formCliente,
-                        telefone: formatarTelefone(e.target.value),
-                      })
-                    }
-                  />
-
-                  <input
-                    style={inputCliente}
-                    placeholder="CEP"
-                    value={formCliente.cep}
-                    onChange={(e) => {
-                      const cepFormatado = formatarCEP(e.target.value);
-                      setFormCliente({ ...formCliente, cep: cepFormatado });
-                      buscarCep(cepFormatado);
-                    }}
-                  />
-
-                  <input
-                    style={inputCliente}
-                    placeholder="Endereço"
-                    value={formCliente.endereco}
-                    onChange={(e) =>
-                      setFormCliente({ ...formCliente, endereco: e.target.value })
-                    }
-                  />
-
-                  <input
-                    style={inputCliente}
-                    placeholder="Número"
-                    value={formCliente.numero}
-                    onChange={(e) =>
-                      setFormCliente({ ...formCliente, numero: e.target.value })
-                    }
-                  />
-
-                  <input
-                    style={inputCliente}
-                    placeholder="Complemento"
-                    value={formCliente.complemento}
-                    onChange={(e) =>
-                      setFormCliente({ ...formCliente, complemento: e.target.value })
-                    }
-                  />
-
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <button style={botao} onClick={salvarCliente}>
-                      {clienteEditandoId ? "Atualizar Cliente" : "Salvar Cliente"}
-                    </button>
-
-                    {clienteEditandoId && (
-                      <button
-                        style={{ ...botao, background: "#6b7280" }}
-                        onClick={cancelarEdicaoCliente}
-                      >
-                        Cancelar edição
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div style={{ display: "grid", gap: 10, alignContent: "start" }}>
-                  {clientes.length === 0 ? (
-                    <p>Nenhum cliente cadastrado ainda.</p>
-                  ) : (
-                    clientes.map((c) => (
-                      <div key={c.id} style={cardCliente}>
-                        <strong>{c.nome}</strong>
-                        <div><strong>CPF:</strong> {c.cpf ? formatarCPF(c.cpf) : "-"}</div>
-                        <div>
-                          <strong>Telefone:</strong> {c.telefone ? formatarTelefone(c.telefone) : "-"}
-                        </div>
-                        <div><strong>CEP:</strong> {c.cep || "-"}</div>
-                        <div><strong>Endereço:</strong> {c.endereco || "-"}</div>
-                        <div>
-                          <strong>Nº:</strong> {c.numero || "-"}
-                          {c.complemento ? ` - ${c.complemento}` : ""}
-                        </div>
-
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-                          <button
-                            style={{ ...botaoPequeno, background: "#2563eb" }}
-                            onClick={() => editarCliente(c)}
-                          >
-                            Editar
-                          </button>
-
-                          <button
-                            style={{ ...botaoPequeno, background: "#111827" }}
-                            onClick={() => compartilharCliente(c)}
-                          >
-                            Compartilhar
-                          </button>
-
-                          <button
-                            style={{ ...botaoPequeno, background: "#b91c1c" }}
-                            onClick={() => excluirCliente(c.id)}
-                          >
-                            Excluir
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {abaAtiva === "lives" && (
-            <div style={boxGrande}>
-              <h2 style={tituloSecao}>Controle de Lives</h2>
-
-              {!liveAtual ? (
-                <div style={{ display: "grid", gap: 10, maxWidth: 400 }}>
-                  <input
-                    style={input}
-                    placeholder="Nome da live (ex: Live 20/03 Noite)"
-                    value={nomeNovaLive}
-                    onChange={(e) => setNomeNovaLive(e.target.value)}
-                  />
-
-                  <button style={botao} onClick={iniciarLive}>
-                    Iniciar Live
-                  </button>
-                </div>
-              ) : (
-                <div style={{ display: "grid", gap: 16 }}>
-                  <div>
-                    <strong>Live ativa: {liveAtual.nome}</strong>
-                    <div>Iniciada em: {liveAtual.hora_inicio}</div>
-                  </div>
-
-                  <button
-                    style={{ ...botao, background: "#b91c1c", maxWidth: 220 }}
-                    onClick={encerrarLive}
-                  >
-                    Encerrar Live
-                  </button>
-
-                  <div style={{ marginTop: 10, display: "grid", gap: 12 }}>
-                    <div style={linhaResumo}>
-                      <div style={cardResumo}>
-                        <strong>Peças na live</strong>
-                        <div style={valorResumo}>{vendasLive.length}</div>
-                      </div>
-
-                      <div style={cardResumo}>
-                        <strong>Faturamento</strong>
-                        <div style={valorResumo}>
-                          {formatarBRL(
-                            vendasLive.reduce(
-                              (acc, v) => acc + Number(v.valor_venda || 0),
-                              0
-                            )
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={boxGrande}>
-                      <h3 style={{ marginTop: 0 }}>
-                        Clientes da live {liveEmVisualizacao ? `- ${liveEmVisualizacao.nome}` : ""}
-                      </h3>
-
-                      {resumoClientesLive.length === 0 ? (
-                        <p>Nenhuma venda nessa live ainda.</p>
-                      ) : (
-                        <div style={{ display: "grid", gap: 10 }}>
-                          {resumoClientesLive.map((c) => (
-                            <div key={c.nome} style={cardCliente}>
-                              <strong>{c.nome}</strong>
-                              <div>{c.pecas} peça(s)</div>
-                              <div>{formatarBRL(c.total)}</div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div style={{ marginTop: 20 }}>
-                <h3 style={{ marginBottom: 12 }}>Histórico de Lives</h3>
-
-                {listaLives.length === 0 ? (
-                  <p>Nenhuma live cadastrada ainda.</p>
-                ) : (
-                  <div style={{ display: "grid", gap: 10 }}>
-                    {listaLives.map((live) => (
-                      <div
-                        key={live.id}
-                        style={{
-                          ...cardCliente,
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          gap: 12,
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <div>
-                          <strong>{live.nome}</strong>
-                          <div>Data: {live.data_live || "-"}</div>
-                          <div>Status: {live.status || "-"}</div>
-                        </div>
-
-                        <button
-                          style={{ ...botaoPequeno, background: "#2563eb" }}
-                          onClick={async () => {
-                            await abrirLiveHistorica(live);
-                            setAbaAtiva("vendas");
-                          }}
-                        >
-                          Abrir
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-
-          {abaAtiva === "faturamento" && (
-            <div style={{ display: "grid", gap: 24 }}>
-              <div style={boxGrande}>
-                <h2 style={tituloSecao}>Faturamento</h2>
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 12,
-                    flexWrap: "wrap",
-                    alignItems: "end",
-                    marginBottom: 20,
-                  }}
-                >
-                  <div style={{ display: "grid", gap: 6 }}>
-                    <label>Data inicial</label>
-                    <input
-                      type="date"
-                      style={input}
-                      value={dataInicialFiltro}
-                      onChange={(e) => setDataInicialFiltro(e.target.value)}
-                    />
-                  </div>
-
-                  <div style={{ display: "grid", gap: 6 }}>
-                    <label>Data final</label>
-                    <input
-                      type="date"
-                      style={input}
-                      value={dataFinalFiltro}
-                      onChange={(e) => setDataFinalFiltro(e.target.value)}
-                    />
-                  </div>
-
-                  <button
-                    style={{ ...botao, background: "#6b7280" }}
-                    onClick={() => {
-                      setDataInicialFiltro("");
-                      setDataFinalFiltro("");
-                    }}
-                  >
-                    Limpar filtro
-                  </button>
-
-                  <button style={botao} onClick={exportarRelatorioCSV}>
-                    Exportar relatório
-                  </button>
-                </div>
-
-                <div style={linhaResumo}>
-                  <div style={cardResumo}>
-                    <strong>Faturamento</strong>
-                    <div style={valorResumo}>{formatarBRL(faturamentoFiltrado)}</div>
-                  </div>
-
-                  <div style={cardResumo}>
-                    <strong>Lucro estimado</strong>
-                    <div style={valorResumo}>{formatarBRL(lucroFiltrado)}</div>
-                  </div>
-
-                  <div style={cardResumo}>
-                    <strong>Peças vendidas</strong>
-                    <div style={valorResumo}>{quantidadeVendidaFiltrada}</div>
-                  </div>
-
-                  <div style={cardResumo}>
-                    <strong>Ticket médio</strong>
-                    <div style={valorResumo}>{formatarBRL(ticketMedioFiltrado)}</div>
-                  </div>
-                </div>
-
-                <div style={{ marginTop: 24 }}>
-                  <h3 style={{ marginBottom: 12 }}>Resumo por Live</h3>
-
-                  {resumoFaturamentoPorLive.length === 0 ? (
-                    <p>Nenhuma live encontrada no período.</p>
-                  ) : (
-                    <div style={{ display: "grid", gap: 10 }}>
-                      {resumoFaturamentoPorLive.map((live) => (
-                        <div key={live.id} style={cardCliente}>
-                          <strong>{live.nome}</strong>
-                          <div>Data: {live.data}</div>
-                          <div>Status: {live.status}</div>
-                          <div>Quantidade de vendas: {live.quantidade}</div>
-                          <div>Faturamento: {formatarBRL(live.faturamento)}</div>
-                          <div>Lucro: {formatarBRL(live.lucro)}</div>
-                          <div>Ticket médio: {formatarBRL(live.ticketMedio)}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {abaAtiva === "expedicao" && (
-            <div style={boxGrande}>
-              <h2 style={tituloSecao}>Expedição</h2>
-
-              {sacolinhasAgrupadas.length === 0 ? (
-                <p>Nenhuma sacolinha encontrada.</p>
-              ) : (
-                <div style={{ display: "grid", gap: 12 }}>
-                  {sacolinhasAgrupadas.map((s) => (
-                    <div key={s.id} style={cardCliente}>
-
-                      {/* LINHA PRINCIPAL */}
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          gap: 12,
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        {/* ESQUERDA */}
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <button
-                            onClick={() => toggleExpandirSacolinha(s.id)}
-                            style={{
-                              background: "transparent",
-                              border: "none",
-                              cursor: "pointer",
-                              fontSize: 18,
-                            }}
-                          >
-                            {sacolinhasExpandidas[s.id] ? "▼" : "▶"}
-                          </button>
-
-                          <strong>{s.cliente_nome}</strong>
-                        </div>
-
-                        {/* CENTRO */}
-                        <div style={{ fontSize: 14, color: "#555" }}>
-                          Live: {s.live_id}
-                        </div>
-
-                        {/* DIREITA */}
-                        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                          <span
-                            style={{
-                              padding: "4px 10px",
-                              borderRadius: 10,
-                              background: s.status === "enviada" ? "#15803d" : "#b45309",
-                              color: "#fff",
-                              fontSize: 12,
-                              fontWeight: "bold",
-                              textTransform: "capitalize",
-                            }}
-                          >
-                            {s.status}
-                          </span>
-
-                          <span>{s.quantidade} peça(s)</span>
-
-                          {s.status === "aberta" && (
-                            <button
-                              style={{ ...botaoPequeno, background: "#15803d" }}
-                              onClick={() => marcarSacolinhaComoEnviada(s.id)}
-                            >
-                              Marcar como enviada
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* EXPANDIDO */}
-                      {sacolinhasExpandidas[s.id] && (
-                        <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-                          {s.itens.map((item) => (
-                            <div key={item.id} style={itemCliente}>
-                              <div><strong>Peça:</strong> {item.nome_peca}</div>
-                              <div><strong>Código:</strong> {item.peca_id}</div>
-                              <div><strong>Valor:</strong> {formatarBRL(item.valor_venda)}</div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-        </div>
-      </main>
-
-      {previewAberto && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.6)",
-            zIndex: 9999,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 20,
-          }}
-        >
-          <div
-            style={{
-              width: "min(1000px, 95vw)",
-              maxHeight: "90vh",
-              background: "#fff",
-              borderRadius: 16,
-              overflow: "hidden",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            <div
-              className="no-print"
-              style={{
-                padding: 16,
-                borderBottom: "1px solid #ddd",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 12,
-                flexWrap: "wrap",
-              }}
-            >
-              <strong>
-                {tipoPreview === PREVIEW_TIPO.COMANDA
-                  ? "Preview da Comanda"
-                  : "Preview de Etiquetas"}
-              </strong>
-
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <button
-                  style={{ ...botao, background: "#2563eb" }}
-                  onClick={() => window.print()}
-                >
-                  Imprimir
-                </button>
-
-                <button
-                  style={{ ...botao, background: "#6b7280" }}
-                  onClick={fecharPreview}
-                >
-                  Fechar
-                </button>
-              </div>
-            </div>
-
-            <div
-              id="area-preview-impressao"
-              style={{
-                padding: 20,
-                overflow: "auto",
-                background: "#f8fafc",
-              }}
-            >
-              {tipoPreview === PREVIEW_TIPO.COMANDA && dadosPreview && (
-                <div
-                  className="comanda-print"
-                  style={{
-                    maxWidth: 780,
-                    margin: "0 auto",
-                    background: "#fff",
-                    padding: 24,
-                    borderRadius: 12,
-                    display: "grid",
-                    gap: 16,
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                  }}
-                >
-                  <div
-                    className="no-print"
-                    style={{ display: "flex", gap: 10, flexWrap: "wrap" }}
-                  >
-                    <button
-                      style={{ ...botaoPequeno, background: "#2563eb" }}
-                      onClick={() => copiarTextoComanda(dadosPreview)}
-                    >
-                      Copiar texto
-                    </button>
-
-                    <button
-                      style={{ ...botaoPequeno, background: "#16a34a" }}
-                      onClick={() => abrirWhatsappComanda(dadosPreview)}
-                    >
-                      Abrir WhatsApp
-                    </button>
-                  </div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      gap: 20,
-                      borderBottom: "2px solid #eef2f7",
-                      paddingBottom: 18,
-                    }}
-                  >
-                    <div>
-                      <h1 style={{ margin: 0, fontSize: 28 }}>Comanda da Cliente</h1>
-                      <div style={{ color: "#6b7280", marginTop: 6 }}>
-                        Brechó • Resumo da compra
-                      </div>
-                    </div>
-
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: 13, color: "#6b7280" }}>Data</div>
-                      <div>{new Date().toLocaleString("pt-BR")}</div>
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      background: "#f9fafb",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: 14,
-                      padding: 16,
-                      display: "grid",
-                      gridTemplateColumns: "repeat(4, 1fr)",
-                      gap: 12,
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontSize: 13, color: "#6b7280" }}>Cliente</div>
-                      <div style={{ fontWeight: "bold" }}>{dadosPreview.nome}</div>
-                    </div>
-
-                    <div>
-                      <div style={{ fontSize: 13, color: "#6b7280" }}>Status</div>
-                      <div
-                        style={{
-                          color: dadosPreview.pago ? "#15803d" : "#b45309",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {dadosPreview.pago ? "Pago" : "Pendente"}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div style={{ fontSize: 13, color: "#6b7280" }}>Peças</div>
-                      <div style={{ fontWeight: "bold" }}>{dadosPreview.pecas}</div>
-                    </div>
-
-                    <div>
-                      <div style={{ fontSize: 13, color: "#6b7280" }}>Total</div>
-                      <div style={{ fontWeight: "bold" }}>
-                        {formatarBRL(dadosPreview.total)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      background: "#f9fafb",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: 14,
-                      padding: 16,
-                    }}
-                  >
-                    <h3 style={{ marginTop: 0 }}>Itens</h3>
-
-                    <div style={{ display: "grid", gap: 10 }}>
-                      {dadosPreview.itens?.map((item, i) => (
-                        <div
-                          key={`${item.codigo}-${i}`}
-                          style={{
-                            border: "1px solid #e5e7eb",
-                            borderRadius: 10,
-                            padding: 12,
-                            background: "#fff",
-                          }}
-                        >
-                          <div><strong>{i + 1}. Peça:</strong> {item.nomePeca}</div>
-                          <div><strong>Código:</strong> {item.codigo}</div>
-                          <div><strong>Valor:</strong> {formatarBRL(item.valor)}</div>
-                          <div><strong>Data:</strong> {item.dataVenda || "-"}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      background: "#f9fafb",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: 14,
-                      padding: 16,
-                      lineHeight: 1.7,
-                    }}
-                  >
-                    <h3 style={{ marginTop: 0 }}>Pagamento</h3>
-
-                    <div>PIX para pagamento:</div>
-                    <div>
-                      Chave: <strong>CELULAR</strong> – <strong>41988921085</strong>
-                    </div>
-
-                    <br />
-
-                    <div>🏦 Banco: <strong>cloudwalk</strong></div>
-                    <div>👩‍💼 Nome: <strong>Kemilly Lima</strong></div>
-
-                    <br />
-
-                    <div>💳 Cartão: solicitar link (até 12x com taxas)</div>
-
-                    <br />
-
-                    <div>❌ Pode deixar em sacolinha se quiser</div>
-                    <div>🚚 Solicitar envio para calcular frete</div>
-                  </div>
-                </div>
-              )}
-
-              {tipoPreview === PREVIEW_TIPO.ETIQUETAS && Array.isArray(dadosPreview) && (
-                <div style={{ display: "grid", gap: 0 }}>
-                  {agruparEtiquetasEmPaginas(dadosPreview, 25).map((pagina, paginaIndex) => (
-                    <div
-                      key={paginaIndex}
-                      className="pagina-etiquetas"
-                      style={{
-                        width: "210mm",
-                        minHeight: "297mm",
-                        padding: "10mm 4mm 6mm 4mm",
-                        boxSizing: "border-box",
-                        background: "#fff",
-                        display: "grid",
-                        gridTemplateColumns: "repeat(5, 37mm)",
-                        gridAutoRows: "46mm",
-                        columnGap: "2mm",
-                        rowGap: "3mm",
-                        justifyContent: "center",
-                        alignContent: "start",
-                        pageBreakAfter: "always",
-                      }}
-                    >
-                      {pagina.map((peca) => (
-                        <EtiquetaPrint key={peca.id} peca={peca} />
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
+    <>
       <style>
         {`
     html, body {
@@ -2932,25 +1798,93 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       box-sizing: border-box;
     }
 
-    input:focus {
-      border-color: #1d8fe1;
-      box-shadow: 0 0 0 3px rgba(29,143,225,0.15);
-    }
-
-    button:hover {
-      transform: translateY(-2px) scale(1.01);
-      opacity: 0.98;
-    }
-
-    button:active {
-      transform: translateY(0);
-    }
-
     img {
-      transition: all 0.2s ease;
       max-width: 100%;
       height: auto;
     }
+
+    .layout-app,
+    .sidebar-app,
+    .painel-principal,
+    .grid-cadastro,
+    .grid-vendas,
+    .grid-clientes,
+    .linha-resumo,
+    .menu-lista,
+    .area-principal {
+      min-width: 0;
+    }
+
+    @media (max-width: 767px) {
+  .layout-app {
+    grid-template-columns: 1fr !important;
+    padding: 8px !important;
+    gap: 8px !important;
+  }
+
+  .sidebar-app {
+    width: 100% !important;
+    border-radius: 18px !important;
+    padding: 14px !important;
+  }
+
+  .painel-principal {
+    min-height: auto !important;
+    padding: 14px !important;
+    border-radius: 18px !important;
+  }
+
+  .area-principal {
+    width: 100% !important;
+  }
+
+  .grid-cadastro,
+  .grid-vendas,
+  .grid-clientes,
+  .linha-resumo {
+    grid-template-columns: 1fr !important;
+  }
+
+  .menu-lista {
+    display: grid !important;
+    gap: 8px !important;
+  }
+
+  .topo-mobile {
+    display: flex !important;
+  }
+
+  /* 🔥 MELHORIAS IMPORTANTES */
+  button {
+  font-size: 14px;
+}
+
+.painel-principal button,
+.grid-cadastro button,
+.grid-vendas button,
+.grid-clientes button,
+.linha-resumo button {
+  width: 100%;
+}
+
+.topo-mobile {
+  position: sticky !important;
+  top: 8px !important;
+}
+
+.topo-mobile strong {
+  font-size: 18px !important;
+}
+
+  input {
+    width: 100% !important;
+  }
+
+  /* evita quebra e scroll lateral */
+  * {
+    min-width: 0;
+  }
+}
 
     @media print {
       body * {
@@ -2965,7 +1899,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       #area-preview-impressao {
         position: absolute !important;
         left: 0 !important;
-        top: 1mm !important;
+        top: 0 !important;
         width: 210mm !important;
         min-height: 297mm !important;
         background: #fff !important;
@@ -2980,16 +1914,17 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
       .pagina-etiquetas {
         width: 210mm !important;
-        min-height: 297mm !important;
-        padding: 10mm 4mm 6mm 4mm !important;
+        height: 297mm !important;
+        padding: 6mm 4mm 4mm 4mm !important;
         box-sizing: border-box !important;
         display: grid !important;
         grid-template-columns: repeat(5, 37mm) !important;
-        grid-auto-rows: 46mm !important;
+        grid-template-rows: repeat(5, 46mm) !important;
         column-gap: 2mm !important;
-        row-gap: 3mm !important;
+        row-gap: 2mm !important;
         justify-content: center !important;
         align-content: start !important;
+        overflow: hidden !important;
         page-break-after: always !important;
         break-after: page !important;
       }
@@ -3001,10 +1936,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
       @page {
         size: A4 portrait;
-        margin-top: 1mm;
-        margin-left: 0;
-        margin-right: 0;
-        margin-bottom: 0;
+        margin: 0mm;
       }
 
       html,
@@ -3014,10 +1946,1975 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         margin: 0 !important;
         padding: 0 !important;
       }
+
+      .etiqueta {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
     }
   `}
       </style>
-    </div>
+
+      {isMobile && (
+        <div
+          className="topo-mobile"
+          style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 1000,
+            marginBottom: 8,
+            background: "rgba(255,255,255,0.95)",
+            backdropFilter: "blur(8px)",
+            borderRadius: 18,
+            padding: "12px 14px",
+            display: "grid",
+            gridTemplateColumns: "1fr auto",
+            alignItems: "center",
+            gap: 12,
+            boxShadow: "0 8px 20px rgba(0,0,0,0.10)",
+          }}
+        >
+          <div
+            style={{
+              minWidth: 0,
+              overflow: "hidden",
+            }}
+          >
+            <strong
+              style={{
+                display: "block",
+                fontSize: 18,
+                color: "#8f2745",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {abaAtiva === "cadastro" && "Cadastro"}
+              {abaAtiva === "pecas" && "Estoque"}
+              {abaAtiva === "vendas" && "Vendas"}
+              {abaAtiva === "lives" && "Lives"}
+              {abaAtiva === "clientes" && "Clientes"}
+              {abaAtiva === "faturamento" && "Faturamento"}
+              {abaAtiva === "expedicao" && "Expedição"}
+            </strong>
+          </div>
+
+          <button
+            onClick={() => setMenuMobileAberto((prev) => !prev)}
+            style={{
+              background: "#8f2745",
+              color: "#fff",
+              border: "none",
+              borderRadius: 12,
+              padding: "10px 14px",
+              fontWeight: "bold",
+              cursor: "pointer",
+              width: "auto",
+              minWidth: 96,
+              flexShrink: 0,
+            }}
+          >
+            {menuMobileAberto ? "Fechar" : "Menu"}
+          </button>
+        </div>
+      )}
+
+      <div className="layout-app" style={layoutApp}>
+        <aside
+          className="sidebar-app"
+          style={{
+            ...sidebar,
+            display: isMobile ? (menuMobileAberto ? "flex" : "none") : "flex",
+          }}
+        >
+          <div style={sidebarTopo}>
+            <div style={logoWrap}>
+              <img src={logoKchic} alt="K.chic" style={logoImagem} />
+            </div>
+
+            <div style={marcaBadge}>Painel de gestão</div>
+            <p style={sidebarSubtitulo}>
+              Estoque, vendas, clientes e lives em um só lugar.
+            </p>
+          </div>
+
+          <div className="menu-lista" style={menuLista}>
+            <button
+              style={abaAtiva === "cadastro" ? menuBotaoAtivo : menuBotao}
+              onClick={() => {
+                setAbaAtiva("cadastro");
+                if (isMobile) {
+                  setMenuMobileAberto(false);
+                }
+              }}
+            >
+              Cadastro
+            </button>
+
+            <button
+              style={abaAtiva === "pecas" ? menuBotaoAtivo : menuBotao}
+              onClick={() => {
+                setAbaAtiva("pecas");
+                if (isMobile) {
+                  setMenuMobileAberto(false);
+                }
+              }}
+            >
+              Estoque
+            </button>
+
+            <button
+              style={abaAtiva === "vendas" ? menuBotaoAtivo : menuBotao}
+              onClick={() => {
+                setAbaAtiva("vendas");
+                if (isMobile) {
+                  setMenuMobileAberto(false);
+                }
+              }}
+            >
+              Vendas
+            </button>
+
+            <button
+              style={abaAtiva === "lives" ? menuBotaoAtivo : menuBotao}
+              onClick={() => {
+                setAbaAtiva("lives");
+                if (isMobile) {
+                  setMenuMobileAberto(false);
+                }
+              }}
+            >
+              Lives
+            </button>
+
+            <button
+              style={abaAtiva === "clientes" ? menuBotaoAtivo : menuBotao}
+              onClick={() => {
+                setAbaAtiva("clientes");
+                if (isMobile) {
+                  setMenuMobileAberto(false);
+                }
+              }}
+            >
+              Clientes
+            </button>
+
+            <button
+              style={abaAtiva === "faturamento" ? menuBotaoAtivo : menuBotao}
+              onClick={() => {
+                setAbaAtiva("faturamento");
+                if (isMobile) {
+                  setMenuMobileAberto(false);
+                }
+              }}
+            >
+              Faturamento
+            </button>
+
+            <button
+              style={abaAtiva === "expedicao" ? menuBotaoAtivo : menuBotao}
+              onClick={() => {
+                setAbaAtiva("expedicao");
+                if (isMobile) {
+                  setMenuMobileAberto(false);
+                }
+              }}
+            >
+              Expedição
+            </button>
+          </div>
+
+          <div style={sidebarRodape}>
+            {carregando ? "Carregando dados..." : "Dados sincronizados com Supabase"}
+          </div>
+        </aside>
+
+        <main className="area-principal" style={areaPrincipal}>
+          <div className="painel-principal" style={painelPrincipal}>
+            <div style={topoPainel}>
+              <div>
+                <h2 style={topoPainelTitulo}>
+                  {abaAtiva === "cadastro" && "Cadastro de Peças"}
+                  {abaAtiva === "pecas" && "Estoque"}
+                  {abaAtiva === "vendas" && "Registro de Vendas"}
+                  {abaAtiva === "lives" && "Controle de Lives"}
+                  {abaAtiva === "clientes" && "Cadastro de Clientes"}
+                  {abaAtiva === "faturamento" && "Faturamento"}
+                  {abaAtiva === "expedicao" && "Expedição"}
+                </h2>
+
+                <p style={topoPainelTexto}>
+                  {carregando
+                    ? "Atualizando informações do sistema..."
+                    : "Painel operacional do brechó"}
+                </p>
+              </div>
+            </div>
+
+            {abaAtiva === "cadastro" && (
+              <div style={boxGrande}>
+                <h2 style={tituloSecao}>Cadastro de Peças</h2>
+
+                <div className="grid-cadastro" style={gridCadastro}>
+                  <div style={gridForm}>
+                    <input
+                      style={input}
+                      placeholder="Nome da peça"
+                      value={form.nome}
+                      onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                    />
+
+                    <input
+                      style={input}
+                      placeholder="Valor de compra"
+                      value={form.custo}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          custo: formatarMoeda(e.target.value),
+                        })
+                      }
+                    />
+
+                    <input
+                      style={input}
+                      placeholder="Valor de venda"
+                      value={form.venda}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          venda: formatarMoeda(e.target.value),
+                        })
+                      }
+                    />
+
+                    <input
+                      style={input}
+                      placeholder="Observações"
+                      value={form.obs}
+                      onChange={(e) => setForm({ ...form, obs: e.target.value })}
+                    />
+
+                    <div>
+                      <label style={{ display: "block", marginBottom: 8 }}>
+                        Foto da peça
+                      </label>
+                      <input type="file" accept="image/*" onChange={handleFoto} />
+                    </div>
+
+                    <button style={botao} onClick={adicionarPeca}>
+                      Adicionar peça
+                    </button>
+                  </div>
+
+                  <div style={previewBox}>
+                    <h3 style={{ marginTop: 0 }}>Pré-visualização</h3>
+                    {form.foto ? (
+                      <img
+                        src={form.foto}
+                        alt="Prévia"
+                        style={{
+                          width: "100%",
+                          maxWidth: 280,
+                          height: 280,
+                          objectFit: "cover",
+                          borderRadius: 12,
+                          border: "1px solid #ddd",
+                        }}
+                      />
+                    ) : (
+                      <div style={semFoto}>Sem foto selecionada</div>
+                    )}
+
+                    <div style={{ marginTop: 16 }}>
+                      <p style={{ margin: "6px 0" }}>
+                        <strong>Peça:</strong> {form.nome || "-"}
+                      </p>
+                      <p style={{ margin: "6px 0" }}>
+                        <strong>Compra:</strong> {form.custo || "R$ 0,00"}
+                      </p>
+                      <p style={{ margin: "6px 0" }}>
+                        <strong>Venda:</strong> {form.venda || "R$ 0,00"}
+                      </p>
+                      <p style={{ margin: "6px 0" }}>
+                        <strong>Obs:</strong> {form.obs || "-"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {abaAtiva === "pecas" && (
+              <div style={boxGrande}>
+                <div style={cabecalhoSecao}>
+                  <h2 style={tituloSecao}>Peças</h2>
+
+                  <div style={linhaResumoHorizontal}>
+                    <div style={cardResumo}>
+                      <strong>Total de peças</strong>
+                      <div style={valorResumo}>{totalPecas}</div>
+                    </div>
+
+                    <div style={cardResumo}>
+                      <strong>Disponíveis</strong>
+                      <div style={valorResumo}>{totalDisponiveis}</div>
+                    </div>
+
+                    <div style={cardResumo}>
+                      <strong>Vendidas</strong>
+                      <div style={valorResumo}>{totalVendidas}</div>
+                    </div>
+                  </div>
+
+
+                  <div style={linhaFiltros}>
+                    <input
+                      style={{ ...input, maxWidth: 340 }}
+                      placeholder="Buscar por peça, código ou cliente"
+                      value={buscaPeca}
+                      onChange={(e) => setBuscaPeca(e.target.value)}
+                    />
+
+                    <button
+                      style={
+                        filtroEstoque === "todas"
+                          ? { ...botaoPequeno, background: "#111827" }
+                          : { ...botaoPequeno, background: "#6b7280" }
+                      }
+                      onClick={() => setFiltroEstoque("todas")}
+                    >
+                      Todas
+                    </button>
+
+                    <button
+                      style={
+                        filtroEstoque === "disponiveis"
+                          ? { ...botaoPequeno, background: "#2563eb" }
+                          : { ...botaoPequeno, background: "#6b7280" }
+                      }
+                      onClick={() => setFiltroEstoque("disponiveis")}
+                    >
+                      Disponíveis
+                    </button>
+
+                    <button
+                      style={
+                        filtroEstoque === "vendidas"
+                          ? { ...botaoPequeno, background: "#15803d" }
+                          : { ...botaoPequeno, background: "#6b7280" }
+                      }
+                      onClick={() => setFiltroEstoque("vendidas")}
+                    >
+                      Vendidas
+                    </button>
+                  </div>
+                </div>
+
+                <div style={linhaAcoes}>
+                  <button
+                    style={{ ...botao, background: "#111827" }}
+                    onClick={marcarTodasEtiquetas}
+                  >
+                    Marcar todas
+                  </button>
+
+                  <button
+                    style={{ ...botao, background: "#6b7280" }}
+                    onClick={desmarcarTodasEtiquetas}
+                  >
+                    Desmarcar todas
+                  </button>
+
+                  <button
+                    style={{ ...botao, background: "#2563eb" }}
+                    onClick={imprimirEtiquetasSelecionadas}
+                  >
+                    Imprimir selecionadas
+                  </button>
+                </div>
+
+                {pecasFiltradas.length === 0 ? (
+                  <p>Nenhuma peça encontrada.</p>
+                ) : (
+                  <div style={gridPecas}>
+                    {pecasFiltradas.map((p, index) => {
+                      const codigo = String(p?.id || `sem-codigo-${index}`);
+                      const nome = p?.nome || "Sem nome";
+                      const custo = p?.custo ? p.custo : formatarBRL(0);
+                      const venda = p?.venda ? p.venda : formatarBRL(0);
+                      const obs = p?.obs || "-";
+                      const cadastro = p?.data_cadastro || "-";
+                      const clienteNome = p?.cliente || "";
+                      const vendido = !!p?.vendido;
+                      const dataVenda = p?.data_venda || "";
+
+                      return (
+                        <div key={codigo} style={cardPeca}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                            <input
+                              type="checkbox"
+                              checked={etiquetasSelecionadas.includes(codigo)}
+                              onChange={() => toggleEtiqueta(codigo)}
+                            />
+                            <span style={{ fontSize: 14, color: "#374151" }}>
+                              Selecionar etiqueta
+                            </span>
+                          </div>
+
+                          {p?.foto ? (
+                            <img
+                              src={p.foto}
+                              alt={nome}
+                              style={{
+                                width: "100%",
+                                height: 220,
+                                objectFit: "cover",
+                                borderRadius: 10,
+                                marginBottom: 12,
+                              }}
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                              }}
+                            />
+                          ) : null}
+
+                          <p style={{ margin: "0 0 8px 0", fontSize: 18 }}>
+                            <strong>{nome}</strong>
+                          </p>
+
+                          <p style={textoItem}>Código: {codigo}</p>
+                          <p style={textoItem}>Compra: {custo}</p>
+                          <p style={textoItem}>Venda: {venda}</p>
+                          <p style={textoItem}>Obs: {obs}</p>
+                          <p style={textoItem}>Cadastro: {cadastro}</p>
+                          <p style={textoItem}>
+                            Status:{" "}
+                            <strong style={{ color: vendido ? "green" : "#333" }}>
+                              {vendido ? `Vendido para ${clienteNome}` : "Disponível"}
+                            </strong>
+                          </p>
+
+                          {vendido && <p style={textoItem}>Data da venda: {dataVenda}</p>}
+
+                          <div style={{ marginTop: 12, marginBottom: 12 }}>
+                            <QRCodeCanvas value={codigo} size={120} />
+                          </div>
+
+                          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                            <button
+                              style={{ ...botao, background: "#2563eb" }}
+                              onClick={() => {
+                                abrirPreview(PREVIEW_TIPO.ETIQUETAS, [
+                                  {
+                                    ...p,
+                                    id: codigo,
+                                    nome,
+                                    venda,
+                                    obs,
+                                  },
+                                ]);
+                              }}
+                            >
+                              Imprimir etiqueta
+                            </button>
+
+                            {vendido ? (
+                              <button
+                                style={{ ...botao, background: "#b8860b" }}
+                                onClick={() => cancelarVenda(codigo)}
+                              >
+                                Cancelar venda
+                              </button>
+                            ) : null}
+
+                            <button
+                              style={{ ...botao, background: "#555" }}
+                              onClick={() => removerPeca(codigo)}
+                            >
+                              Remover peça
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {abaAtiva === "vendas" && (
+              <div style={{ display: "grid", gap: 24 }}>
+                <div style={boxGrande}>
+                  <h2 style={tituloSecao}>Registro de Vendas</h2>
+
+                  <div className="grid-vendas" style={gridVendas}>
+                    <div style={gridForm}>
+                      <input
+                        style={input}
+                        placeholder="Código da peça"
+                        value={vendaId}
+                        onChange={(e) => setVendaId(e.target.value)}
+                      />
+
+                      <input
+                        style={input}
+                        placeholder="Nome da cliente"
+                        value={cliente}
+                        onChange={(e) => setCliente(e.target.value)}
+                      />
+
+                      <input
+                        style={input}
+                        placeholder="Valor com desconto (opcional)"
+                        value={valorDesconto}
+                        onChange={(e) => setValorDesconto(formatarValorDescontoInput(e.target.value))}
+                        inputMode="numeric"
+                      />
+
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: isMobile ? "1fr" : "repeat(2, auto)",
+                          gap: 12,
+                          width: "100%",
+                        }}
+                      >
+                        <button
+                          style={{
+                            ...botao,
+                            opacity: salvandoVenda ? 0.7 : 1,
+                            cursor: salvandoVenda ? "not-allowed" : "pointer",
+                            width: "100%",
+                          }}
+                          onClick={registrarVenda}
+                          disabled={salvandoVenda}
+                        >
+                          {salvandoVenda ? "Salvando..." : "Registrar venda"}
+                        </button>
+
+                        <button
+                          style={{ ...botao, background: "#0f766e", width: "100%" }}
+                          onClick={() => setScannerAtivo((prev) => !prev)}
+                        >
+                          {scannerAtivo ? "Fechar scanner" : "Ler QR Code"}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        ...previewBox,
+                        minHeight: isMobile ? "auto" : undefined,
+                        padding: isMobile ? 16 : previewBox.padding,
+                      }}
+                    >
+                      <h3 style={{ marginTop: 0, marginBottom: 12 }}>Scanner</h3>
+
+                      {scannerAtivo ? (
+                        <div>
+                          <div
+                            id={scannerElementId}
+                            style={{
+                              width: "100%",
+                              minHeight: isMobile ? 220 : 280,
+                              overflow: "hidden",
+                              borderRadius: 12,
+                              border: "1px solid #ddd",
+                              padding: 8,
+                              background: "#fff",
+                              boxSizing: "border-box",
+                            }}
+                          />
+                          <p style={{ fontSize: 14, color: "#555", marginTop: 10 }}>
+                            Aponte a câmera para o QR Code da peça.
+                          </p>
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            ...semFoto,
+                            minHeight: isMobile ? 120 : 180,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          Scanner fechado
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={boxGrande}>
+                  <div style={cabecalhoSecao}>
+                    <h2 style={tituloSecao}>
+                      {liveEmVisualizacao
+                        ? `Resumo por Clientes - ${liveEmVisualizacao.nome}`
+                        : "Resumo por Clientes"}
+                    </h2>
+
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                      <input
+                        style={{ ...input, maxWidth: 320 }}
+                        placeholder="Buscar cliente"
+                        value={buscaCliente}
+                        onChange={(e) => setBuscaCliente(e.target.value)}
+                      />
+
+                      <button
+                        style={
+                          filtroPagamentoCliente === "todos"
+                            ? { ...botaoPequeno, background: "#111827" }
+                            : { ...botaoPequeno, background: "#6b7280" }
+                        }
+                        onClick={() => setFiltroPagamentoCliente("todos")}
+                      >
+                        Todos
+                      </button>
+
+                      <button
+                        style={
+                          filtroPagamentoCliente === "pendentes"
+                            ? { ...botaoPequeno, background: "#b45309" }
+                            : { ...botaoPequeno, background: "#6b7280" }
+                        }
+                        onClick={() => setFiltroPagamentoCliente("pendentes")}
+                      >
+                        Pendentes
+                      </button>
+
+                      <button
+                        style={
+                          filtroPagamentoCliente === "pagos"
+                            ? { ...botaoPequeno, background: "#15803d" }
+                            : { ...botaoPequeno, background: "#6b7280" }
+                        }
+                        onClick={() => setFiltroPagamentoCliente("pagos")}
+                      >
+                        Pagos
+                      </button>
+                    </div>
+                  </div>
+
+                  {liveEmVisualizacao && (
+                    <div className="linha-resumo" style={linhaResumo}>
+                      <div style={cardResumo}>
+                        <strong>Peças da live</strong>
+                        <div style={valorResumo}>{totalPecasLive}</div>
+                      </div>
+
+                      <div style={cardResumo}>
+                        <strong>Faturamento da live</strong>
+                        <div style={valorResumo}>{formatarBRL(faturamentoLive)}</div>
+                      </div>
+
+                      <div style={cardResumo}>
+                        <strong>Lucro estimado da live</strong>
+                        <div style={valorResumo}>{formatarBRL(lucroEstimadoLive)}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {!liveEmVisualizacao ? (
+                    <p>Inicie uma live ou abra uma live do histórico para visualizar o resumo por clientes.</p>
+                  ) : clientesFiltrados.length === 0 ? (
+                    <p>Nenhuma cliente registrada nessa live ainda.</p>
+                  ) : (
+                    <div style={{ display: "grid", gap: 14 }}>
+                      {clientesFiltrados.map((c) => (
+                        <div key={c.nome} style={cardCliente}>
+                          <div
+                            style={
+                              isMobile
+                                ? {
+                                  display: "grid",
+                                  gap: 12,
+                                  alignItems: "start",
+                                }
+                                : {
+                                  display: "grid",
+                                  gridTemplateColumns:
+                                    "minmax(220px, 1.2fr) minmax(160px, 1fr) 140px 120px",
+                                  gap: 16,
+                                  alignItems: "center",
+                                }
+                            }
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                minWidth: 0,
+                                overflow: "hidden",
+                              }}
+                            >
+                              <button
+                                onClick={() => toggleExpandirCliente(c.nome)}
+                                style={{
+                                  background: "transparent",
+                                  border: "none",
+                                  cursor: "pointer",
+                                  fontSize: 18,
+                                  padding: "4px 6px",
+                                  lineHeight: 1,
+                                  flexShrink: 0,
+                                  width: "auto",
+                                  minWidth: "auto",
+                                }}
+                              >
+                                {clientesExpandidos[c.nome] ? "▼" : "▶"}
+                              </button>
+
+                              <strong
+                                style={{
+                                  fontSize: 18,
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                }}
+                                title={c.nome}
+                              >
+                                {c.nome}
+                              </strong>
+                            </div>
+
+                            <div
+                              style={
+                                isMobile
+                                  ? {
+                                    display: "grid",
+                                    gridTemplateColumns: "1fr",
+                                    gap: 8,
+                                  }
+                                  : {
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "flex-start",
+                                    gap: 8,
+                                    flexWrap: "nowrap",
+                                    whiteSpace: "nowrap",
+                                    paddingLeft: 8,
+                                  }
+                              }
+                            >
+                              <button
+                                style={{
+                                  ...botaoPequeno,
+                                  background: "#2563eb",
+                                  width: isMobile ? "100%" : "auto",
+                                }}
+                                onClick={() => exportarClienteCSV(c)}
+                              >
+                                CSV
+                              </button>
+
+                              <button
+                                style={{
+                                  ...botaoPequeno,
+                                  background: "#111827",
+                                  width: isMobile ? "100%" : "auto",
+                                }}
+                                onClick={() => gerarComanda(c)}
+                              >
+                                Comanda
+                              </button>
+
+                              <button
+                                style={{
+                                  ...botaoPequeno,
+                                  background: c.pago ? "#15803d" : "#b45309",
+                                  width: isMobile ? "100%" : "auto",
+                                }}
+                                onClick={() => togglePagamentoClienteLive(c.nome, c.pago)}
+                              >
+                                {c.pago ? "Pago" : "Pendente"}
+                              </button>
+                            </div>
+
+                            <div
+                              className="expedicao-info-direita"
+                              style={
+                                isMobile
+                                  ? {
+                                    display: "grid",
+                                    gap: 4,
+                                    textAlign: "left",
+                                  }
+                                  : {
+                                    display: "grid",
+                                    gridTemplateColumns: "90px 90px",
+                                    justifyContent: "start",
+                                    alignItems: "center",
+                                    columnGap: 12,
+                                    textAlign: "right",
+                                    whiteSpace: "nowrap",
+                                    paddingLeft: 10,
+                                  }
+                              }
+                            >
+                              <span>{c.pecas} peça(s)</span>
+                              <strong>{formatarBRL(c.total)}</strong>
+                            </div>
+                          </div>
+
+                          {clientesExpandidos[c.nome] && (
+                            <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+                              {c.itens.map((item, index) => (
+                                <div key={`${item.codigo}-${index}`} style={itemCliente}>
+                                  <div><strong>Peça:</strong> {item.nomePeca}</div>
+                                  <div><strong>Código:</strong> {item.codigo}</div>
+                                  <div><strong>Valor:</strong> {formatarBRL(item.valor)}</div>
+                                  <div><strong>Vendido em:</strong> {item.dataVenda || "-"}</div>
+
+                                  <div style={{ marginTop: 8 }}>
+                                    <button
+                                      style={{
+                                        ...botaoPequeno,
+                                        background: "#b91c1c",
+                                        width: isMobile ? "100%" : "auto",
+                                      }}
+                                      onClick={() => cancelarVenda(item.codigo)}
+                                    >
+                                      Cancelar venda
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {abaAtiva === "clientes" && (
+              <div style={boxGrande}>
+                <h2 style={tituloSecao}>Cadastro de Clientes</h2>
+
+                <div
+                  className="grid-clientes"
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1.1fr 0.9fr",
+                    gap: 20,
+                    alignItems: "start",
+                  }}
+                >
+                  <div style={{ display: "grid", gap: 10, alignContent: "start" }}>
+                    <input
+                      style={inputCliente}
+                      placeholder="Nome completo"
+                      value={formCliente.nome}
+                      onChange={(e) => setFormCliente({ ...formCliente, nome: e.target.value })}
+                    />
+
+                    <input
+                      style={inputCliente}
+                      placeholder="CPF"
+                      value={formCliente.cpf}
+                      onChange={(e) =>
+                        setFormCliente({ ...formCliente, cpf: formatarCPF(e.target.value) })
+                      }
+                    />
+
+                    <input
+                      style={inputCliente}
+                      placeholder="Telefone com DDD"
+                      value={formCliente.telefone}
+                      onChange={(e) =>
+                        setFormCliente({
+                          ...formCliente,
+                          telefone: formatarTelefone(e.target.value),
+                        })
+                      }
+                    />
+
+                    <input
+                      style={inputCliente}
+                      placeholder="CEP"
+                      value={formCliente.cep}
+                      onChange={(e) => {
+                        const cepFormatado = formatarCEP(e.target.value);
+                        setFormCliente({ ...formCliente, cep: cepFormatado });
+                        buscarCep(cepFormatado);
+                      }}
+                    />
+
+                    <input
+                      style={inputCliente}
+                      placeholder="Endereço"
+                      value={formCliente.endereco}
+                      onChange={(e) =>
+                        setFormCliente({ ...formCliente, endereco: e.target.value })
+                      }
+                    />
+
+                    <input
+                      style={inputCliente}
+                      placeholder="Número"
+                      value={formCliente.numero}
+                      onChange={(e) =>
+                        setFormCliente({ ...formCliente, numero: e.target.value })
+                      }
+                    />
+
+                    <input
+                      style={inputCliente}
+                      placeholder="Complemento"
+                      value={formCliente.complemento}
+                      onChange={(e) =>
+                        setFormCliente({ ...formCliente, complemento: e.target.value })
+                      }
+                    />
+
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <button style={botao} onClick={salvarCliente}>
+                        {clienteEditandoId ? "Atualizar Cliente" : "Salvar Cliente"}
+                      </button>
+
+                      {clienteEditandoId && (
+                        <button
+                          style={{ ...botao, background: "#6b7280" }}
+                          onClick={cancelarEdicaoCliente}
+                        >
+                          Cancelar edição
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gap: 10, alignContent: "start" }}>
+                    {clientes.length === 0 ? (
+                      <p>Nenhum cliente cadastrado ainda.</p>
+                    ) : (
+                      clientes.map((c) => (
+                        <div key={c.id} style={cardCliente}>
+                          <strong>{c.nome}</strong>
+                          <div><strong>CPF:</strong> {c.cpf ? formatarCPF(c.cpf) : "-"}</div>
+                          <div>
+                            <strong>Telefone:</strong> {c.telefone ? formatarTelefone(c.telefone) : "-"}
+                          </div>
+                          <div><strong>CEP:</strong> {c.cep || "-"}</div>
+                          <div><strong>Endereço:</strong> {c.endereco || "-"}</div>
+                          <div>
+                            <strong>Nº:</strong> {c.numero || "-"}
+                            {c.complemento ? ` - ${c.complemento}` : ""}
+                          </div>
+
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+                            <button
+                              style={{ ...botaoPequeno, background: "#2563eb" }}
+                              onClick={() => editarCliente(c)}
+                            >
+                              Editar
+                            </button>
+
+                            <button
+                              style={{ ...botaoPequeno, background: "#111827" }}
+                              onClick={() => compartilharCliente(c)}
+                            >
+                              Compartilhar
+                            </button>
+
+                            <button
+                              style={{ ...botaoPequeno, background: "#b91c1c" }}
+                              onClick={() => excluirCliente(c.id)}
+                            >
+                              Excluir
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {abaAtiva === "lives" && (
+              <div style={boxGrande}>
+                <h2 style={tituloSecao}>Controle de Lives</h2>
+
+                {!liveAtual ? (
+                  <div style={{ display: "grid", gap: 10, maxWidth: 400 }}>
+                    <input
+                      style={input}
+                      placeholder="Nome da live (ex: Live 20/03 Noite)"
+                      value={nomeNovaLive}
+                      onChange={(e) => setNomeNovaLive(e.target.value)}
+                    />
+
+                    <button style={botao} onClick={iniciarLive}>
+                      Iniciar Live
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gap: 16 }}>
+                    <div>
+                      <strong>Live ativa: {liveAtual.nome}</strong>
+                      <div>Iniciada em: {liveAtual.hora_inicio}</div>
+                    </div>
+
+                    <button
+                      style={{ ...botao, background: "#b91c1c", maxWidth: 220 }}
+                      onClick={encerrarLive}
+                    >
+                      Encerrar Live
+                    </button>
+
+                    <div style={{ marginTop: 10, display: "grid", gap: 12 }}>
+                      <div className="linha-resumo" style={linhaResumo}>
+                        <div style={cardResumo}>
+                          <strong>Peças na live</strong>
+                          <div style={valorResumo}>{vendasLive.length}</div>
+                        </div>
+
+                        <div style={cardResumo}>
+                          <strong>Faturamento</strong>
+                          <div style={valorResumo}>
+                            {formatarBRL(
+                              vendasLive.reduce(
+                                (acc, v) => acc + Number(v.valor_venda || 0),
+                                0
+                              )
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={boxGrande}>
+                        <h3 style={{ marginTop: 0 }}>
+                          Clientes da live {liveEmVisualizacao ? `- ${liveEmVisualizacao.nome}` : ""}
+                        </h3>
+
+                        {resumoClientesLive.length === 0 ? (
+                          <p>Nenhuma venda nessa live ainda.</p>
+                        ) : (
+                          <div style={{ display: "grid", gap: 10 }}>
+                            {resumoClientesLive.map((c) => (
+                              <div key={c.nome} style={cardCliente}>
+                                <strong>{c.nome}</strong>
+                                <div>{c.pecas} peça(s)</div>
+                                <div>{formatarBRL(c.total)}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ marginTop: 20 }}>
+                  <h3 style={{ marginBottom: 12 }}>Histórico de Lives</h3>
+
+                  {listaLives.length === 0 ? (
+                    <p>Nenhuma live cadastrada ainda.</p>
+                  ) : (
+                    <div style={{ display: "grid", gap: 10 }}>
+                      {listaLives.map((live) => (
+                        <div
+                          key={live.id}
+                          style={{
+                            ...cardCliente,
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 12,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <div>
+                            <strong>{live.nome}</strong>
+                            <div>Data: {live.data_live || "-"}</div>
+                            <div>Status: {live.status || "-"}</div>
+                          </div>
+
+                          <button
+                            style={{ ...botaoPequeno, background: "#2563eb" }}
+                            onClick={async () => {
+                              await abrirLiveHistorica(live);
+                              setAbaAtiva("vendas");
+                            }}
+                          >
+                            Abrir
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+
+            {abaAtiva === "faturamento" && (
+              <div style={{ display: "grid", gap: 24 }}>
+                <div style={boxGrande}>
+                  <h2 style={tituloSecao}>Faturamento</h2>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 12,
+                      flexWrap: "wrap",
+                      alignItems: "end",
+                      marginBottom: 20,
+                    }}
+                  >
+                    <div style={{ display: "grid", gap: 6 }}>
+                      <label>Data inicial</label>
+                      <input
+                        type="date"
+                        style={input}
+                        value={dataInicialFiltro}
+                        onChange={(e) => setDataInicialFiltro(e.target.value)}
+                      />
+                    </div>
+
+                    <div style={{ display: "grid", gap: 6 }}>
+                      <label>Data final</label>
+                      <input
+                        type="date"
+                        style={input}
+                        value={dataFinalFiltro}
+                        onChange={(e) => setDataFinalFiltro(e.target.value)}
+                      />
+                    </div>
+
+                    <button
+                      style={{ ...botao, background: "#6b7280" }}
+                      onClick={() => {
+                        setDataInicialFiltro("");
+                        setDataFinalFiltro("");
+                      }}
+                    >
+                      Limpar filtro
+                    </button>
+
+                    <button style={botao} onClick={exportarRelatorioCSV}>
+                      Exportar relatório
+                    </button>
+                  </div>
+
+                  <div className="linha-resumo" style={linhaResumo}>
+                    <div style={cardResumo}>
+                      <strong>Faturamento</strong>
+                      <div style={valorResumo}>{formatarBRL(faturamentoFiltrado)}</div>
+                    </div>
+
+                    <div style={cardResumo}>
+                      <strong>Lucro estimado</strong>
+                      <div style={valorResumo}>{formatarBRL(lucroFiltrado)}</div>
+                    </div>
+
+                    <div style={cardResumo}>
+                      <strong>Peças vendidas</strong>
+                      <div style={valorResumo}>{quantidadeVendidaFiltrada}</div>
+                    </div>
+
+                    <div style={cardResumo}>
+                      <strong>Ticket médio</strong>
+                      <div style={valorResumo}>{formatarBRL(ticketMedioFiltrado)}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: 24 }}>
+                    <h3 style={{ marginBottom: 12 }}>Resumo por Live</h3>
+
+                    {resumoFaturamentoPorLive.length === 0 ? (
+                      <p>Nenhuma live encontrada no período.</p>
+                    ) : (
+                      <div style={{ display: "grid", gap: 10 }}>
+                        {resumoFaturamentoPorLive.map((live) => (
+                          <div key={live.id} style={cardCliente}>
+                            <strong>{live.nome}</strong>
+                            <div>Data: {live.data}</div>
+                            <div>Status: {live.status}</div>
+                            <div>Quantidade de vendas: {live.quantidade}</div>
+                            <div>Faturamento: {formatarBRL(live.faturamento)}</div>
+                            <div>Lucro: {formatarBRL(live.lucro)}</div>
+                            <div>Ticket médio: {formatarBRL(live.ticketMedio)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {abaAtiva === "expedicao" && (
+              <div style={boxGrande}>
+                <h2 style={tituloSecao}>Expedição</h2>
+
+                {sacolinhasAgrupadas.length === 0 ? (
+                  <p>Nenhuma sacolinha encontrada.</p>
+                ) : (
+                  <div style={{ display: "grid", gap: 20 }}>
+                    <div>
+                      <div
+                        onClick={() => setMostrarAbertas((prev) => !prev)}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          cursor: "pointer",
+                          marginBottom: 12,
+                        }}
+                      >
+                        <h3 style={{ margin: 0 }}>Sacolinhas abertas</h3>
+                        <span>{mostrarAbertas ? "▼" : "▶"}</span>
+                      </div>
+
+                      {mostrarAbertas &&
+                        (sacolinhasAbertas.length === 0 ? (
+                          <p>Nenhuma sacolinha aberta.</p>
+                        ) : (
+                          <div style={{ display: "grid", gap: 12 }}>
+                            {sacolinhasAbertas.map((s) => (
+                              <div key={s.id} style={cardCliente}>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    gap: 12,
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <button
+                                      onClick={() => toggleExpandirSacolinha(s.id)}
+                                      style={{
+                                        background: "transparent",
+                                        border: "none",
+                                        cursor: "pointer",
+                                        fontSize: 18,
+                                        width: "auto",
+                                        minWidth: "auto",
+                                        padding: "4px 6px",
+                                        flexShrink: 0,
+                                      }}
+                                    >
+                                      {sacolinhasExpandidas[s.id] ? "▼" : "▶"}
+                                    </button>
+
+                                    <strong>{s.cliente_nome}</strong>
+                                  </div>
+
+                                  <div style={{ fontSize: 14, color: "#555" }}>
+                                    Live: {listaLives.find((l) => String(l.id) === String(s.live_id))?.nome || s.live_id}
+                                  </div>
+
+                                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                                    <span
+                                      style={{
+                                        padding: "4px 10px",
+                                        borderRadius: 10,
+                                        background:
+                                          s.status === "aberta"
+                                            ? "#b45309"
+                                            : s.status === "separada"
+                                              ? "#f59e0b"
+                                              : "#15803d",
+                                        color: "#fff",
+                                        fontSize: 12,
+                                        fontWeight: "bold",
+                                        textTransform: "capitalize",
+                                      }}
+                                    >
+                                      {s.status}
+                                    </span>
+
+                                    <span>{s.quantidade} peça(s)</span>
+
+                                    {sacolinhaEstaVencida(s) && (
+                                      <span
+                                        style={{
+                                          padding: "4px 10px",
+                                          borderRadius: 10,
+                                          background: "#dc2626",
+                                          color: "#fff",
+                                          fontSize: 12,
+                                          fontWeight: "bold",
+                                          textTransform: "capitalize",
+                                        }}
+                                      >
+                                        vencida
+                                      </span>
+                                    )}
+
+                                    <button
+                                      style={{ ...botaoPequeno, background: "#f59e0b" }}
+                                      onClick={() => marcarSacolinhaComoSeparada(s.id)}
+                                    >
+                                      Marcar como separada
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {sacolinhasExpandidas[s.id] && (
+                                  <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                                    {s.itens.map((item) => (
+                                      <div key={item.id} style={itemCliente}>
+                                        <div><strong>Peça:</strong> {item.nome_peca}</div>
+                                        <div><strong>Código:</strong> {item.peca_id}</div>
+                                        <div><strong>Valor:</strong> {formatarBRL(item.valor_venda)}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                    </div>
+
+                    <div>
+                      <div
+                        onClick={() => setMostrarSeparadas((prev) => !prev)}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          cursor: "pointer",
+                          marginBottom: 12,
+                        }}
+                      >
+                        <h3 style={{ margin: 0 }}>Separadas</h3>
+                        <span>{mostrarSeparadas ? "▼" : "▶"}</span>
+                      </div>
+
+                      {mostrarSeparadas &&
+                        (sacolinhasSeparadas.length === 0 ? (
+                          <p>Nenhuma sacolinha separada.</p>
+                        ) : (
+                          <div style={{ display: "grid", gap: 12 }}>
+                            {sacolinhasSeparadas.map((s) => (
+                              <div key={s.id} style={cardCliente}>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    gap: 12,
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <button
+                                      onClick={() => toggleExpandirSacolinha(s.id)}
+                                      style={{
+                                        background: "transparent",
+                                        border: "none",
+                                        cursor: "pointer",
+                                        fontSize: 18,
+                                        width: "auto",
+                                        minWidth: "auto",
+                                        padding: "4px 6px",
+                                        flexShrink: 0,
+                                      }}
+                                    >
+                                      {sacolinhasExpandidas[s.id] ? "▼" : "▶"}
+                                    </button>
+
+                                    <strong>{s.cliente_nome}</strong>
+                                  </div>
+
+                                  <div style={{ fontSize: 14, color: "#555" }}>
+                                    Live: {listaLives.find((l) => String(l.id) === String(s.live_id))?.nome || s.live_id}
+                                  </div>
+
+                                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                                    <span
+                                      style={{
+                                        padding: "4px 10px",
+                                        borderRadius: 10,
+                                        background:
+                                          s.status === "aberta"
+                                            ? "#b45309"
+                                            : s.status === "separada"
+                                              ? "#f59e0b"
+                                              : "#15803d",
+                                        color: "#fff",
+                                        fontSize: 12,
+                                        fontWeight: "bold",
+                                        textTransform: "capitalize",
+                                      }}
+                                    >
+                                      {s.status}
+                                    </span>
+
+                                    <span>{s.quantidade} peça(s)</span>
+
+                                    {sacolinhaEstaVencida(s) && (
+                                      <span
+                                        style={{
+                                          padding: "4px 10px",
+                                          borderRadius: 10,
+                                          background: "#dc2626",
+                                          color: "#fff",
+                                          fontSize: 12,
+                                          fontWeight: "bold",
+                                          textTransform: "capitalize",
+                                        }}
+                                      >
+                                        vencida
+                                      </span>
+                                    )}
+
+                                    <>
+                                      <button
+                                        style={{
+                                          ...botaoPequeno,
+                                          background: sacolinhaEstaPaga(s) ? "#15803d" : "#9ca3af",
+                                          cursor: sacolinhaEstaPaga(s) ? "pointer" : "not-allowed",
+                                        }}
+                                        onClick={() => {
+                                          if (!sacolinhaEstaPaga(s)) return;
+                                          marcarSacolinhaComoEnviada(s.id, s);
+                                        }}
+                                      >
+                                        {sacolinhaEstaPaga(s) ? "Marcar como enviada" : "Aguardando pagamento"}
+                                      </button>
+
+                                      <span
+                                        style={{
+                                          padding: "4px 10px",
+                                          borderRadius: 10,
+                                          background: sacolinhaEstaPaga(s) ? "#15803d" : "#dc2626",
+                                          color: "#fff",
+                                          fontSize: 12,
+                                          fontWeight: "bold",
+                                          textTransform: "capitalize",
+                                        }}
+                                      >
+                                        {sacolinhaEstaPaga(s) ? "pago" : "pendente"}
+                                      </span>
+                                    </>
+                                  </div>
+                                </div>
+
+                                {sacolinhasExpandidas[s.id] && (
+                                  <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                                    {s.itens.map((item) => (
+                                      <div key={item.id} style={itemCliente}>
+                                        <div><strong>Peça:</strong> {item.nome_peca}</div>
+                                        <div><strong>Código:</strong> {item.peca_id}</div>
+                                        <div><strong>Valor:</strong> {formatarBRL(item.valor_venda)}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                    </div>
+
+                    <div>
+                      <div
+                        onClick={() => setMostrarEnviadas((prev) => !prev)}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          cursor: "pointer",
+                          marginBottom: 12,
+                        }}
+                      >
+                        <h3 style={{ margin: 0 }}>Enviadas</h3>
+                        <span>{mostrarEnviadas ? "▼" : "▶"}</span>
+                      </div>
+
+                      {mostrarEnviadas &&
+                        (sacolinhasEnviadas.length === 0 ? (
+                          <p>Nenhuma sacolinha enviada ainda.</p>
+                        ) : (
+                          <div style={{ display: "grid", gap: 12 }}>
+                            {sacolinhasEnviadas.map((s) => (
+                              <div key={s.id} style={{ ...cardCliente, opacity: 0.8 }}>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    gap: 12,
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <button
+                                      onClick={() => toggleExpandirSacolinha(s.id)}
+                                      style={{
+                                        background: "transparent",
+                                        border: "none",
+                                        cursor: "pointer",
+                                        fontSize: 18,
+                                        width: "auto",
+                                        minWidth: "auto",
+                                        padding: "4px 6px",
+                                        flexShrink: 0,
+                                      }}
+                                    >
+                                      {sacolinhasExpandidas[s.id] ? "▼" : "▶"}
+                                    </button>
+
+                                    <strong>{s.cliente_nome}</strong>
+                                  </div>
+
+                                  <div style={{ fontSize: 14, color: "#555" }}>
+                                    Live: {listaLives.find((l) => String(l.id) === String(s.live_id))?.nome || s.live_id}
+                                  </div>
+
+                                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                                    <span
+                                      style={{
+                                        padding: "4px 10px",
+                                        borderRadius: 10,
+                                        background:
+                                          s.status === "aberta"
+                                            ? "#b45309"
+                                            : s.status === "separada"
+                                              ? "#f59e0b"
+                                              : "#15803d",
+                                        color: "#fff",
+                                        fontSize: 12,
+                                        fontWeight: "bold",
+                                        textTransform: "capitalize",
+                                      }}
+                                    >
+                                      {s.status}
+                                    </span>
+
+                                    <span>{s.quantidade} peça(s)</span>
+
+                                    {sacolinhaEstaVencida(s) && (
+                                      <span
+                                        style={{
+                                          padding: "4px 10px",
+                                          borderRadius: 10,
+                                          background: "#dc2626",
+                                          color: "#fff",
+                                          fontSize: 12,
+                                          fontWeight: "bold",
+                                          textTransform: "capitalize",
+                                        }}
+                                      >
+                                        vencida
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {sacolinhasExpandidas[s.id] && (
+                                  <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                                    {s.itens.map((item) => (
+                                      <div key={item.id} style={itemCliente}>
+                                        <div><strong>Peça:</strong> {item.nome_peca}</div>
+                                        <div><strong>Código:</strong> {item.peca_id}</div>
+                                        <div><strong>Valor:</strong> {formatarBRL(item.valor_venda)}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+          </div>
+        </main>
+
+        {previewAberto && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.6)",
+              zIndex: 9999,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 20,
+            }}
+          >
+            <div
+              style={{
+                width: "min(1000px, 95vw)",
+                maxHeight: "90vh",
+                background: "#fff",
+                borderRadius: 16,
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              <div
+                className="no-print"
+                style={{
+                  padding: 16,
+                  borderBottom: "1px solid #ddd",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 12,
+                  flexWrap: "wrap",
+                }}
+              >
+                <strong>
+                  {tipoPreview === PREVIEW_TIPO.COMANDA
+                    ? "Preview da Comanda"
+                    : "Preview de Etiquetas"}
+                </strong>
+
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <button
+                    style={{ ...botao, background: "#2563eb" }}
+                    onClick={() => window.print()}
+                  >
+                    Imprimir
+                  </button>
+
+                  <button
+                    style={{ ...botao, background: "#6b7280" }}
+                    onClick={fecharPreview}
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+
+              <div
+                id="area-preview-impressao"
+                style={{
+                  padding: 20,
+                  overflow: "auto",
+                  background: "#f8fafc",
+                }}
+              >
+                {tipoPreview === PREVIEW_TIPO.COMANDA && dadosPreview && (
+                  <div
+                    className="comanda-print"
+                    style={{
+                      maxWidth: 780,
+                      margin: "0 auto",
+                      background: "#fff",
+                      padding: 24,
+                      borderRadius: 12,
+                      display: "grid",
+                      gap: 16,
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                    }}
+                  >
+                    <div
+                      className="no-print"
+                      style={{ display: "flex", gap: 10, flexWrap: "wrap" }}
+                    >
+                      <button
+                        style={{ ...botaoPequeno, background: "#2563eb" }}
+                        onClick={() => copiarTextoComanda(dadosPreview)}
+                      >
+                        Copiar texto
+                      </button>
+
+                      <button
+                        style={{ ...botaoPequeno, background: "#16a34a" }}
+                        onClick={() => abrirWhatsappComanda(dadosPreview)}
+                      >
+                        Abrir WhatsApp
+                      </button>
+                    </div>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        gap: 20,
+                        borderBottom: "2px solid #eef2f7",
+                        paddingBottom: 18,
+                      }}
+                    >
+                      <div>
+                        <h1 style={{ margin: 0, fontSize: 28 }}>Comanda da Cliente</h1>
+                        <div style={{ color: "#6b7280", marginTop: 6 }}>
+                          Brechó • Resumo da compra
+                        </div>
+                      </div>
+
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: 13, color: "#6b7280" }}>Data</div>
+                        <div>{new Date().toLocaleString("pt-BR")}</div>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        background: "#f9fafb",
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 14,
+                        padding: 16,
+                        display: "grid",
+                        gridTemplateColumns: "repeat(4, 1fr)",
+                        gap: 12,
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: 13, color: "#6b7280" }}>Cliente</div>
+                        <div style={{ fontWeight: "bold" }}>{dadosPreview.nome}</div>
+                      </div>
+
+                      <div>
+                        <div style={{ fontSize: 13, color: "#6b7280" }}>Status</div>
+                        <div
+                          style={{
+                            color: dadosPreview.pago ? "#15803d" : "#b45309",
+                            fontWeight: "bold",
+                          }}
+                        >
+                          {dadosPreview.pago ? "Pago" : "Pendente"}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ fontSize: 13, color: "#6b7280" }}>Peças</div>
+                        <div style={{ fontWeight: "bold" }}>{dadosPreview.pecas}</div>
+                      </div>
+
+                      <div>
+                        <div style={{ fontSize: 13, color: "#6b7280" }}>Total</div>
+                        <div style={{ fontWeight: "bold" }}>
+                          {formatarBRL(dadosPreview.total)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        background: "#f9fafb",
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 14,
+                        padding: 16,
+                      }}
+                    >
+                      <h3 style={{ marginTop: 0 }}>Itens</h3>
+
+                      <div style={{ display: "grid", gap: 10 }}>
+                        {dadosPreview.itens?.map((item, i) => (
+                          <div
+                            key={`${item.codigo}-${i}`}
+                            style={{
+                              border: "1px solid #e5e7eb",
+                              borderRadius: 10,
+                              padding: 12,
+                              background: "#fff",
+                            }}
+                          >
+                            <div><strong>{i + 1}. Peça:</strong> {item.nomePeca}</div>
+                            <div><strong>Código:</strong> {item.codigo}</div>
+                            <div><strong>Valor:</strong> {formatarBRL(item.valor)}</div>
+                            <div><strong>Data:</strong> {item.dataVenda || "-"}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        background: "#f9fafb",
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 14,
+                        padding: 16,
+                        lineHeight: 1.7,
+                      }}
+                    >
+                      <h3 style={{ marginTop: 0 }}>Pagamento</h3>
+
+                      <div>PIX para pagamento:</div>
+                      <div>
+                        Chave: <strong>CELULAR</strong> – <strong>41988921085</strong>
+                      </div>
+
+                      <br />
+
+                      <div>🏦 Banco: <strong>cloudwalk</strong></div>
+                      <div>👩‍💼 Nome: <strong>Kemilly Lima</strong></div>
+
+                      <br />
+
+                      <div>💳 Cartão: solicitar link (até 12x com taxas)</div>
+
+                      <br />
+
+                      <div>❌ Pode deixar em sacolinha se quiser</div>
+                      <div>🚚 Solicitar envio para calcular frete</div>
+                    </div>
+                  </div>
+                )}
+
+                {tipoPreview === PREVIEW_TIPO.ETIQUETAS && Array.isArray(dadosPreview) && (
+                  <div style={{ display: "grid", gap: 0 }}>
+                    {agruparEtiquetasEmPaginas(dadosPreview, 25).map((pagina, paginaIndex) => (
+                      <div
+                        key={paginaIndex}
+                        className="pagina-etiquetas"
+                        style={{
+                          width: "210mm",
+                          height: "297mm",
+                          padding: "6mm 4mm 4mm 4mm",
+                          boxSizing: "border-box",
+                          background: "#fff",
+                          display: "grid",
+                          gridTemplateColumns: "repeat(5, 37mm)",
+                          gridTemplateRows: "repeat(5, 46mm)",
+                          columnGap: "2mm",
+                          rowGap: "2mm",
+                          justifyContent: "center",
+                          alignContent: "start",
+                          overflow: "hidden",
+                          pageBreakAfter: "always",
+                          breakAfter: "page",
+                        }}
+                      >
+                        {pagina.map((peca) => (
+                          <EtiquetaPrint key={peca.id} peca={peca} />
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <style>
+          {`
+          input:focus {
+            border-color: #1d8fe1;
+            box-shadow: 0 0 0 3px rgba(29,143,225,0.15);
+          }
+
+          button:hover {
+            transform: translateY(-2px) scale(1.01);
+            opacity: 0.98;
+          }
+
+          button:active {
+            transform: translateY(0);
+          }
+
+          img {
+            transition: all 0.2s ease;
+          }
+
+          @media print {
+            body * {
+              visibility: hidden !important;
+            }
+
+            #area-preview-impressao,
+            #area-preview-impressao * {
+              visibility: visible !important;
+            }
+
+            #area-preview-impressao {
+              position: absolute !important;
+              left: 0 !important;
+              top: 1mm !important;
+              width: 210mm !important;
+              min-height: 297mm !important;
+              background: #fff !important;
+              padding: 0 !important;
+              margin: 0 !important;
+              overflow: visible !important;
+            }
+
+            .no-print {
+              display: none !important;
+            }
+
+            .pagina-etiquetas {
+              width: 210mm !important;
+              min-height: 297mm !important;
+              padding: 10mm 4mm 6mm 4mm !important;
+              box-sizing: border-box !important;
+              display: grid !important;
+              grid-template-columns: repeat(5, 37mm) !important;
+              grid-auto-rows: 46mm !important;
+              column-gap: 2mm !important;
+              row-gap: 3mm !important;
+              justify-content: center !important;
+              align-content: start !important;
+              page-break-after: always !important;
+              break-after: page !important;
+            }
+
+            .pagina-etiquetas:last-child {
+              page-break-after: auto !important;
+              break-after: auto !important;
+            }
+
+            @page {
+  size: A4 portrait;
+  margin: 2mm 2mm 2mm 2mm; /* 🔥 equilíbrio ideal */
+}
+
+html,
+body {
+  width: 210mm !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+@media print {
+
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* 🔥 remove espaço invisível do topo */
+  body::before {
+    content: "";
+    display: block;
+    height: 0;
+  }
+
+  /* 🔥 evita quebra feia */
+  .etiqueta {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* 🔥 organiza páginas */
+  .pagina-etiquetas {
+    page-break-after: always;
+  }
+
+  .pagina-etiquetas:last-child {
+    page-break-after: auto;
+  }
+}
+        `}
+        </style>
+      </div>
+    </>
   );
 }
 
@@ -3245,13 +4142,13 @@ const itemCliente = {
 };
 
 const layoutApp = {
-  display: "grid",
-  gridTemplateColumns: window.innerWidth < 768 ? "1fr" : "240px 1fr",
   minHeight: "100vh",
-  background: "linear-gradient(135deg, #0b3342 0%, #0f4c5c 100%)",
-  padding: 16,
-  boxSizing: "border-box",
+  display: "grid",
+  gridTemplateColumns: "280px 1fr",
   gap: 16,
+  padding: 16,
+  background: "linear-gradient(180deg, #052c3b 0%, #08364a 100%)",
+  boxSizing: "border-box",
 };
 
 const sidebar = {
@@ -3325,7 +4222,7 @@ const areaPrincipal = {
 };
 
 const painelPrincipal = {
-  background: "rgba(255,255,255,0.88)",
+  background: "rgba(255,255,255,0.90)",
   backdropFilter: "blur(6px)",
   borderRadius: 24,
   minHeight: "calc(100vh - 32px)",
