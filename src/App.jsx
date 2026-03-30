@@ -305,6 +305,8 @@ export default function App() {
 
   const [form, setForm] = useState(FORM_INICIAL_PECA);
   const [formCliente, setFormCliente] = useState(FORM_INICIAL_CLIENTE);
+  const [buscaClienteCadastro, setBuscaClienteCadastro] = useState("");
+  const [salvandoCadastroPublico, setSalvandoCadastroPublico] = useState(false);
 
   const [clienteEditandoId, setClienteEditandoId] = useState(null);
   const [liveAtual, setLiveAtual] = useState(null);
@@ -682,56 +684,187 @@ export default function App() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  function normalizarCPF(valor) {
+    return String(valor || "").replace(/\D/g, "").slice(0, 11);
+  }
+
+  function normalizarTelefone(valor) {
+    return String(valor || "").replace(/\D/g, "").slice(0, 11);
+  }
+
+  function modoCadastroPublicoAtivo() {
+    if (typeof window === "undefined") return false;
+    const params = new URLSearchParams(window.location.search);
+    return params.get("cadastro") === "cliente";
+  }
+
+  async function buscarClientePorCpf(cpf, idIgnorar = null) {
+    const cpfLimpo = normalizarCPF(cpf);
+    if (!cpfLimpo || cpfLimpo.length !== 11) return null;
+
+    let query = supabase
+      .from("clientes")
+      .select("id, nome, cpf")
+      .eq("cpf", cpfLimpo)
+      .limit(1);
+
+    if (idIgnorar) {
+      query = query.neq("id", idIgnorar);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("ERRO AO BUSCAR CPF:", error);
+      throw error;
+    }
+
+    return data && data.length > 0 ? data[0] : null;
+  }
+
+  function gerarLinkCadastroCliente() {
+    if (typeof window === "undefined") return "";
+
+    const url = new URL(window.location.origin);
+    url.searchParams.set("cadastro", "cliente");
+
+    return url.toString();
+  }
+
+  async function copiarLinkCadastroCliente() {
+    const link = gerarLinkCadastroCliente();
+
+    try {
+      await navigator.clipboard.writeText(link);
+      alert("Link de cadastro copiado com sucesso.");
+    } catch (error) {
+      console.error(error);
+      alert("Não foi possível copiar o link.");
+    }
+  }
+
   async function salvarCliente() {
     if (!formCliente.nome.trim()) {
       alert("Preencha pelo menos o nome.");
       return;
     }
 
-    const payload = {
-      nome: formCliente.nome,
-      cpf: formCliente.cpf,
-      telefone: formCliente.telefone,
-      cep: formCliente.cep,
-      endereco: formCliente.endereco,
-      numero: formCliente.numero,
-      complemento: formCliente.complemento,
-    };
+    const cpfLimpo = normalizarCPF(formCliente.cpf);
 
-    if (clienteEditandoId) {
-      const { error } = await supabase
-        .from("clientes")
-        .update(payload)
-        .eq("id", clienteEditandoId);
+    if (cpfLimpo && cpfLimpo.length !== 11) {
+      alert("CPF inválido. Preencha os 11 dígitos.");
+      return;
+    }
 
-      if (error) {
-        console.error("ERRO AO ATUALIZAR CLIENTE:", error);
-        alert(`Erro ao atualizar cliente: ${error.message}`);
+    try {
+      const clienteExistente = await buscarClientePorCpf(cpfLimpo, clienteEditandoId);
+
+      if (clienteExistente) {
+        alert(`Já existe cliente cadastrada com este CPF: ${clienteExistente.nome}`);
         return;
       }
 
-      alert("Cliente atualizado com sucesso.");
-    } else {
+      const payload = {
+        nome: formCliente.nome.trim(),
+        cpf: cpfLimpo,
+        telefone: normalizarTelefone(formCliente.telefone),
+        cep: String(formCliente.cep || "").replace(/\D/g, "").slice(0, 8),
+        endereco: formCliente.endereco,
+        numero: formCliente.numero,
+        complemento: formCliente.complemento,
+      };
+
+      if (clienteEditandoId) {
+        const { error } = await supabase
+          .from("clientes")
+          .update(payload)
+          .eq("id", clienteEditandoId);
+
+        if (error) {
+          console.error("ERRO AO ATUALIZAR CLIENTE:", error);
+          alert(`Erro ao atualizar cliente: ${error.message}`);
+          return;
+        }
+
+        alert("Cliente atualizado com sucesso.");
+      } else {
+        const novo = {
+          id: gerarCodigo("CLI"),
+          ...payload,
+          criado_em: new Date().toLocaleString("pt-BR"),
+        };
+
+        const { error } = await supabase.from("clientes").insert(novo);
+
+        if (error) {
+          console.error("ERRO AO SALVAR CLIENTE:", error);
+          alert(`Erro ao salvar cliente: ${error.message}`);
+          return;
+        }
+
+        alert("Cliente salvo com sucesso.");
+      }
+
+      setFormCliente(FORM_INICIAL_CLIENTE);
+      setClienteEditandoId(null);
+      await carregarClientes();
+    } catch (error) {
+      console.error("ERRO AO VALIDAR CPF:", error);
+      alert("Erro ao validar CPF no banco.");
+    }
+  }
+
+  async function salvarCadastroClientePublico() {
+    if (!formCliente.nome.trim()) {
+      alert("Preencha seu nome.");
+      return;
+    }
+
+    const cpfLimpo = normalizarCPF(formCliente.cpf);
+
+    if (!cpfLimpo || cpfLimpo.length !== 11) {
+      alert("Informe um CPF válido com 11 dígitos.");
+      return;
+    }
+
+    try {
+      setSalvandoCadastroPublico(true);
+
+      const clienteExistente = await buscarClientePorCpf(cpfLimpo);
+
+      if (clienteExistente) {
+        alert(`Já existe cadastro com este CPF: ${clienteExistente.nome}`);
+        return;
+      }
+
       const novo = {
         id: gerarCodigo("CLI"),
-        ...payload,
+        nome: formCliente.nome.trim(),
+        cpf: cpfLimpo,
+        telefone: normalizarTelefone(formCliente.telefone),
+        cep: String(formCliente.cep || "").replace(/\D/g, "").slice(0, 8),
+        endereco: formCliente.endereco,
+        numero: formCliente.numero,
+        complemento: formCliente.complemento,
         criado_em: new Date().toLocaleString("pt-BR"),
       };
 
       const { error } = await supabase.from("clientes").insert(novo);
 
       if (error) {
-        console.error("ERRO AO SALVAR CLIENTE:", error);
-        alert(`Erro ao salvar cliente: ${error.message}`);
+        console.error("ERRO AO SALVAR CADASTRO PÚBLICO:", error);
+        alert(`Erro ao enviar cadastro: ${error.message}`);
         return;
       }
 
-      alert("Cliente salvo com sucesso.");
+      alert("Cadastro enviado com sucesso.");
+      setFormCliente(FORM_INICIAL_CLIENTE);
+    } catch (error) {
+      console.error("ERRO NO CADASTRO PÚBLICO:", error);
+      alert("Erro ao validar ou salvar cadastro.");
+    } finally {
+      setSalvandoCadastroPublico(false);
     }
-
-    setFormCliente(FORM_INICIAL_CLIENTE);
-    setClienteEditandoId(null);
-    await carregarClientes();
   }
 
   function editarCliente(clienteSelecionado) {
@@ -1637,6 +1770,26 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     [resumoClientesLive, buscaCliente, filtroPagamentoCliente]
   );
 
+  const clientesFiltradosCadastro = useMemo(() => {
+    const termo = buscaClienteCadastro.trim().toLowerCase();
+
+    if (!termo) return clientes;
+
+    return clientes.filter((c) => {
+      const nome = String(c?.nome || "").toLowerCase();
+      const cpf = formatarCPF(c?.cpf || "").toLowerCase();
+      const telefone = formatarTelefone(c?.telefone || "").toLowerCase();
+      const endereco = String(c?.endereco || "").toLowerCase();
+
+      return (
+        nome.includes(termo) ||
+        cpf.includes(termo) ||
+        telefone.includes(termo) ||
+        endereco.includes(termo)
+      );
+    });
+  }, [clientes, buscaClienteCadastro]);
+
   const pecasVendidasFiltradas = useMemo(
     () =>
       pecas.filter((p) => {
@@ -1783,6 +1936,125 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   const sacolinhasEnviadas = sacolinhasAgrupadas.filter(
     (s) => s.status === "enviada"
   );
+
+  if (modoCadastroPublicoAtivo()) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "linear-gradient(135deg, #f7e8ec 0%, #f2d9df 45%, #efd3da 100%)",
+          padding: 20,
+          boxSizing: "border-box",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 520,
+            background: "#fff",
+            borderRadius: 24,
+            padding: 24,
+            boxShadow: "0 12px 30px rgba(149,79,96,0.14)",
+            display: "grid",
+            gap: 14,
+          }}
+        >
+          <div style={{ textAlign: "center" }}>
+            <img
+              src={logoKchic}
+              alt="K.chic"
+              style={{ width: 140, maxWidth: "100%", marginBottom: 12 }}
+            />
+            <h2 style={{ margin: 0, color: "#8f2745" }}>Cadastro de Cliente</h2>
+            <p style={{ marginTop: 8, color: "#64748b" }}>
+              Preencha seus dados para agilizar atendimento e envio.
+            </p>
+          </div>
+
+          <input
+            style={inputCliente}
+            placeholder="Nome completo"
+            value={formCliente.nome}
+            onChange={(e) => setFormCliente({ ...formCliente, nome: e.target.value })}
+          />
+
+          <input
+            style={inputCliente}
+            placeholder="CPF"
+            value={formCliente.cpf}
+            onChange={(e) =>
+              setFormCliente({ ...formCliente, cpf: formatarCPF(e.target.value) })
+            }
+          />
+
+          <input
+            style={inputCliente}
+            placeholder="Telefone com DDD"
+            value={formCliente.telefone}
+            onChange={(e) =>
+              setFormCliente({
+                ...formCliente,
+                telefone: formatarTelefone(e.target.value),
+              })
+            }
+          />
+
+          <input
+            style={inputCliente}
+            placeholder="CEP"
+            value={formCliente.cep}
+            onChange={(e) => {
+              const cepFormatado = formatarCEP(e.target.value);
+              setFormCliente({ ...formCliente, cep: cepFormatado });
+              buscarCep(cepFormatado);
+            }}
+          />
+
+          <input
+            style={inputCliente}
+            placeholder="Endereço"
+            value={formCliente.endereco}
+            onChange={(e) =>
+              setFormCliente({ ...formCliente, endereco: e.target.value })
+            }
+          />
+
+          <input
+            style={inputCliente}
+            placeholder="Número"
+            value={formCliente.numero}
+            onChange={(e) =>
+              setFormCliente({ ...formCliente, numero: e.target.value })
+            }
+          />
+
+          <input
+            style={inputCliente}
+            placeholder="Complemento"
+            value={formCliente.complemento}
+            onChange={(e) =>
+              setFormCliente({ ...formCliente, complemento: e.target.value })
+            }
+          />
+
+          <button
+            style={{
+              ...botao,
+              opacity: salvandoCadastroPublico ? 0.7 : 1,
+              cursor: salvandoCadastroPublico ? "not-allowed" : "pointer",
+            }}
+            onClick={salvarCadastroClientePublico}
+            disabled={salvandoCadastroPublico}
+          >
+            {salvandoCadastroPublico ? "Enviando..." : "Enviar cadastro"}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -2799,6 +3071,52 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 <h2 style={tituloSecao}>Cadastro de Clientes</h2>
 
                 <div
+                  style={{
+                    display: "grid",
+                    gap: 14,
+                    marginBottom: 18,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 10,
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                    }}
+                  >
+                    <input
+                      style={{ ...inputCliente, maxWidth: 360 }}
+                      placeholder="Buscar cliente por nome, CPF, telefone ou endereço"
+                      value={buscaClienteCadastro}
+                      onChange={(e) => setBuscaClienteCadastro(e.target.value)}
+                    />
+
+                    <button
+                      style={{ ...botao, background: "#111827" }}
+                      onClick={copiarLinkCadastroCliente}
+                    >
+                      Copiar link de cadastro
+                    </button>
+                  </div>
+
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: 14,
+                      padding: 14,
+                      color: "#334155",
+                    }}
+                  >
+                    <strong>Link público para clientes:</strong>
+                    <div style={{ marginTop: 8, wordBreak: "break-word" }}>
+                      {gerarLinkCadastroCliente()}
+                    </div>
+                  </div>
+                </div>
+
+                <div
                   className="grid-clientes"
                   style={{
                     display: "grid",
@@ -2891,17 +3209,17 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                   </div>
 
                   <div style={{ display: "grid", gap: 10, alignContent: "start" }}>
-                    {clientes.length === 0 ? (
-                      <p>Nenhum cliente cadastrado ainda.</p>
+                    {clientesFiltradosCadastro.length === 0 ? (
+                      <p>Nenhum cliente encontrado.</p>
                     ) : (
-                      clientes.map((c) => (
+                      clientesFiltradosCadastro.map((c) => (
                         <div key={c.id} style={cardCliente}>
                           <strong>{c.nome}</strong>
                           <div><strong>CPF:</strong> {c.cpf ? formatarCPF(c.cpf) : "-"}</div>
                           <div>
                             <strong>Telefone:</strong> {c.telefone ? formatarTelefone(c.telefone) : "-"}
                           </div>
-                          <div><strong>CEP:</strong> {c.cep || "-"}</div>
+                          <div><strong>CEP:</strong> {c.cep ? formatarCEP(c.cep) : "-"}</div>
                           <div><strong>Endereço:</strong> {c.endereco || "-"}</div>
                           <div>
                             <strong>Nº:</strong> {c.numero || "-"}
@@ -2937,7 +3255,6 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 </div>
               </div>
             )}
-
             {abaAtiva === "lives" && (
               <div style={boxGrande}>
                 <h2 style={tituloSecao}>Controle de Lives</h2>
