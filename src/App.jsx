@@ -307,6 +307,7 @@ export default function App() {
   const [formCliente, setFormCliente] = useState(FORM_INICIAL_CLIENTE);
   const [buscaClienteCadastro, setBuscaClienteCadastro] = useState("");
   const [salvandoCadastroPublico, setSalvandoCadastroPublico] = useState(false);
+  const [cadastroPublicoConcluido, setCadastroPublicoConcluido] = useState(false);
 
   const [clienteEditandoId, setClienteEditandoId] = useState(null);
   const [liveAtual, setLiveAtual] = useState(null);
@@ -857,8 +858,8 @@ export default function App() {
         return;
       }
 
-      alert("Cadastro enviado com sucesso.");
       setFormCliente(FORM_INICIAL_CLIENTE);
+      setCadastroPublicoConcluido(true);
     } catch (error) {
       console.error("ERRO NO CADASTRO PÚBLICO:", error);
       alert("Erro ao validar ou salvar cadastro.");
@@ -933,6 +934,23 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     } catch (err) {
       console.error(err);
       alert("Não foi possível compartilhar.");
+    }
+  }
+
+  function gerarMensagemWhatsAppCadastroCliente() {
+    const link = gerarLinkCadastroCliente();
+    return `Oi! Para agilizar seu atendimento, preencha seu cadastro neste link: ${link}`;
+  }
+
+  async function copiarMensagemWhatsAppCadastroCliente() {
+    const mensagem = gerarMensagemWhatsAppCadastroCliente();
+
+    try {
+      await navigator.clipboard.writeText(mensagem);
+      alert("Mensagem de WhatsApp copiada com sucesso.");
+    } catch (error) {
+      console.error(error);
+      alert("Não foi possível copiar a mensagem.");
     }
   }
 
@@ -1974,83 +1992,144 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
             </p>
           </div>
 
-          <input
-            style={inputCliente}
-            placeholder="Nome completo"
-            value={formCliente.nome}
-            onChange={(e) => setFormCliente({ ...formCliente, nome: e.target.value })}
-          />
+          {cadastroPublicoConcluido ? (
+            <div
+              style={{
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderRadius: 18,
+                padding: 20,
+                textAlign: "center",
+                display: "grid",
+                gap: 12,
+              }}
+            >
+              <strong style={{ fontSize: 22, color: "#15803d" }}>
+                Cadastro enviado com sucesso
+              </strong>
 
-          <input
-            style={inputCliente}
-            placeholder="CPF"
-            value={formCliente.cpf}
-            onChange={(e) =>
-              setFormCliente({ ...formCliente, cpf: formatarCPF(e.target.value) })
-            }
-          />
+              <p style={{ margin: 0, color: "#475569" }}>
+                Seus dados já foram registrados. Agora é só aguardar o atendimento da live.
+              </p>
 
-          <input
-            style={inputCliente}
-            placeholder="Telefone com DDD"
-            value={formCliente.telefone}
-            onChange={(e) =>
-              setFormCliente({
-                ...formCliente,
-                telefone: formatarTelefone(e.target.value),
-              })
-            }
-          />
+              <button
+                style={botao}
+                onClick={() => setCadastroPublicoConcluido(false)}
+              >
+                Fazer novo cadastro
+              </button>
+            </div>
+          ) : (
+            <>
+              <input
+                style={inputCliente}
+                placeholder="Nome completo"
+                value={formCliente.nome}
+                onChange={(e) => setFormCliente({ ...formCliente, nome: e.target.value })}
+              />
 
-          <input
-            style={inputCliente}
-            placeholder="CEP"
-            value={formCliente.cep}
-            onChange={(e) => {
-              const cepFormatado = formatarCEP(e.target.value);
-              setFormCliente({ ...formCliente, cep: cepFormatado });
-              buscarCep(cepFormatado);
-            }}
-          />
+              <input
+                style={inputCliente}
+                placeholder="CPF"
+                value={formCliente.cpf}
+                onChange={(e) =>
+                  setFormCliente({ ...formCliente, cpf: formatarCPF(e.target.value) })
+                }
+              />
 
-          <input
-            style={inputCliente}
-            placeholder="Endereço"
-            value={formCliente.endereco}
-            onChange={(e) =>
-              setFormCliente({ ...formCliente, endereco: e.target.value })
-            }
-          />
+              <input
+                style={inputCliente}
+                placeholder="Telefone com DDD"
+                value={formCliente.telefone}
+                onChange={(e) =>
+                  setFormCliente({
+                    ...formCliente,
+                    telefone: formatarTelefone(e.target.value),
+                  })
+                }
+              />
 
-          <input
-            style={inputCliente}
-            placeholder="Número"
-            value={formCliente.numero}
-            onChange={(e) =>
-              setFormCliente({ ...formCliente, numero: e.target.value })
-            }
-          />
+              <input
+                style={inputCliente}
+                placeholder="CEP"
+                value={formCliente.cep}
+                onChange={(e) => {
+                  const cepFormatado = formatarCEP(e.target.value);
+                  setFormCliente({ ...formCliente, cep: cepFormatado });
+                  buscarCep(cepFormatado);
+                }}
+              />
 
-          <input
-            style={inputCliente}
-            placeholder="Complemento"
-            value={formCliente.complemento}
-            onChange={(e) =>
-              setFormCliente({ ...formCliente, complemento: e.target.value })
-            }
-          />
+              <input
+                style={inputCliente}
+                placeholder="Endereço"
+                value={formCliente.endereco}
+                onChange={(e) =>
+                  setFormCliente({ ...formCliente, endereco: e.target.value })
+                }
+              />
 
-          <button
-            style={{
-              ...botao,
-              opacity: salvandoCadastroPublico ? 0.7 : 1,
-              cursor: salvandoCadastroPublico ? "not-allowed" : "pointer",
-            }}
-            onClick={salvarCadastroClientePublico}
-            disabled={salvandoCadastroPublico}
-          >
-            {salvandoCadastroPublico ? "Enviando..." : "Enviar cadastro"}
-          </button>
+              <input
+                style={inputCliente}
+                placeholder="Número"
+                value={formCliente.numero}
+                onChange={(e) =>
+                  setFormCliente({ ...formCliente, numero: e.target.value })
+                }
+              />
+
+              <input
+                style={inputCliente}
+                placeholder="Complemento"
+                value={formCliente.complemento}
+                onChange={(e) =>
+                  setFormCliente({ ...formCliente, complemento: e.target.value })
+                }
+              />
+
+              <button
+                style={{
+                  ...botao,
+                  opacity: salvandoCadastroPublico ? 0.7 : 1,
+                  cursor: salvandoCadastroPublico ? "not-allowed" : "pointer",
+                }}
+                onClick={salvarCadastroClientePublico}
+                disabled={salvandoCadastroPublico}
+              >
+                {salvandoCadastroPublico ? "Enviando..." : "Enviar cadastro"}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (modoCadastroPublicoAtivo()) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(135deg, #f7e8ec 0%, #f2d9df 45%, #efd3da 100%)",
+          padding: 16,
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 520,
+            background: "#fff",
+            borderRadius: 24,
+            padding: 24,
+            boxShadow: "0 12px 30px rgba(149,79,96,0.14)",
+            display: "grid",
+            gap: 14,
+          }}
+        >
+          {/* SEU FORMULÁRIO AQUI */}
         </div>
       </div>
     );
@@ -3092,12 +3171,21 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                       onChange={(e) => setBuscaClienteCadastro(e.target.value)}
                     />
 
-                    <button
-                      style={{ ...botao, background: "#111827" }}
-                      onClick={copiarLinkCadastroCliente}
-                    >
-                      Copiar link de cadastro
-                    </button>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button
+                        style={{ ...botao, background: "#111827" }}
+                        onClick={copiarLinkCadastroCliente}
+                      >
+                        Copiar link
+                      </button>
+
+                      <button
+                        style={{ ...botao, background: "#15803d" }}
+                        onClick={copiarMensagemWhatsAppCadastroCliente}
+                      >
+                        WhatsApp
+                      </button>
+                    </div>
                   </div>
 
                   <div
@@ -3107,10 +3195,18 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                       borderRadius: 14,
                       padding: 14,
                       color: "#334155",
+                      fontSize: 14,
                     }}
                   >
                     <strong>Link público para clientes:</strong>
-                    <div style={{ marginTop: 8, wordBreak: "break-word" }}>
+                    <div
+                      style={{
+                        marginTop: 6,
+                        wordBreak: "break-word",
+                        fontSize: 13,
+                        color: "#64748b",
+                      }}
+                    >
                       {gerarLinkCadastroCliente()}
                     </div>
                   </div>
