@@ -116,8 +116,10 @@ function formatarCEP(valor) {
   return numeros.replace(/^(\d{5})(\d)/, "$1-$2");
 }
 
-function gerarCodigo(prefixo = "PC") {
-  return `${prefixo}-${Date.now()}`;
+function gerarCodigo(prefixo = "KC", custo = "") {
+  const valorCusto = limparMoeda(custo);
+  const custoInteiro = Math.floor(valorCusto || 0);
+  return `${prefixo}-${custoInteiro}${Date.now()}`;
 }
 
 function agruparEtiquetasEmPaginas(lista, porPagina = 25) {
@@ -333,6 +335,13 @@ export default function App() {
   const [sacolinhasLive, setSacolinhasLive] = useState([]);
   const [carregandoSacolinhas, setCarregandoSacolinhas] = useState(false);
   const [sacolinhasExpandidas, setSacolinhasExpandidas] = useState({});
+  const [pedidosEnvio, setPedidosEnvio] = useState([]);
+  const [pedidoEnvioSacolinhas, setPedidoEnvioSacolinhas] = useState([]);
+  const [carregandoPedidosEnvio, setCarregandoPedidosEnvio] = useState(false);
+  const [pedidosEnvioExpandidos, setPedidosEnvioExpandidos] = useState({});
+  const [mostrarPedidosEnvio, setMostrarPedidosEnvio] = useState(true);
+  const [criandoPedidoEnvioCliente, setCriandoPedidoEnvioCliente] = useState("");
+  const [itensConferidosPedido, setItensConferidosPedido] = useState({});
 
   const [mostrarAbertas, setMostrarAbertas] = useState(true);
   const [mostrarSeparadas, setMostrarSeparadas] = useState(true);
@@ -543,6 +552,8 @@ export default function App() {
         carregarPagamentosClientes(),
         carregarTodasVendasLive(),
         carregarSacolinhasLive(),
+        carregarPedidosEnvio(),
+        carregarPedidoEnvioSacolinhas(),
       ]);
     }
 
@@ -619,12 +630,36 @@ export default function App() {
       )
       .subscribe();
 
+    const channelPedidosEnvio = supabase
+      .channel("pedidos-envio-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "pedidos_envio" },
+        async () => {
+          await carregarPedidosEnvio();
+        }
+      )
+      .subscribe();
+
+    const channelPedidoEnvioSacolinhas = supabase
+      .channel("pedido-envio-sacolinhas-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "pedido_envio_sacolinhas" },
+        async () => {
+          await carregarPedidoEnvioSacolinhas();
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(channelPecas);
       supabase.removeChannel(channelPagamentos);
       supabase.removeChannel(channelLives);
       supabase.removeChannel(channelVendasLive);
       supabase.removeChannel(channelSacolinhas);
+      supabase.removeChannel(channelPedidosEnvio);
+      supabase.removeChannel(channelPedidoEnvioSacolinhas);
     };
   }, [liveEmVisualizacao]);
 
@@ -972,7 +1007,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     if (!form.nome.trim()) return;
 
     const nova = {
-      id: gerarCodigo("PC"),
+      id: gerarCodigo("KC", form.custo),
       nome: form.nome.trim(),
       custo: form.custo,
       venda: form.venda,
@@ -1419,37 +1454,208 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     await carregarSacolinhasLive();
   }
 
-  async function marcarSacolinhaComoSeparada(sacolinhaId) {
-    const { error } = await supabase
-      .from("sacolinhas_live")
-      .update({
-        status: "separada",
-      })
-      .eq("id", sacolinhaId);
+  async function cancelarPedidoDeEnvio(pedidoId, clienteNome) {
+    const confirmar = window.confirm(
+      `Cancelar o pedido de envio de ${clienteNome} e devolver as sacolinhas para Separadas?`
+    );
 
-    if (error) {
-      alert("Erro ao marcar como separada");
-      return;
+    if (!confirmar) return;
+
+    try {
+      const { error: erroVinculos } = await supabase
+        .from("pedido_envio_sacolinhas")
+        .delete()
+        .eq("pedido_envio_id", pedidoId);
+
+      if (erroVinculos) {
+        console.error("ERRO AO REMOVER VÍNCULOS DO PEDIDO DE ENVIO:", erroVinculos);
+        alert(`Erro ao remover vínculos do pedido: ${erroVinculos.message}`);
+        return;
+      }
+
+      const { error: erroPedido } = await supabase
+        .from("pedidos_envio")
+        .delete()
+        .eq("id", pedidoId);
+
+      if (erroPedido) {
+        console.error("ERRO AO CANCELAR PEDIDO DE ENVIO:", erroPedido);
+        alert(`Erro ao cancelar pedido de envio: ${erroPedido.message}`);
+        return;
+      }
+
+      await Promise.all([
+        carregarPedidosEnvio(),
+        carregarPedidoEnvioSacolinhas(),
+        carregarSacolinhasLive(),
+      ]);
+
+      alert("Pedido de envio cancelado com sucesso.");
+    } catch (error) {
+      console.error("ERRO GERAL AO CANCELAR PEDIDO DE ENVIO:", error);
+      alert("Erro inesperado ao cancelar pedido de envio.");
     }
-
-    await carregarSacolinhasLive();
   }
 
-  async function marcarSacolinhaComoSeparada(sacolinhaId) {
-    const { error } = await supabase
-      .from("sacolinhas_live")
-      .update({
-        status: "separada",
-      })
-      .eq("id", sacolinhaId);
+  async function marcarPedidoComoEnviado(pedido) {
+    const itensConferidos = itensConferidosPedido[pedido.id] || [];
+    const totalItens = pedido.quantidadeCalculada || 0;
 
-    if (error) {
-      console.error("ERRO AO MARCAR SACOLINHA COMO SEPARADA:", error);
-      alert(`Erro ao atualizar separação: ${error.message}`);
+    if (totalItens === 0) {
+      alert("Esse pedido não possui itens.");
       return;
     }
 
-    await carregarSacolinhasLive();
+    if (itensConferidos.length !== totalItens) {
+      alert("Confira todos os itens antes de marcar como enviado.");
+      return;
+    }
+
+    const confirmar = window.confirm(
+      `Deseja marcar o pedido de ${pedido.cliente_nome} como enviado?`
+    );
+    if (!confirmar) return;
+
+    try {
+      const agora = new Date().toLocaleString("pt-BR");
+
+      // 1) marca o pedido como enviado
+      const { error: erroPedido } = await supabase
+        .from("pedidos_envio")
+        .update({
+          status: "enviado",
+          conferido: true,
+          quantidade_conferida: totalItens,
+          atualizado_em: agora,
+          enviado_em: agora,
+        })
+        .eq("id", pedido.id);
+
+      if (erroPedido) {
+        console.error("ERRO AO MARCAR PEDIDO COMO ENVIADO:", erroPedido);
+        alert(`Erro ao finalizar pedido: ${erroPedido.message}`);
+        return;
+      }
+
+      // 2) marca todas as sacolinhas desse pedido como enviadas
+      const idsSacolinhas = (pedido.sacolinhas || []).map((s) => s.id);
+
+      if (idsSacolinhas.length > 0) {
+        const { error: erroSacolinhas } = await supabase
+          .from("sacolinhas_live")
+          .update({
+            status: "enviada",
+          })
+          .in("id", idsSacolinhas);
+
+        if (erroSacolinhas) {
+          console.error("ERRO AO MARCAR SACOLINHAS COMO ENVIADAS:", erroSacolinhas);
+          alert(`Erro ao atualizar sacolinhas: ${erroSacolinhas.message}`);
+          return;
+        }
+      }
+
+      await Promise.all([
+        carregarPedidosEnvio(),
+        carregarPedidoEnvioSacolinhas(),
+        carregarSacolinhasLive(),
+        carregarTodasVendasLive(),
+      ]);
+
+      alert("Pedido marcado como enviado com sucesso.");
+    } catch (error) {
+      console.error("ERRO GERAL AO ENVIAR PEDIDO:", error);
+      alert("Erro inesperado ao finalizar envio.");
+    }
+  }
+
+  async function criarPedidoDeEnvio(clienteNome) {
+    if (criandoPedidoEnvioCliente === clienteNome) return;
+
+    if (clienteJaTemPedidoEnvioAtivo(clienteNome)) {
+      alert("Essa cliente já possui um pedido de envio em andamento.");
+      return;
+    }
+
+    const sacolinhasElegiveis = obterSacolinhasSeparadasElegiveisPorCliente(clienteNome);
+
+    if (!sacolinhasElegiveis.length) {
+      alert("Não há sacolinhas separadas disponíveis para criar pedido de envio.");
+      return;
+    }
+
+    const confirmar = window.confirm(
+      `Criar pedido de envio para ${clienteNome} com ${sacolinhasElegiveis.length} sacolinha(s)?`
+    );
+    if (!confirmar) return;
+
+    try {
+      setCriandoPedidoEnvioCliente(clienteNome);
+
+      const itensDoPedido = sacolinhasElegiveis.flatMap((sacolinha) =>
+        todasVendasLive.filter((v) => String(v.sacolinha_id) === String(sacolinha.id))
+      );
+
+      const quantidadeEsperada = itensDoPedido.length;
+      const pedidoId = gerarCodigo("ENV");
+      const criadoEm = new Date().toLocaleString("pt-BR");
+
+      const { error: erroPedido } = await supabase
+        .from("pedidos_envio")
+        .insert([
+          {
+            id: pedidoId,
+            cliente_nome: clienteNome,
+            status: "montagem",
+            quantidade_esperada: quantidadeEsperada,
+            quantidade_conferida: null,
+            conferido: false,
+            altura_cm: null,
+            largura_cm: null,
+            comprimento_cm: null,
+            peso_kg: null,
+            observacoes: "",
+            criado_em: criadoEm,
+            atualizado_em: criadoEm,
+            enviado_em: null,
+          },
+        ]);
+
+      if (erroPedido) {
+        console.error("ERRO AO CRIAR PEDIDO DE ENVIO:", erroPedido);
+        alert(`Erro ao criar pedido de envio: ${erroPedido.message}`);
+        return;
+      }
+
+      const vinculos = sacolinhasElegiveis.map((sacolinha) => ({
+        id: crypto.randomUUID(),
+        pedido_envio_id: pedidoId,
+        sacolinha_id: sacolinha.id,
+      }));
+
+      const { error: erroVinculos } = await supabase
+        .from("pedido_envio_sacolinhas")
+        .insert(vinculos);
+
+      if (erroVinculos) {
+        console.error("ERRO AO VINCULAR SACOLINHAS AO PEDIDO:", erroVinculos);
+        alert(`Erro ao vincular sacolinhas: ${erroVinculos.message}`);
+        return;
+      }
+
+      await Promise.all([
+        carregarPedidosEnvio(),
+        carregarPedidoEnvioSacolinhas(),
+        carregarSacolinhasLive(),
+      ]);
+
+      alert("Pedido de envio criado com sucesso.");
+    } catch (error) {
+      console.error("ERRO GERAL AO CRIAR PEDIDO DE ENVIO:", error);
+      alert("Erro inesperado ao criar pedido de envio.");
+    } finally {
+      setCriandoPedidoEnvioCliente("");
+    }
   }
 
   function sacolinhaEstaVencida(s) {
@@ -1468,6 +1674,41 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     const diffDias = (hoje - dataCriacao) / (1000 * 60 * 60 * 24);
 
     return diffDias > 30 && s.status !== "enviada";
+  }
+
+  function sacolinhaJaEstaEmPedidoAtivo(sacolinhaId) {
+    const vinculo = pedidoEnvioSacolinhas.find(
+      (v) => String(v.sacolinha_id) === String(sacolinhaId)
+    );
+
+    if (!vinculo) return false;
+
+    const pedido = pedidosEnvio.find(
+      (p) => String(p.id) === String(vinculo.pedido_envio_id)
+    );
+
+    if (!pedido) return false;
+
+    return pedido.status !== "enviado";
+  }
+
+  function obterSacolinhasSeparadasElegiveisPorCliente(clienteNome) {
+    return sacolinhasSeparadas.filter((s) => {
+      return (
+        String(s.cliente_nome || "").trim().toLowerCase() ===
+        String(clienteNome || "").trim().toLowerCase() &&
+        !sacolinhaJaEstaEmPedidoAtivo(s.id)
+      );
+    });
+  }
+
+  function clienteJaTemPedidoEnvioAtivo(clienteNome) {
+    return pedidosEnvio.some(
+      (p) =>
+        String(p.cliente_nome || "").trim().toLowerCase() ===
+        String(clienteNome || "").trim().toLowerCase() &&
+        p.status !== "enviado"
+    );
   }
 
   function sacolinhaEstaPaga(s) {
@@ -1495,6 +1736,37 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     }
 
     await carregarSacolinhasLive();
+  }
+
+  async function carregarPedidosEnvio() {
+    setCarregandoPedidosEnvio(true);
+
+    const { data, error } = await supabase
+      .from("pedidos_envio")
+      .select("*")
+      .order("criado_em", { ascending: false });
+
+    if (error) {
+      console.error("ERRO AO CARREGAR PEDIDOS DE ENVIO:", error);
+      setCarregandoPedidosEnvio(false);
+      return;
+    }
+
+    setPedidosEnvio(data || []);
+    setCarregandoPedidosEnvio(false);
+  }
+
+  async function carregarPedidoEnvioSacolinhas() {
+    const { data, error } = await supabase
+      .from("pedido_envio_sacolinhas")
+      .select("*");
+
+    if (error) {
+      console.error("ERRO AO CARREGAR VÍNCULOS DE PEDIDOS DE ENVIO:", error);
+      return;
+    }
+
+    setPedidoEnvioSacolinhas(data || []);
   }
 
   async function corrigirSacolinhasAntigas() {
@@ -1664,6 +1936,31 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       ...prev,
       [id]: !prev[id],
     }));
+  }
+
+  function toggleExpandirPedidoEnvio(id) {
+    setPedidosEnvioExpandidos((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  }
+
+  function toggleItemConferidoPedido(pedidoId, itemId) {
+    setItensConferidosPedido((prev) => {
+      const atuais = prev[pedidoId] || [];
+
+      if (atuais.includes(itemId)) {
+        return {
+          ...prev,
+          [pedidoId]: atuais.filter((id) => id !== itemId),
+        };
+      }
+
+      return {
+        ...prev,
+        [pedidoId]: [...atuais, itemId],
+      };
+    });
   }
 
   const resumoClientes = useMemo(() => {
@@ -1925,7 +2222,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   const sacolinhasAgrupadas = sacolinhasLive
     .map((sacolinha) => {
       const itens = todasVendasLive.filter(
-        (v) => v.sacolinha_id === sacolinha.id
+        (v) => String(v.sacolinha_id) === String(sacolinha.id)
       );
 
       return {
@@ -1948,11 +2245,68 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   );
 
   const sacolinhasSeparadas = sacolinhasAgrupadas.filter(
-    (s) => s.status === "separada"
+    (s) => s.status === "separada" && !sacolinhaJaEstaEmPedidoAtivo(s.id)
   );
 
   const sacolinhasEnviadas = sacolinhasAgrupadas.filter(
     (s) => s.status === "enviada"
+  );
+
+  const pedidosEnvioAgrupados = pedidosEnvio.map((pedido) => {
+    const vinculos = pedidoEnvioSacolinhas.filter(
+      (v) => String(v.pedido_envio_id) === String(pedido.id)
+    );
+
+    const sacolinhasDoPedido = vinculos
+      .map((v) =>
+        sacolinhasLive.find(
+          (s) => String(s.id) === String(v.sacolinha_id)
+        )
+      )
+      .filter(Boolean);
+
+    // 🔥 TODOS OS ITENS DO PEDIDO (ESSENCIAL)
+    const itens = sacolinhasDoPedido.flatMap((sacolinha) =>
+      todasVendasLive.filter(
+        (v) => String(v.sacolinha_id) === String(sacolinha.id)
+      )
+    );
+
+    // 🔹 AGRUPAMENTO POR SACOLINHA (controle por live continua intacto)
+    const sacolinhasAgrupadasPorLive = sacolinhasDoPedido.map((sacolinha) => {
+      const itensDaSacolinha = todasVendasLive.filter(
+        (v) => String(v.sacolinha_id) === String(sacolinha.id)
+      );
+
+      return {
+        ...sacolinha,
+        quantidade: itensDaSacolinha.length,
+        itens: itensDaSacolinha,
+      };
+    });
+
+    // 🔹 TOTAL DE PEÇAS DO PEDIDO (pacote final)
+    const quantidadeTotal = sacolinhasAgrupadasPorLive.reduce(
+      (acc, s) => acc + s.quantidade,
+      0
+    );
+
+    return {
+      ...pedido,
+      sacolinhas: sacolinhasAgrupadasPorLive,
+      quantidadeCalculada: quantidadeTotal,
+      itens, // 🔥 ESSENCIAL PARA CONFERÊNCIA
+    };
+  });
+
+
+  // 🔹 FILTROS DE STATUS (mantém organização do fluxo)
+  const pedidosEnvioEmMontagem = pedidosEnvioAgrupados.filter(
+    (p) => p.status === "montagem"
+  );
+
+  const pedidosEnvioConcluidos = pedidosEnvioAgrupados.filter(
+    (p) => p.status === "enviado"
   );
 
   if (modoCadastroPublicoAtivo()) {
@@ -2100,36 +2454,6 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
               </button>
             </>
           )}
-        </div>
-      </div>
-    );
-  }
-
-  if (modoCadastroPublicoAtivo()) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "linear-gradient(135deg, #f7e8ec 0%, #f2d9df 45%, #efd3da 100%)",
-          padding: 16,
-        }}
-      >
-        <div
-          style={{
-            width: "100%",
-            maxWidth: 520,
-            background: "#fff",
-            borderRadius: 24,
-            padding: 24,
-            boxShadow: "0 12px 30px rgba(149,79,96,0.14)",
-            display: "grid",
-            gap: 14,
-          }}
-        >
-          {/* SEU FORMULÁRIO AQUI */}
         </div>
       </div>
     );
@@ -3676,13 +4000,17 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
                                 {sacolinhasExpandidas[s.id] && (
                                   <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-                                    {s.itens.map((item) => (
-                                      <div key={item.id} style={itemCliente}>
-                                        <div><strong>Peça:</strong> {item.nome_peca}</div>
-                                        <div><strong>Código:</strong> {item.peca_id}</div>
-                                        <div><strong>Valor:</strong> {formatarBRL(item.valor_venda)}</div>
-                                      </div>
-                                    ))}
+                                    {!s.itens || s.itens.length === 0 ? (
+                                      <div style={itemCliente}>Nenhum item encontrado nessa sacolinha.</div>
+                                    ) : (
+                                      s.itens.map((item, index) => (
+                                        <div key={item.id || `${item.peca_id}-${index}`} style={itemCliente}>
+                                          <div><strong>Peça:</strong> {item.nome_peca || item.nome || "-"}</div>
+                                          <div><strong>Código:</strong> {item.peca_id || "-"}</div>
+                                          <div><strong>Valor:</strong> {formatarBRL(item.valor_venda || 0)}</div>
+                                        </div>
+                                      ))
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -3768,6 +4096,21 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
                                     <span>{s.quantidade} peça(s)</span>
 
+                                    <button
+                                      style={{
+                                        ...botaoPequeno,
+                                        background: "#2563eb",
+                                        opacity: criandoPedidoEnvioCliente === s.cliente_nome ? 0.7 : 1,
+                                        cursor: criandoPedidoEnvioCliente === s.cliente_nome ? "not-allowed" : "pointer",
+                                      }}
+                                      onClick={() => criarPedidoDeEnvio(s.cliente_nome)}
+                                      disabled={criandoPedidoEnvioCliente === s.cliente_nome}
+                                    >
+                                      {criandoPedidoEnvioCliente === s.cliente_nome
+                                        ? "Criando pedido..."
+                                        : "Criar pedido de envio"}
+                                    </button>
+
                                     {sacolinhaEstaVencida(s) && (
                                       <span
                                         style={{
@@ -3818,13 +4161,242 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
                                 {sacolinhasExpandidas[s.id] && (
                                   <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-                                    {s.itens.map((item) => (
-                                      <div key={item.id} style={itemCliente}>
-                                        <div><strong>Peça:</strong> {item.nome_peca}</div>
-                                        <div><strong>Código:</strong> {item.peca_id}</div>
-                                        <div><strong>Valor:</strong> {formatarBRL(item.valor_venda)}</div>
-                                      </div>
-                                    ))}
+                                    {!s.itens || s.itens.length === 0 ? (
+                                      <div style={itemCliente}>Nenhum item encontrado nessa sacolinha.</div>
+                                    ) : (
+                                      s.itens.map((item, index) => (
+                                        <div key={item.id || `${item.peca_id}-${index}`} style={itemCliente}>
+                                          <div><strong>Peça:</strong> {item.nome_peca || item.nome || "-"}</div>
+                                          <div><strong>Código:</strong> {item.peca_id || "-"}</div>
+                                          <div><strong>Valor:</strong> {formatarBRL(item.valor_venda || 0)}</div>
+                                        </div>
+                                      ))
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                    </div>
+
+                    <div>
+                      <div
+                        onClick={() => setMostrarPedidosEnvio((prev) => !prev)}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          cursor: "pointer",
+                          marginBottom: 12,
+                        }}
+                      >
+                        <h3 style={{ margin: 0 }}>Pedidos de Envio</h3>
+                        <span>{mostrarPedidosEnvio ? "▼" : "▶"}</span>
+                      </div>
+
+                      {mostrarPedidosEnvio &&
+                        (carregandoPedidosEnvio ? (
+                          <p>Carregando pedidos de envio...</p>
+                        ) : pedidosEnvioEmMontagem.length === 0 ? (
+                          <p>Nenhum pedido de envio criado ainda.</p>
+                        ) : (
+                          <div style={{ display: "grid", gap: 12 }}>
+                            {pedidosEnvioEmMontagem.map((p) => (
+                              <div key={p.id} style={cardCliente}>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    gap: 12,
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+                                  {/* ESQUERDA */}
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <button
+                                      onClick={() => toggleExpandirPedidoEnvio(p.id)}
+                                      style={{
+                                        background: "transparent",
+                                        border: "none",
+                                        cursor: "pointer",
+                                        fontSize: 18,
+                                        padding: "4px 6px",
+                                      }}
+                                    >
+                                      {pedidosEnvioExpandidos[p.id] ? "▼" : "▶"}
+                                    </button>
+
+                                    <strong>{p.cliente_nome}</strong>
+                                  </div>
+
+                                  {/* DIREITA */}
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      gap: 10,
+                                      alignItems: "center",
+                                      flexWrap: "wrap",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        padding: "4px 10px",
+                                        borderRadius: 10,
+                                        background: "#2563eb",
+                                        color: "#fff",
+                                        fontSize: 12,
+                                        fontWeight: "bold",
+                                      }}
+                                    >
+                                      {p.status}
+                                    </span>
+
+                                    <span>{p.sacolinhas?.length || 0} sacolinha(s)</span>
+
+                                    <span>{p.quantidadeCalculada} peça(s)</span>
+
+                                    <span
+                                      style={{
+                                        padding: "4px 10px",
+                                        borderRadius: 10,
+                                        background:
+                                          (itensConferidosPedido[p.id] || []).length === p.quantidadeCalculada
+                                            ? "#15803d"
+                                            : "#b45309",
+                                        color: "#fff",
+                                        fontSize: 12,
+                                        fontWeight: "bold",
+                                      }}
+                                    >
+                                      Conferido: {(itensConferidosPedido[p.id] || []).length} / {p.quantidadeCalculada}
+                                    </span>
+
+                                    <button
+                                      style={{ ...botaoPequeno, background: "#6b7280" }}
+                                      onClick={() => cancelarPedidoDeEnvio(p.id, p.cliente_nome)}
+                                    >
+                                      Voltar para separadas
+                                    </button>
+
+                                    <button
+                                      style={{
+                                        ...botaoPequeno,
+                                        background:
+                                          (itensConferidosPedido[p.id] || []).length === p.quantidadeCalculada
+                                            ? "#15803d"
+                                            : "#9ca3af",
+                                        cursor:
+                                          (itensConferidosPedido[p.id] || []).length === p.quantidadeCalculada
+                                            ? "pointer"
+                                            : "not-allowed",
+                                      }}
+                                      onClick={() => {
+                                        if ((itensConferidosPedido[p.id] || []).length !== p.quantidadeCalculada) return;
+                                        marcarPedidoComoEnviado(p);
+                                      }}
+                                    >
+                                      Marcar pedido como enviado
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {pedidosEnvioExpandidos[p.id] && (
+                                  <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
+                                    <div
+                                      style={{
+                                        background: "#f8fafc",
+                                        border: "1px solid #e2e8f0",
+                                        borderRadius: 12,
+                                        padding: 12,
+                                        display: "grid",
+                                        gap: 8,
+                                      }}
+                                    >
+                                      <strong>Sacolinhas incluídas</strong>
+
+                                      {!p.sacolinhas || p.sacolinhas.length === 0 ? (
+                                        <div>Nenhuma sacolinha vinculada.</div>
+                                      ) : (
+                                        p.sacolinhas.map((sacolinha) => (
+                                          <div key={sacolinha.id} style={itemCliente}>
+                                            <div>
+                                              <strong>Live:</strong>{" "}
+                                              {listaLives.find((l) => String(l.id) === String(sacolinha.live_id))?.nome ||
+                                                sacolinha.live_id ||
+                                                "-"}
+                                            </div>
+
+                                            <div><strong>Sacolinha:</strong> {sacolinha.id}</div>
+                                            <div><strong>Peças:</strong> {sacolinha.quantidade || 0}</div>
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+
+                                    <div
+                                      style={{
+                                        background: "#f8fafc",
+                                        border: "1px solid #e2e8f0",
+                                        borderRadius: 12,
+                                        padding: 12,
+                                        display: "grid",
+                                        gap: 8,
+                                      }}
+                                    >
+                                      <strong>Itens do pedido</strong>
+
+                                      {!p.itens || p.itens.length === 0 ? (
+                                        <div>Nenhum item encontrado.</div>
+                                      ) : (
+                                        p.itens.map((item, index) => {
+                                          const itemKey = item.id || `${item.peca_id}-${index}`;
+
+                                          const checked =
+                                            itensConferidosPedido[p.id]?.includes(itemKey) || false;
+
+                                          // 🔥 BUSCA O NOME REAL DA PEÇA
+                                          const peca = pecas?.find(
+                                            (p) => String(p.id) === String(item.peca_id)
+                                          );
+
+                                          return (
+                                            <div
+                                              key={itemKey}
+                                              style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 10,
+                                                padding: 8,
+                                                border: "1px solid #e5e7eb",
+                                                borderRadius: 10,
+                                              }}
+                                            >
+                                              <input
+                                                type="checkbox"
+                                                checked={checked}
+                                                onChange={() =>
+                                                  toggleItemConferidoPedido(p.id, itemKey)
+                                                }
+                                              />
+
+                                              <div>
+                                                <div>
+                                                  <strong>
+                                                    {peca?.nome || item.nome_peca || item.nome || "-"}
+                                                  </strong>
+                                                </div>
+
+                                                <div style={{ fontSize: 12, color: "#555" }}>
+                                                  Código: {item.peca_id || "-"}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          );
+                                        })
+                                      )}
+                                    </div>
                                   </div>
                                 )}
                               </div>
@@ -3849,12 +4421,12 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                       </div>
 
                       {mostrarEnviadas &&
-                        (sacolinhasEnviadas.length === 0 ? (
-                          <p>Nenhuma sacolinha enviada ainda.</p>
+                        (pedidosEnvioConcluidos.length === 0 ? (
+                          <p>Nenhum pedido enviado ainda.</p>
                         ) : (
                           <div style={{ display: "grid", gap: 12 }}>
-                            {sacolinhasEnviadas.map((s) => (
-                              <div key={s.id} style={{ ...cardCliente, opacity: 0.8 }}>
+                            {pedidosEnvioConcluidos.map((p) => (
+                              <div key={p.id} style={{ ...cardCliente, opacity: 0.88 }}>
                                 <div
                                   style={{
                                     display: "flex",
@@ -3866,77 +4438,119 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                                 >
                                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                     <button
-                                      onClick={() => toggleExpandirSacolinha(s.id)}
+                                      onClick={() => toggleExpandirPedidoEnvio(p.id)}
                                       style={{
                                         background: "transparent",
                                         border: "none",
                                         cursor: "pointer",
                                         fontSize: 18,
-                                        width: "auto",
-                                        minWidth: "auto",
                                         padding: "4px 6px",
-                                        flexShrink: 0,
                                       }}
                                     >
-                                      {sacolinhasExpandidas[s.id] ? "▼" : "▶"}
+                                      {pedidosEnvioExpandidos[p.id] ? "▼" : "▶"}
                                     </button>
 
-                                    <strong>{s.cliente_nome}</strong>
+                                    <strong>{p.cliente_nome}</strong>
                                   </div>
 
-                                  <div style={{ fontSize: 14, color: "#555" }}>
-                                    Live: {listaLives.find((l) => String(l.id) === String(s.live_id))?.nome || s.live_id}
-                                  </div>
-
-                                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      gap: 10,
+                                      alignItems: "center",
+                                      flexWrap: "wrap",
+                                    }}
+                                  >
                                     <span
                                       style={{
                                         padding: "4px 10px",
                                         borderRadius: 10,
-                                        background:
-                                          s.status === "aberta"
-                                            ? "#b45309"
-                                            : s.status === "separada"
-                                              ? "#f59e0b"
-                                              : "#15803d",
+                                        background: "#15803d",
                                         color: "#fff",
                                         fontSize: 12,
                                         fontWeight: "bold",
-                                        textTransform: "capitalize",
                                       }}
                                     >
-                                      {s.status}
+                                      enviado
                                     </span>
 
-                                    <span>{s.quantidade} peça(s)</span>
-
-                                    {sacolinhaEstaVencida(s) && (
-                                      <span
-                                        style={{
-                                          padding: "4px 10px",
-                                          borderRadius: 10,
-                                          background: "#dc2626",
-                                          color: "#fff",
-                                          fontSize: 12,
-                                          fontWeight: "bold",
-                                          textTransform: "capitalize",
-                                        }}
-                                      >
-                                        vencida
-                                      </span>
-                                    )}
+                                    <span>{p.sacolinhas?.length || 0} sacolinha(s)</span>
+                                    <span>{p.quantidadeCalculada} peça(s)</span>
+                                    <span>Enviado em: {p.enviado_em || "-"}</span>
                                   </div>
                                 </div>
 
-                                {sacolinhasExpandidas[s.id] && (
-                                  <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-                                    {s.itens.map((item) => (
-                                      <div key={item.id} style={itemCliente}>
-                                        <div><strong>Peça:</strong> {item.nome_peca}</div>
-                                        <div><strong>Código:</strong> {item.peca_id}</div>
-                                        <div><strong>Valor:</strong> {formatarBRL(item.valor_venda)}</div>
-                                      </div>
-                                    ))}
+                                {pedidosEnvioExpandidos[p.id] && (
+                                  <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
+                                    <div
+                                      style={{
+                                        background: "#f8fafc",
+                                        border: "1px solid #e2e8f0",
+                                        borderRadius: 12,
+                                        padding: 12,
+                                        display: "grid",
+                                        gap: 8,
+                                      }}
+                                    >
+                                      <strong>Sacolinhas enviadas</strong>
+
+                                      {!p.sacolinhas || p.sacolinhas.length === 0 ? (
+                                        <div>Nenhuma sacolinha vinculada.</div>
+                                      ) : (
+                                        p.sacolinhas.map((sacolinha) => (
+                                          <div key={sacolinha.id} style={itemCliente}>
+                                            <div>
+                                              <strong>Live:</strong>{" "}
+                                              {listaLives.find((l) => String(l.id) === String(sacolinha.live_id))?.nome ||
+                                                sacolinha.live_id ||
+                                                "-"}
+                                            </div>
+                                            <div><strong>Sacolinha:</strong> {sacolinha.id}</div>
+                                            <div><strong>Peças:</strong> {sacolinha.quantidade || 0}</div>
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+
+                                    <div
+                                      style={{
+                                        background: "#f8fafc",
+                                        border: "1px solid #e2e8f0",
+                                        borderRadius: 12,
+                                        padding: 12,
+                                        display: "grid",
+                                        gap: 8,
+                                      }}
+                                    >
+                                      <strong>Itens enviados</strong>
+
+                                      {!p.itens || p.itens.length === 0 ? (
+                                        <div>Nenhum item encontrado.</div>
+                                      ) : (
+                                        p.itens.map((item, index) => (
+                                          <div
+                                            key={item.id || `${item.peca_id}-${index}`}
+                                            style={{
+                                              display: "flex",
+                                              alignItems: "center",
+                                              gap: 10,
+                                              padding: 8,
+                                              border: "1px solid #e5e7eb",
+                                              borderRadius: 10,
+                                            }}
+                                          >
+                                            <div>
+                                              <div>
+                                                <strong>{item.nome_peca || item.nome || "-"}</strong>
+                                              </div>
+                                              <div style={{ fontSize: 12, color: "#555" }}>
+                                                Código: {item.peca_id || "-"}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
                                   </div>
                                 )}
                               </div>
