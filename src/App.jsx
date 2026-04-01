@@ -1,3 +1,12 @@
+import {
+  sacolinhaEstaPaga,
+  sacolinhaEstaVencida,
+  sacolinhaPodeIrParaExpedicao,
+  pedidoEstaConferido,
+  clienteJaTemPedidoAtivo,
+  sacolinhaJaEstaEmPedidoAtivo
+} from "./utils/expedicaoRules";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import { Html5QrcodeScanner } from "html5-qrcode";
@@ -207,10 +216,10 @@ function EtiquetaPrint({ peca }) {
         textAlign: "center",
         overflow: "hidden",
         display: "grid",
-        gridTemplateRows: "9mm 4.5mm 4.5mm 5mm 18mm",
+        gridTemplateRows: "8mm 3.5mm 4mm 4mm 18mm",
         alignItems: "start",
         justifyItems: "center",
-        rowGap: "0.2mm",
+        rowGap: "0.1mm",
         breakInside: "avoid",
         pageBreakInside: "avoid",
       }}
@@ -219,7 +228,7 @@ function EtiquetaPrint({ peca }) {
         style={{
           width: "100%",
           fontWeight: "bold",
-          fontSize: "9.5px",
+          fontSize: "10.5px",
           lineHeight: 1.05,
           overflow: "hidden",
           display: "-webkit-box",
@@ -236,7 +245,7 @@ function EtiquetaPrint({ peca }) {
       <div
         style={{
           width: "100%",
-          fontSize: "7px",
+          fontSize: "7.5px",
           lineHeight: 1,
           overflow: "hidden",
           display: "-webkit-box",
@@ -253,7 +262,7 @@ function EtiquetaPrint({ peca }) {
       <div
         style={{
           width: "100%",
-          fontSize: "8.5px",
+          fontSize: "9.5px",
           fontWeight: "bold",
           lineHeight: 1,
           overflow: "hidden",
@@ -265,7 +274,7 @@ function EtiquetaPrint({ peca }) {
       <div
         style={{
           width: "100%",
-          fontSize: "6.5px",
+          fontSize: "7px",
           lineHeight: 1,
           overflow: "hidden",
           display: "-webkit-box",
@@ -288,7 +297,7 @@ function EtiquetaPrint({ peca }) {
           marginTop: "-0.5mm",
         }}
       >
-        <QRCodeCanvas value={peca.id} size={65} />
+        <QRCodeCanvas value={peca.id} size={62} />
       </div>
     </div>
   );
@@ -531,33 +540,47 @@ export default function App() {
     try {
       const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
       const data = await res.json();
+
       if (data.erro) return;
+
+      const enderecoMontado = `${data.logradouro || ""}${data.bairro ? " - " + data.bairro : ""
+        }${data.localidade ? " - " + data.localidade : ""}${data.uf ? "/" + data.uf : ""
+        }`;
 
       setFormCliente((prev) => ({
         ...prev,
-        endereco: `${data.logradouro || ""}${data.bairro ? " - " + data.bairro : ""}${data.localidade ? " - " + data.localidade : ""}${data.uf ? "/" + data.uf : ""}`,
+        endereco: enderecoMontado || prev.endereco,
       }));
     } catch (err) {
-      console.error(err);
+      console.error("Erro ao buscar CEP:", err);
     }
   }
 
-  useEffect(() => {
-    async function carregarTudo() {
-      await Promise.all([
-        carregarPecas(),
-        carregarClientes(),
-        carregarLives(),
-        carregarLiveAberta(),
-        carregarPagamentosClientes(),
-        carregarTodasVendasLive(),
-        carregarSacolinhasLive(),
-        carregarPedidosEnvio(),
-        carregarPedidoEnvioSacolinhas(),
-      ]);
-    }
+  async function carregarTudoInicial() {
+    await Promise.all([
+      carregarPecas(),
+      carregarClientes(),
+      carregarLives(),
+      carregarLiveAberta(),
+      carregarPagamentosClientes(),
+      carregarTodasVendasLive(),
+      carregarSacolinhasLive(),
+      carregarPedidosEnvio(),
+      carregarPedidoEnvioSacolinhas(),
+    ]);
+  }
 
-    carregarTudo();
+  async function recarregarExpedicao() {
+    await Promise.all([
+      carregarSacolinhasLive(),
+      carregarPedidosEnvio(),
+      carregarPedidoEnvioSacolinhas(),
+      carregarTodasVendasLive(),
+    ]);
+  }
+
+  useEffect(() => {
+    carregarTudoInicial();
   }, []);
 
   useEffect(() => {
@@ -710,6 +733,16 @@ export default function App() {
   }, [scannerAtivo]);
 
   useEffect(() => {
+    if (abaAtiva === "expedicao") {
+      resetExpansoesExpedicao();
+      setMostrarAbertas(false);
+      setMostrarSeparadas(false);
+      setMostrarPedidosEnvio(false);
+      setMostrarEnviadas(false);
+    }
+  }, [abaAtiva]);
+
+  useEffect(() => {
     function handleResize() {
       setIsMobile(window.innerWidth < 768);
     }
@@ -736,6 +769,7 @@ export default function App() {
 
   async function buscarClientePorCpf(cpf, idIgnorar = null) {
     const cpfLimpo = normalizarCPF(cpf);
+
     if (!cpfLimpo || cpfLimpo.length !== 11) return null;
 
     let query = supabase
@@ -755,7 +789,7 @@ export default function App() {
       throw error;
     }
 
-    return data && data.length > 0 ? data[0] : null;
+    return Array.isArray(data) && data.length > 0 ? data[0] : null;
   }
 
   function gerarLinkCadastroCliente() {
@@ -767,16 +801,31 @@ export default function App() {
     return url.toString();
   }
 
+  async function copiarTexto(texto, mensagemSucesso, mensagemErro) {
+    try {
+      if (!navigator?.clipboard) {
+        alert(mensagemErro);
+        return false;
+      }
+
+      await navigator.clipboard.writeText(texto);
+      alert(mensagemSucesso);
+      return true;
+    } catch (error) {
+      console.error(error);
+      alert(mensagemErro);
+      return false;
+    }
+  }
+
   async function copiarLinkCadastroCliente() {
     const link = gerarLinkCadastroCliente();
 
-    try {
-      await navigator.clipboard.writeText(link);
-      alert("Link de cadastro copiado com sucesso.");
-    } catch (error) {
-      console.error(error);
-      alert("Não foi possível copiar o link.");
-    }
+    await copiarTexto(
+      link,
+      "Link de cadastro copiado com sucesso.",
+      "Não foi possível copiar o link."
+    );
   }
 
   async function salvarCliente() {
@@ -963,13 +1012,11 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       }
     }
 
-    try {
-      await navigator.clipboard.writeText(texto);
-      alert("Dados do cliente copiados.");
-    } catch (err) {
-      console.error(err);
-      alert("Não foi possível compartilhar.");
-    }
+    await copiarTexto(
+      texto,
+      "Dados do cliente copiados.",
+      "Não foi possível compartilhar."
+    );
   }
 
   function gerarMensagemWhatsAppCadastroCliente() {
@@ -980,13 +1027,11 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   async function copiarMensagemWhatsAppCadastroCliente() {
     const mensagem = gerarMensagemWhatsAppCadastroCliente();
 
-    try {
-      await navigator.clipboard.writeText(mensagem);
-      alert("Mensagem de WhatsApp copiada com sucesso.");
-    } catch (error) {
-      console.error(error);
-      alert("Não foi possível copiar a mensagem.");
-    }
+    await copiarTexto(
+      mensagem,
+      "Mensagem de WhatsApp copiada com sucesso.",
+      "Não foi possível copiar a mensagem."
+    );
   }
 
   function handleFoto(e) {
@@ -1420,6 +1465,11 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     setCarregandoSacolinhas(false);
   }
 
+  function resetExpansoesExpedicao() {
+    setSacolinhasExpandidas({});
+    setPedidosEnvioExpandidos({});
+  }
+
   async function copiarTextoComanda(clienteResumo) {
     try {
       await navigator.clipboard.writeText(montarTextoComanda(clienteResumo));
@@ -1430,7 +1480,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   }
 
   async function marcarSacolinhaComoEnviada(sacolinhaId, sacolinha) {
-    if (!sacolinhaEstaPaga(sacolinha)) {
+    if (!sacolinhaEstaPaga(sacolinha, todasVendasLive)) {
       alert("Só é possível enviar após pagamento.");
       return;
     }
@@ -1484,11 +1534,8 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         return;
       }
 
-      await Promise.all([
-        carregarPedidosEnvio(),
-        carregarPedidoEnvioSacolinhas(),
-        carregarSacolinhasLive(),
-      ]);
+      await recarregarExpedicao();
+      resetExpansoesExpedicao();
 
       alert("Pedido de envio cancelado com sucesso.");
     } catch (error) {
@@ -1519,7 +1566,6 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     try {
       const agora = new Date().toLocaleString("pt-BR");
 
-      // 1) marca o pedido como enviado
       const { error: erroPedido } = await supabase
         .from("pedidos_envio")
         .update({
@@ -1537,7 +1583,6 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         return;
       }
 
-      // 2) marca todas as sacolinhas desse pedido como enviadas
       const idsSacolinhas = (pedido.sacolinhas || []).map((s) => s.id);
 
       if (idsSacolinhas.length > 0) {
@@ -1555,12 +1600,8 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         }
       }
 
-      await Promise.all([
-        carregarPedidosEnvio(),
-        carregarPedidoEnvioSacolinhas(),
-        carregarSacolinhasLive(),
-        carregarTodasVendasLive(),
-      ]);
+      await recarregarExpedicao();
+      resetExpansoesExpedicao();
 
       alert("Pedido marcado como enviado com sucesso.");
     } catch (error) {
@@ -1572,7 +1613,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   async function criarPedidoDeEnvio(clienteNome) {
     if (criandoPedidoEnvioCliente === clienteNome) return;
 
-    if (clienteJaTemPedidoEnvioAtivo(clienteNome)) {
+    if (clienteJaTemPedidoAtivo(clienteNome, pedidosEnvio)) {
       alert("Essa cliente já possui um pedido de envio em andamento.");
       return;
     }
@@ -1643,11 +1684,8 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         return;
       }
 
-      await Promise.all([
-        carregarPedidosEnvio(),
-        carregarPedidoEnvioSacolinhas(),
-        carregarSacolinhasLive(),
-      ]);
+      await recarregarExpedicao();
+      resetExpansoesExpedicao();
 
       alert("Pedido de envio criado com sucesso.");
     } catch (error) {
@@ -1658,67 +1696,15 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     }
   }
 
-  function sacolinhaEstaVencida(s) {
-    if (!s?.criado_em) return false;
-
-    const parteDataHora = String(s.criado_em).split(",").map((p) => p.trim());
-    const parteData = parteDataHora[0];
-    if (!parteData) return false;
-
-    const [dia, mes, ano] = parteData.split("/");
-    if (!dia || !mes || !ano) return false;
-
-    const dataCriacao = new Date(`${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}T00:00:00`);
-    const hoje = new Date();
-
-    const diffDias = (hoje - dataCriacao) / (1000 * 60 * 60 * 24);
-
-    return diffDias > 30 && s.status !== "enviada";
-  }
-
-  function sacolinhaJaEstaEmPedidoAtivo(sacolinhaId) {
-    const vinculo = pedidoEnvioSacolinhas.find(
-      (v) => String(v.sacolinha_id) === String(sacolinhaId)
-    );
-
-    if (!vinculo) return false;
-
-    const pedido = pedidosEnvio.find(
-      (p) => String(p.id) === String(vinculo.pedido_envio_id)
-    );
-
-    if (!pedido) return false;
-
-    return pedido.status !== "enviado";
-  }
-
   function obterSacolinhasSeparadasElegiveisPorCliente(clienteNome) {
-    return sacolinhasSeparadas.filter((s) => {
+    return sacolinhasLive.filter((s) => {
       return (
+        s.status === "separada" &&
         String(s.cliente_nome || "").trim().toLowerCase() ===
         String(clienteNome || "").trim().toLowerCase() &&
-        !sacolinhaJaEstaEmPedidoAtivo(s.id)
+        !sacolinhaJaEstaEmPedidoAtivo(s.id, pedidoEnvioSacolinhas, pedidosEnvio)
       );
     });
-  }
-
-  function clienteJaTemPedidoEnvioAtivo(clienteNome) {
-    return pedidosEnvio.some(
-      (p) =>
-        String(p.cliente_nome || "").trim().toLowerCase() ===
-        String(clienteNome || "").trim().toLowerCase() &&
-        p.status !== "enviado"
-    );
-  }
-
-  function sacolinhaEstaPaga(s) {
-    const itensDaSacolinha = todasVendasLive.filter(
-      (v) => String(v.sacolinha_id) === String(s.id)
-    );
-
-    if (itensDaSacolinha.length === 0) return false;
-
-    return itensDaSacolinha.every((v) => v.status_pagamento === "pago");
   }
 
   async function marcarSacolinhaComoSeparada(sacolinhaId) {
@@ -1736,6 +1722,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     }
 
     await carregarSacolinhasLive();
+    resetExpansoesExpedicao();
   }
 
   async function carregarPedidosEnvio() {
@@ -2007,27 +1994,56 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   const pecasFiltradas = useMemo(() => {
     const termo = buscaPeca.trim().toLowerCase();
 
-    return pecas.filter((p) => {
-      const nome = String(p?.nome || "").toLowerCase();
-      const codigo = String(p?.id || "").toLowerCase();
-      const clienteNome = String(p?.cliente || "").toLowerCase();
+    return pecas
+      .filter((p) => {
+        const nome = String(p?.nome || "").toLowerCase();
+        const codigo = String(p?.id || "").toLowerCase();
+        const clienteNome = String(p?.cliente || "").toLowerCase();
 
-      const bateBusca =
-        !termo ||
-        nome.includes(termo) ||
-        codigo.includes(termo) ||
-        clienteNome.includes(termo);
+        const bateBusca =
+          !termo ||
+          nome.includes(termo) ||
+          codigo.includes(termo) ||
+          clienteNome.includes(termo);
 
-      if (pecaIdsEnviados.includes(String(p?.id))) return false;
+        if (pecaIdsEnviados.includes(String(p?.id))) return false;
+        if (!bateBusca) return false;
 
-      if (!bateBusca) return false;
+        if (filtroEstoque === "todas") return true;
+        if (filtroEstoque === "disponiveis") return !p?.vendido;
+        if (filtroEstoque === "vendidas") return !!p?.vendido;
 
-      if (filtroEstoque === "todas") return true;
-      if (filtroEstoque === "disponiveis") return !p?.vendido;
-      if (filtroEstoque === "vendidas") return !!p?.vendido;
+        return true;
+      })
+      .sort((a, b) => {
+        function toTimestamp(dataStr) {
+          if (!dataStr) return 0;
 
-      return true;
-    });
+          const texto = String(dataStr).trim();
+
+          const match = texto.match(
+            /^(\d{2})\/(\d{2})\/(\d{4}),?\s*(\d{2}):(\d{2})(?::(\d{2}))?$/
+          );
+
+          if (!match) return 0;
+
+          const [, dia, mes, ano, hora, minuto, segundo = "00"] = match;
+
+          return new Date(
+            Number(ano),
+            Number(mes) - 1,
+            Number(dia),
+            Number(hora),
+            Number(minuto),
+            Number(segundo)
+          ).getTime();
+        }
+
+        const dataA = toTimestamp(a?.data_cadastro);
+        const dataB = toTimestamp(b?.data_cadastro);
+
+        return dataB - dataA; // 🔥 MAIS NOVAS PRIMEIRO
+      });
   }, [pecas, buscaPeca, filtroEstoque, pecaIdsEnviados]);
 
   const resumoClientesLive = useMemo(
@@ -2245,7 +2261,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   );
 
   const sacolinhasSeparadas = sacolinhasAgrupadas.filter(
-    (s) => s.status === "separada" && !sacolinhaJaEstaEmPedidoAtivo(s.id)
+    (s) => s.status === "separada" && !sacolinhaJaEstaEmPedidoAtivo(s.id, pedidoEnvioSacolinhas, pedidosEnvio)
   );
 
   const sacolinhasEnviadas = sacolinhasAgrupadas.filter(
@@ -2491,77 +2507,106 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     }
 
     @media (max-width: 767px) {
-  .layout-app {
-    grid-template-columns: 1fr !important;
-    padding: 8px !important;
-    gap: 8px !important;
-  }
+      .layout-app {
+        grid-template-columns: 1fr !important;
+        padding: 8px !important;
+        gap: 8px !important;
+      }
 
-  .sidebar-app {
-    width: 100% !important;
-    border-radius: 18px !important;
-    padding: 14px !important;
-  }
+      .sidebar-app {
+        width: 100% !important;
+        border-radius: 18px !important;
+        padding: 14px !important;
+      }
 
-  .painel-principal {
-    min-height: auto !important;
-    padding: 14px !important;
-    border-radius: 18px !important;
-  }
+      .painel-principal {
+        min-height: auto !important;
+        padding: 14px !important;
+        border-radius: 18px !important;
+      }
 
-  .area-principal {
-    width: 100% !important;
-  }
+      .area-principal {
+        width: 100% !important;
+      }
 
-  .grid-cadastro,
-  .grid-vendas,
-  .grid-clientes,
-  .linha-resumo {
-    grid-template-columns: 1fr !important;
-  }
+      .grid-cadastro,
+      .grid-vendas,
+      .grid-clientes,
+      .linha-resumo {
+        grid-template-columns: 1fr !important;
+      }
 
-  .menu-lista {
-    display: grid !important;
-    gap: 8px !important;
-  }
+      .menu-lista {
+        display: grid !important;
+        gap: 8px !important;
+      }
 
-  .topo-mobile {
-    display: flex !important;
-  }
+      .topo-mobile {
+        display: flex !important;
+        position: sticky !important;
+        top: 8px !important;
+      }
 
-  /* 🔥 MELHORIAS IMPORTANTES */
-  button {
-  font-size: 14px;
-}
+      .topo-mobile strong {
+        font-size: 18px !important;
+      }
 
-.painel-principal button,
-.grid-cadastro button,
-.grid-vendas button,
-.grid-clientes button,
-.linha-resumo button {
-  width: 100%;
-}
+      button {
+        font-size: 14px;
+      }
 
-.topo-mobile {
-  position: sticky !important;
-  top: 8px !important;
-}
+      .painel-principal button,
+      .grid-cadastro button,
+      .grid-vendas button,
+      .grid-clientes button,
+      .linha-resumo button {
+        width: 100%;
+      }
 
-.topo-mobile strong {
-  font-size: 18px !important;
-}
+      input {
+        width: 100% !important;
+      }
 
-  input {
-    width: 100% !important;
-  }
+      * {
+        min-width: 0;
+      }
+    }
 
-  /* evita quebra e scroll lateral */
-  * {
-    min-width: 0;
-  }
-}
+    /* PREVIEW EM TELA */
+    .paginas-etiquetas-preview {
+      display: grid;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .pagina-etiquetas {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 14mm 4mm 4mm 4mm;
+      box-sizing: border-box;
+      background: #fff;
+      display: grid;
+      grid-template-columns: repeat(5, 37mm);
+      grid-template-rows: repeat(5, 46mm);
+      column-gap: 2mm;
+      row-gap: 2mm;
+      justify-content: start;
+      align-content: start;
+    }
 
     @media print {
+      html,
+      body {
+        width: 210mm !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+        overflow: visible !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
       body * {
         visibility: hidden !important;
       }
@@ -2571,12 +2616,34 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         visibility: visible !important;
       }
 
+      .overlay-preview-impressao {
+        position: static !important;
+        inset: auto !important;
+        background: transparent !important;
+        display: block !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+
+      .modal-preview-impressao {
+        width: auto !important;
+        max-height: none !important;
+        background: #fff !important;
+        border-radius: 0 !important;
+        overflow: visible !important;
+        display: block !important;
+        flex-direction: initial !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
       #area-preview-impressao {
         position: absolute !important;
         left: 0 !important;
         top: 0 !important;
         width: 210mm !important;
-        min-height: 297mm !important;
+        min-height: auto !important;
         background: #fff !important;
         padding: 0 !important;
         margin: 0 !important;
@@ -2587,19 +2654,23 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         display: none !important;
       }
 
+      .paginas-etiquetas-preview {
+        display: block !important;
+      }
+
       .pagina-etiquetas {
         width: 210mm !important;
-        height: 297mm !important;
-        padding: 6mm 4mm 4mm 4mm !important;
+        min-height: 297mm !important;
+        padding: 14mm 4mm 4mm 4mm !important;
         box-sizing: border-box !important;
+        background: #fff !important;
         display: grid !important;
         grid-template-columns: repeat(5, 37mm) !important;
         grid-template-rows: repeat(5, 46mm) !important;
         column-gap: 2mm !important;
         row-gap: 2mm !important;
-        justify-content: center !important;
+        justify-content: start !important;
         align-content: start !important;
-        overflow: hidden !important;
         page-break-after: always !important;
         break-after: page !important;
       }
@@ -2609,22 +2680,14 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         break-after: auto !important;
       }
 
+      .etiqueta {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+
       @page {
         size: A4 portrait;
-        margin: 0mm;
-      }
-
-      html,
-      body {
-        width: 210mm !important;
-        height: auto !important;
-        margin: 0 !important;
-        padding: 0 !important;
-      }
-
-      .etiqueta {
-        break-inside: avoid;
-        page-break-inside: avoid;
+        margin: 0;
       }
     }
   `}
@@ -3907,7 +3970,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                           marginBottom: 12,
                         }}
                       >
-                        <h3 style={{ margin: 0 }}>Sacolinhas abertas</h3>
+                        <h3 style={{ margin: 0 }}>Sacolinhas abertas ({sacolinhasAbertas.length})</h3>
                         <span>{mostrarAbertas ? "▼" : "▶"}</span>
                       </div>
 
@@ -4030,7 +4093,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                           marginBottom: 12,
                         }}
                       >
-                        <h3 style={{ margin: 0 }}>Separadas</h3>
+                        <h3 style={{ margin: 0 }}>Separadas ({sacolinhasSeparadas.length})</h3>
                         <span>{mostrarSeparadas ? "▼" : "▶"}</span>
                       </div>
 
@@ -4191,7 +4254,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                           marginBottom: 12,
                         }}
                       >
-                        <h3 style={{ margin: 0 }}>Pedidos de Envio</h3>
+                        <h3 style={{ margin: 0 }}>Pedidos de Envio ({pedidosEnvioEmMontagem.length})</h3>
                         <span>{mostrarPedidosEnvio ? "▼" : "▶"}</span>
                       </div>
 
@@ -4416,7 +4479,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                           marginBottom: 12,
                         }}
                       >
-                        <h3 style={{ margin: 0 }}>Enviadas</h3>
+                        <h3 style={{ margin: 0 }}>Enviadas ({pedidosEnvioConcluidos.length})</h3>
                         <span>{mostrarEnviadas ? "▼" : "▶"}</span>
                       </div>
 
@@ -4568,6 +4631,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
         {previewAberto && (
           <div
+            className="overlay-preview-impressao"
             style={{
               position: "fixed",
               inset: 0,
@@ -4580,6 +4644,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
             }}
           >
             <div
+              className="modal-preview-impressao"
               style={{
                 width: "min(1000px, 95vw)",
                 maxHeight: "90vh",
@@ -4794,31 +4859,14 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 )}
 
                 {tipoPreview === PREVIEW_TIPO.ETIQUETAS && Array.isArray(dadosPreview) && (
-                  <div style={{ display: "grid", gap: 0 }}>
+                  <div className="paginas-etiquetas-preview">
                     {agruparEtiquetasEmPaginas(dadosPreview, 25).map((pagina, paginaIndex) => (
                       <div
                         key={paginaIndex}
                         className="pagina-etiquetas"
-                        style={{
-                          width: "210mm",
-                          height: "297mm",
-                          padding: "6mm 4mm 4mm 4mm",
-                          boxSizing: "border-box",
-                          background: "#fff",
-                          display: "grid",
-                          gridTemplateColumns: "repeat(5, 37mm)",
-                          gridTemplateRows: "repeat(5, 46mm)",
-                          columnGap: "2mm",
-                          rowGap: "2mm",
-                          justifyContent: "center",
-                          alignContent: "start",
-                          overflow: "hidden",
-                          pageBreakAfter: "always",
-                          breakAfter: "page",
-                        }}
                       >
-                        {pagina.map((peca) => (
-                          <EtiquetaPrint key={peca.id} peca={peca} />
+                        {pagina.map((peca, index) => (
+                          <EtiquetaPrint key={`${peca.id}-${index}`} peca={peca} />
                         ))}
                       </div>
                     ))}
@@ -4848,96 +4896,6 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           img {
             transition: all 0.2s ease;
           }
-
-          @media print {
-            body * {
-              visibility: hidden !important;
-            }
-
-            #area-preview-impressao,
-            #area-preview-impressao * {
-              visibility: visible !important;
-            }
-
-            #area-preview-impressao {
-              position: absolute !important;
-              left: 0 !important;
-              top: 1mm !important;
-              width: 210mm !important;
-              min-height: 297mm !important;
-              background: #fff !important;
-              padding: 0 !important;
-              margin: 0 !important;
-              overflow: visible !important;
-            }
-
-            .no-print {
-              display: none !important;
-            }
-
-            .pagina-etiquetas {
-              width: 210mm !important;
-              min-height: 297mm !important;
-              padding: 10mm 4mm 6mm 4mm !important;
-              box-sizing: border-box !important;
-              display: grid !important;
-              grid-template-columns: repeat(5, 37mm) !important;
-              grid-auto-rows: 46mm !important;
-              column-gap: 2mm !important;
-              row-gap: 3mm !important;
-              justify-content: center !important;
-              align-content: start !important;
-              page-break-after: always !important;
-              break-after: page !important;
-            }
-
-            .pagina-etiquetas:last-child {
-              page-break-after: auto !important;
-              break-after: auto !important;
-            }
-
-            @page {
-  size: A4 portrait;
-  margin: 2mm 2mm 2mm 2mm; /* 🔥 equilíbrio ideal */
-}
-
-html,
-body {
-  width: 210mm !important;
-  height: auto !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-@media print {
-
-  body {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  /* 🔥 remove espaço invisível do topo */
-  body::before {
-    content: "";
-    display: block;
-    height: 0;
-  }
-
-  /* 🔥 evita quebra feia */
-  .etiqueta {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-
-  /* 🔥 organiza páginas */
-  .pagina-etiquetas {
-    page-break-after: always;
-  }
-
-  .pagina-etiquetas:last-child {
-    page-break-after: auto;
-  }
-}
         `}
         </style>
       </div>
