@@ -4068,7 +4068,13 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                                     ) : (
                                       s.itens.map((item, index) => (
                                         <div key={item.id || `${item.peca_id}-${index}`} style={itemCliente}>
-                                          <div><strong>Peça:</strong> {item.nome_peca || item.nome || "-"}</div>
+                                          <div>
+                                            <strong>Peça:</strong>{" "}
+                                            {pecas.find((p) => String(p.id) === String(item.peca_id))?.nome ||
+                                              item.nome_peca ||
+                                              item.nome ||
+                                              "-"}
+                                          </div>
                                           <div><strong>Código:</strong> {item.peca_id || "-"}</div>
                                           <div><strong>Valor:</strong> {formatarBRL(item.valor_venda || 0)}</div>
                                         </div>
@@ -4194,29 +4200,31 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                                       <button
                                         style={{
                                           ...botaoPequeno,
-                                          background: sacolinhaEstaPaga(s) ? "#15803d" : "#9ca3af",
-                                          cursor: sacolinhaEstaPaga(s) ? "pointer" : "not-allowed",
+                                          background: sacolinhaEstaPaga(s, todasVendasLive) ? "#15803d" : "#9ca3af",
+                                          cursor: sacolinhaEstaPaga(s, todasVendasLive) ? "pointer" : "not-allowed",
                                         }}
                                         onClick={() => {
-                                          if (!sacolinhaEstaPaga(s)) return;
+                                          if (!sacolinhaEstaPaga(s, todasVendasLive)) return;
                                           marcarSacolinhaComoEnviada(s.id, s);
                                         }}
                                       >
-                                        {sacolinhaEstaPaga(s) ? "Marcar como enviada" : "Aguardando pagamento"}
+                                        {sacolinhaEstaPaga(s, todasVendasLive)
+                                          ? "Marcar como enviada"
+                                          : "Aguardando pagamento"}
                                       </button>
 
                                       <span
                                         style={{
                                           padding: "4px 10px",
                                           borderRadius: 10,
-                                          background: sacolinhaEstaPaga(s) ? "#15803d" : "#dc2626",
+                                          background: sacolinhaEstaPaga(s, todasVendasLive) ? "#15803d" : "#dc2626",
                                           color: "#fff",
                                           fontSize: 12,
                                           fontWeight: "bold",
                                           textTransform: "capitalize",
                                         }}
                                       >
-                                        {sacolinhaEstaPaga(s) ? "pago" : "pendente"}
+                                        {sacolinhaEstaPaga(s, todasVendasLive) ? "pago" : "pendente"}
                                       </span>
                                     </>
                                   </div>
@@ -4229,7 +4237,13 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                                     ) : (
                                       s.itens.map((item, index) => (
                                         <div key={item.id || `${item.peca_id}-${index}`} style={itemCliente}>
-                                          <div><strong>Peça:</strong> {item.nome_peca || item.nome || "-"}</div>
+                                          <div>
+                                            <strong>Peça:</strong>{" "}
+                                            {pecas.find((p) => String(p.id) === String(item.peca_id))?.nome ||
+                                              item.nome_peca ||
+                                              item.nome ||
+                                              "-"}
+                                          </div>
                                           <div><strong>Código:</strong> {item.peca_id || "-"}</div>
                                           <div><strong>Valor:</strong> {formatarBRL(item.valor_venda || 0)}</div>
                                         </div>
