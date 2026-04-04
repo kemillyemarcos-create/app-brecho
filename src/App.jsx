@@ -2595,101 +2595,116 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     }
 
     @media print {
-      html,
-      body {
-        width: 210mm !important;
-        height: auto !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        background: #fff !important;
-        overflow: visible !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-      }
+  html,
+  body {
+    width: 210mm !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 
-      body * {
-        visibility: hidden !important;
-      }
+  .topo-mobile,
+  .sidebar-app,
+  .no-print {
+    display: none !important;
+  }
 
-      #area-preview-impressao,
-      #area-preview-impressao * {
-        visibility: visible !important;
-      }
+  .layout-app {
+    display: block !important;
+    grid-template-columns: 1fr !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    background: #fff !important;
+    min-height: auto !important;
+  }
 
-      .overlay-preview-impressao {
-        position: static !important;
-        inset: auto !important;
-        background: transparent !important;
-        display: block !important;
-        padding: 0 !important;
-        margin: 0 !important;
-      }
+  .area-principal {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
 
-      .modal-preview-impressao {
-        width: auto !important;
-        max-height: none !important;
-        background: #fff !important;
-        border-radius: 0 !important;
-        overflow: visible !important;
-        display: block !important;
-        flex-direction: initial !important;
-        box-shadow: none !important;
-        margin: 0 !important;
-        padding: 0 !important;
-      }
+  .painel-principal {
+    display: block !important;
+    min-height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
 
-      #area-preview-impressao {
-        position: absolute !important;
-        left: 0 !important;
-        top: 0 !important;
-        width: 210mm !important;
-        min-height: auto !important;
-        background: #fff !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        overflow: visible !important;
-      }
+  .painel-principal > *:not(.overlay-preview-impressao) {
+    display: none !important;
+  }
 
-      .no-print {
-        display: none !important;
-      }
+  .overlay-preview-impressao,
+  .modal-preview-impressao,
+  #area-preview-impressao,
+  .paginas-etiquetas-preview {
+    display: block !important;
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    overflow: visible !important;
+    page-break-before: auto !important;
+    page-break-after: auto !important;
+    break-before: auto !important;
+    break-after: auto !important;
+  }
 
-      .paginas-etiquetas-preview {
-        display: block !important;
-      }
+  .pagina-etiquetas {
+    width: 210mm !important;
+    min-height: 297mm !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 14mm 4mm 4mm 4mm !important;
+    box-sizing: border-box !important;
+    background: #fff !important;
+    display: grid !important;
+    grid-template-columns: repeat(5, 37mm) !important;
+    grid-template-rows: repeat(5, 46mm) !important;
+    column-gap: 2mm !important;
+    row-gap: 2mm !important;
+    justify-content: start !important;
+    align-content: start !important;
+    page-break-before: auto !important;
+    page-break-after: auto !important;
+    break-before: auto !important;
+    break-after: auto !important;
+  }
 
-      .pagina-etiquetas {
-        width: 210mm !important;
-        min-height: 297mm !important;
-        padding: 14mm 4mm 4mm 4mm !important;
-        box-sizing: border-box !important;
-        background: #fff !important;
-        display: grid !important;
-        grid-template-columns: repeat(5, 37mm) !important;
-        grid-template-rows: repeat(5, 46mm) !important;
-        column-gap: 2mm !important;
-        row-gap: 2mm !important;
-        justify-content: start !important;
-        align-content: start !important;
-        page-break-after: always !important;
-        break-after: page !important;
-      }
+  .pagina-etiquetas:not(:last-child) {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
 
-      .pagina-etiquetas:last-child {
-        page-break-after: auto !important;
-        break-after: auto !important;
-      }
+  .etiqueta {
+    display: grid !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
 
-      .etiqueta {
-        break-inside: avoid !important;
-        page-break-inside: avoid !important;
-      }
+  canvas {
+    display: block !important;
+  }
 
-      @page {
-        size: A4 portrait;
-        margin: 0;
-      }
-    }
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+}
   `}
       </style>
 
