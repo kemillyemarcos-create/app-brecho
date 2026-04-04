@@ -1,11 +1,15 @@
 // src/utils/expedicaoRules.js
 
-export function sacolinhaEstaPaga(sacolinha, todasVendasLive) {
-    if (!sacolinha) return false;
+export function getItensDaSacolinha(sacolinha, todasVendasLive = []) {
+    if (!sacolinha?.id) return [];
 
-    const itensDaSacolinha = (todasVendasLive || []).filter(
+    return (todasVendasLive || []).filter(
         (v) => String(v.sacolinha_id) === String(sacolinha.id)
     );
+}
+
+export function sacolinhaEstaPaga(sacolinha, todasVendasLive = []) {
+    const itensDaSacolinha = getItensDaSacolinha(sacolinha, todasVendasLive);
 
     if (itensDaSacolinha.length === 0) return false;
 
@@ -86,4 +90,20 @@ export function sacolinhaJaEstaEmPedidoAtivo(
 
         return pedido && pedido.status === "montagem";
     });
+}
+
+export function getStatusSacolinha(sacolinha, todasVendasLive = []) {
+    if (!sacolinha) return "desconhecido";
+
+    if (sacolinhaEstaEnviada(sacolinha)) return "enviada";
+
+    if (!sacolinhaEstaPaga(sacolinha, todasVendasLive)) {
+        return "aguardando_pagamento";
+    }
+
+    if (sacolinhaEstaSeparada(sacolinha)) {
+        return "pronta_envio";
+    }
+
+    return "em_andamento";
 }
