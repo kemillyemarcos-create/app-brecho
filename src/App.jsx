@@ -3377,170 +3377,178 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                     <p>Nenhuma cliente registrada nessa live ainda.</p>
                   ) : (
                     <div style={{ display: "grid", gap: 14 }}>
-                      {clientesFiltrados.map((c) => (
-                        <div key={c.nome} style={cardCliente}>
-                          <div
-                            style={
-                              isMobile
-                                ? {
-                                  display: "grid",
-                                  gap: 12,
-                                  alignItems: "start",
-                                }
-                                : {
-                                  display: "grid",
-                                  gridTemplateColumns:
-                                    "minmax(220px, 1.2fr) minmax(160px, 1fr) 140px 120px",
-                                  gap: 16,
+                      {[...clientesFiltrados]
+                        .sort((a, b) =>
+                          (a.nome || "")
+                            .toString()
+                            .localeCompare((b.nome || "").toString(), "pt-BR", {
+                              sensitivity: "base",
+                            })
+                        )
+                        .map((c) => (
+                          <div key={c.nome} style={cardCliente}>
+                            <div
+                              style={
+                                isMobile
+                                  ? {
+                                    display: "grid",
+                                    gap: 12,
+                                    alignItems: "start",
+                                  }
+                                  : {
+                                    display: "grid",
+                                    gridTemplateColumns:
+                                      "minmax(220px, 1.2fr) minmax(160px, 1fr) 140px 120px",
+                                    gap: 16,
+                                    alignItems: "center",
+                                  }
+                              }
+                            >
+                              <div
+                                style={{
+                                  display: "flex",
                                   alignItems: "center",
-                                }
-                            }
-                          >
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                                minWidth: 0,
-                                overflow: "hidden",
-                              }}
-                            >
-                              <button
-                                onClick={() => toggleExpandirCliente(c.nome)}
-                                style={{
-                                  background: "transparent",
-                                  border: "none",
-                                  cursor: "pointer",
-                                  fontSize: 18,
-                                  padding: "4px 6px",
-                                  lineHeight: 1,
-                                  flexShrink: 0,
-                                  width: "auto",
-                                  minWidth: "auto",
-                                }}
-                              >
-                                {clientesExpandidos[c.nome] ? "▼" : "▶"}
-                              </button>
-
-                              <strong
-                                style={{
-                                  fontSize: 18,
-                                  whiteSpace: "nowrap",
+                                  gap: 8,
+                                  minWidth: 0,
                                   overflow: "hidden",
-                                  textOverflow: "ellipsis",
                                 }}
-                                title={c.nome}
                               >
-                                {c.nome}
-                              </strong>
-                            </div>
+                                <button
+                                  onClick={() => toggleExpandirCliente(c.nome)}
+                                  style={{
+                                    background: "transparent",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    fontSize: 18,
+                                    padding: "4px 6px",
+                                    lineHeight: 1,
+                                    flexShrink: 0,
+                                    width: "auto",
+                                    minWidth: "auto",
+                                  }}
+                                >
+                                  {clientesExpandidos[c.nome] ? "▼" : "▶"}
+                                </button>
 
-                            <div
-                              style={
-                                isMobile
-                                  ? {
-                                    display: "grid",
-                                    gridTemplateColumns: "1fr",
-                                    gap: 8,
-                                  }
-                                  : {
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "flex-start",
-                                    gap: 8,
-                                    flexWrap: "nowrap",
+                                <strong
+                                  style={{
+                                    fontSize: 18,
                                     whiteSpace: "nowrap",
-                                    paddingLeft: 8,
-                                  }
-                              }
-                            >
-                              <button
-                                style={{
-                                  ...botaoPequeno,
-                                  background: "#2563eb",
-                                  width: isMobile ? "100%" : "auto",
-                                }}
-                                onClick={() => exportarClienteCSV(c)}
-                              >
-                                CSV
-                              </button>
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                  }}
+                                  title={c.nome}
+                                >
+                                  {c.nome}
+                                </strong>
+                              </div>
 
-                              <button
-                                style={{
-                                  ...botaoPequeno,
-                                  background: "#111827",
-                                  width: isMobile ? "100%" : "auto",
-                                }}
-                                onClick={() => gerarComanda(c)}
+                              <div
+                                style={
+                                  isMobile
+                                    ? {
+                                      display: "grid",
+                                      gridTemplateColumns: "1fr",
+                                      gap: 8,
+                                    }
+                                    : {
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "flex-start",
+                                      gap: 8,
+                                      flexWrap: "nowrap",
+                                      whiteSpace: "nowrap",
+                                      paddingLeft: 8,
+                                    }
+                                }
                               >
-                                Comanda
-                              </button>
+                                <button
+                                  style={{
+                                    ...botaoPequeno,
+                                    background: "#2563eb",
+                                    width: isMobile ? "100%" : "auto",
+                                  }}
+                                  onClick={() => exportarClienteCSV(c)}
+                                >
+                                  CSV
+                                </button>
 
-                              <button
-                                style={{
-                                  ...botaoPequeno,
-                                  background: c.pago ? "#15803d" : "#b45309",
-                                  width: isMobile ? "100%" : "auto",
-                                }}
-                                onClick={() => togglePagamentoClienteLive(c.nome, c.pago)}
+                                <button
+                                  style={{
+                                    ...botaoPequeno,
+                                    background: "#111827",
+                                    width: isMobile ? "100%" : "auto",
+                                  }}
+                                  onClick={() => gerarComanda(c)}
+                                >
+                                  Comanda
+                                </button>
+
+                                <button
+                                  style={{
+                                    ...botaoPequeno,
+                                    background: c.pago ? "#15803d" : "#b45309",
+                                    width: isMobile ? "100%" : "auto",
+                                  }}
+                                  onClick={() => togglePagamentoClienteLive(c.nome, c.pago)}
+                                >
+                                  {c.pago ? "Pago" : "Pendente"}
+                                </button>
+                              </div>
+
+                              <div
+                                className="expedicao-info-direita"
+                                style={
+                                  isMobile
+                                    ? {
+                                      display: "grid",
+                                      gap: 4,
+                                      textAlign: "left",
+                                    }
+                                    : {
+                                      display: "grid",
+                                      gridTemplateColumns: "90px 90px",
+                                      justifyContent: "start",
+                                      alignItems: "center",
+                                      columnGap: 12,
+                                      textAlign: "right",
+                                      whiteSpace: "nowrap",
+                                      paddingLeft: 10,
+                                    }
+                                }
                               >
-                                {c.pago ? "Pago" : "Pendente"}
-                              </button>
+                                <span>{c.pecas} peça(s)</span>
+                                <strong>{formatarBRL(c.total)}</strong>
+                              </div>
                             </div>
 
-                            <div
-                              className="expedicao-info-direita"
-                              style={
-                                isMobile
-                                  ? {
-                                    display: "grid",
-                                    gap: 4,
-                                    textAlign: "left",
-                                  }
-                                  : {
-                                    display: "grid",
-                                    gridTemplateColumns: "90px 90px",
-                                    justifyContent: "start",
-                                    alignItems: "center",
-                                    columnGap: 12,
-                                    textAlign: "right",
-                                    whiteSpace: "nowrap",
-                                    paddingLeft: 10,
-                                  }
-                              }
-                            >
-                              <span>{c.pecas} peça(s)</span>
-                              <strong>{formatarBRL(c.total)}</strong>
-                            </div>
-                          </div>
+                            {clientesExpandidos[c.nome] && (
+                              <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+                                {c.itens.map((item, index) => (
+                                  <div key={`${item.codigo}-${index}`} style={itemCliente}>
+                                    <div><strong>Peça:</strong> {item.nomePeca}</div>
+                                    <div><strong>Código:</strong> {item.codigo}</div>
+                                    <div><strong>Valor:</strong> {formatarBRL(item.valor)}</div>
+                                    <div><strong>Vendido em:</strong> {item.dataVenda || "-"}</div>
 
-                          {clientesExpandidos[c.nome] && (
-                            <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
-                              {c.itens.map((item, index) => (
-                                <div key={`${item.codigo}-${index}`} style={itemCliente}>
-                                  <div><strong>Peça:</strong> {item.nomePeca}</div>
-                                  <div><strong>Código:</strong> {item.codigo}</div>
-                                  <div><strong>Valor:</strong> {formatarBRL(item.valor)}</div>
-                                  <div><strong>Vendido em:</strong> {item.dataVenda || "-"}</div>
-
-                                  <div style={{ marginTop: 8 }}>
-                                    <button
-                                      style={{
-                                        ...botaoPequeno,
-                                        background: "#b91c1c",
-                                        width: isMobile ? "100%" : "auto",
-                                      }}
-                                      onClick={() => cancelarVenda(item.codigo)}
-                                    >
-                                      Cancelar venda
-                                    </button>
+                                    <div style={{ marginTop: 8 }}>
+                                      <button
+                                        style={{
+                                          ...botaoPequeno,
+                                          background: "#b91c1c",
+                                          width: isMobile ? "100%" : "auto",
+                                        }}
+                                        onClick={() => cancelarVenda(item.codigo)}
+                                      >
+                                        Cancelar venda
+                                      </button>
+                                    </div>
                                   </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
                     </div>
                   )}
                 </div>
