@@ -1989,13 +1989,17 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       .sort((a, b) => b.total - a.total);
   }, [pecas, pagamentosClientes]);
 
-  const pecaIdsEnviados = todasVendasLive
-    .filter((v) =>
-      sacolinhasLive.some(
-        (s) => String(s.id) === String(v.sacolinha_id) && s.status === "enviada"
-      )
-    )
-    .map((v) => String(v.peca_id));
+  const pecaIdsEnviados = useMemo(() => {
+    const sacolinhasEnviadasIds = new Set(
+      sacolinhasLive
+        .filter((s) => s.status === "enviada")
+        .map((s) => String(s.id))
+    );
+
+    return todasVendasLive
+      .filter((v) => sacolinhasEnviadasIds.has(String(v.sacolinha_id)))
+      .map((v) => String(v.peca_id));
+  }, [todasVendasLive, sacolinhasLive]);
 
   const pecasFiltradas = useMemo(() => {
     const termo = buscaPeca.trim().toLowerCase();
@@ -2257,89 +2261,101 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   const ticketMedioFiltrado =
     quantidadeVendidaFiltrada > 0 ? faturamentoFiltrado / quantidadeVendidaFiltrada : 0;
 
-  const sacolinhasAgrupadas = sacolinhasLive
-    .map((sacolinha) => {
-      const itens = getItensDaSacolinha(sacolinha, todasVendasLive);
+  const sacolinhasAgrupadas = useMemo(() => {
+    return sacolinhasLive
+      .map((sacolinha) => {
+        const itens = getItensDaSacolinha(sacolinha, todasVendasLive);
 
-      return {
-        ...sacolinha,
-        itens,
-        quantidade: itens.length,
-      };
-    })
-    .filter((sacolinha) => sacolinha.quantidade > 0)
-    .sort((a, b) =>
-      String(a.cliente_nome || "").localeCompare(
-        String(b.cliente_nome || ""),
-        "pt-BR",
-        { sensitivity: "base" }
-      )
-    );
-
-  const sacolinhasAbertas = sacolinhasAgrupadas.filter(
-    (s) => s.status === "aberta"
-  );
-
-  const sacolinhasSeparadas = sacolinhasAgrupadas.filter(
-    (s) => s.status === "separada" && !sacolinhaJaEstaEmPedidoAtivo(s.id, pedidoEnvioSacolinhas, pedidosEnvio)
-  );
-
-  const sacolinhasEnviadas = sacolinhasAgrupadas.filter(
-    (s) => s.status === "enviada"
-  );
-
-  const pedidosEnvioAgrupados = pedidosEnvio.map((pedido) => {
-    const vinculos = pedidoEnvioSacolinhas.filter(
-      (v) => String(v.pedido_envio_id) === String(pedido.id)
-    );
-
-    const sacolinhasDoPedido = vinculos
-      .map((v) =>
-        sacolinhasLive.find(
-          (s) => String(s.id) === String(v.sacolinha_id)
+        return {
+          ...sacolinha,
+          itens,
+          quantidade: itens.length,
+        };
+      })
+      .filter((sacolinha) => sacolinha.quantidade > 0)
+      .sort((a, b) =>
+        String(a.cliente_nome || "").localeCompare(
+          String(b.cliente_nome || ""),
+          "pt-BR",
+          { sensitivity: "base" }
         )
-      )
-      .filter(Boolean);
+      );
+  }, [sacolinhasLive, todasVendasLive]);
 
-    // 🔥 TODOS OS ITENS DO PEDIDO (ESSENCIAL)
-    const itens = sacolinhasDoPedido.flatMap((sacolinha) =>
-      getItensDaSacolinha(sacolinha, todasVendasLive)
+  const sacolinhasAbertas = useMemo(() => {
+    return sacolinhasAgrupadas.filter((s) => s.status === "aberta");
+  }, [sacolinhasAgrupadas]);
+
+  const sacolinhasSeparadas = useMemo(() => {
+    return sacolinhasAgrupadas.filter(
+      (s) =>
+        s.status === "separada" &&
+        !sacolinhaJaEstaEmPedidoAtivo(s.id, pedidoEnvioSacolinhas, pedidosEnvio)
     );
+  }, [sacolinhasAgrupadas, pedidoEnvioSacolinhas, pedidosEnvio]);
 
-    // 🔹 AGRUPAMENTO POR SACOLINHA (controle por live continua intacto)
-    const sacolinhasAgrupadasPorLive = sacolinhasDoPedido.map((sacolinha) => {
-      const itensDaSacolinha = getItensDaSacolinha(sacolinha, todasVendasLive);
+  const sacolinhasEnviadas = useMemo(() => {
+    return sacolinhasAgrupadas.filter((s) => s.status === "enviada");
+  }, [sacolinhasAgrupadas]);
+
+  const mapaSacolinhasPorId = useMemo(() => {
+    if (!Array.isArray(sacolinhasLive)) return {};
+
+    return Object.fromEntries(
+      sacolinhasLive.map((s) => [String(s.id), s])
+    );
+  }, [sacolinhasLive]);
+
+  const pedidosEnvioAgrupados = useMemo(() => {
+    return pedidosEnvio.map((pedido) => {
+      const vinculos = pedidoEnvioSacolinhas.filter(
+        (v) => String(v.pedido_envio_id) === String(pedido.id)
+      );
+
+      const sacolinhasDoPedido = vinculos
+        .map((v) => mapaSacolinhasPorId[String(v.sacolinha_id)])
+        .filter(Boolean);
+
+      // 🔥 TODOS OS ITENS DO PEDIDO (ESSENCIAL)
+      const itens = sacolinhasDoPedido.flatMap((sacolinha) =>
+        getItensDaSacolinha(sacolinha, todasVendasLive)
+      );
+
+      // 🔹 AGRUPAMENTO POR SACOLINHA
+      const sacolinhasAgrupadasPorLive = sacolinhasDoPedido.map((sacolinha) => {
+        const itensDaSacolinha = getItensDaSacolinha(sacolinha, todasVendasLive);
+
+        return {
+          ...sacolinha,
+          quantidade: itensDaSacolinha.length,
+          itens: itensDaSacolinha,
+        };
+      });
+
+      // 🔹 TOTAL DE PEÇAS
+      const quantidadeTotal = sacolinhasAgrupadasPorLive.reduce(
+        (acc, s) => acc + s.quantidade,
+        0
+      );
 
       return {
-        ...sacolinha,
-        quantidade: itensDaSacolinha.length,
-        itens: itensDaSacolinha,
+        ...pedido,
+        sacolinhas: sacolinhasAgrupadasPorLive,
+        quantidadeCalculada: quantidadeTotal,
+        itens,
       };
     });
-
-    // 🔹 TOTAL DE PEÇAS DO PEDIDO (pacote final)
-    const quantidadeTotal = sacolinhasAgrupadasPorLive.reduce(
-      (acc, s) => acc + s.quantidade,
-      0
-    );
-
-    return {
-      ...pedido,
-      sacolinhas: sacolinhasAgrupadasPorLive,
-      quantidadeCalculada: quantidadeTotal,
-      itens, // 🔥 ESSENCIAL PARA CONFERÊNCIA
-    };
-  });
+  }, [pedidosEnvio, pedidoEnvioSacolinhas, mapaSacolinhasPorId, todasVendasLive]);
 
 
-  // 🔹 FILTROS DE STATUS (mantém organização do fluxo)
-  const pedidosEnvioEmMontagem = pedidosEnvioAgrupados.filter((p) =>
-    pedidoEstaEmMontagem(p)
-  );
+  // 🔹 FILTROS DE STATUS
+  const pedidosEnvioEmMontagem = useMemo(() => {
+    return pedidosEnvioAgrupados.filter((p) => pedidoEstaEmMontagem(p));
+  }, [pedidosEnvioAgrupados]);
 
-  const pedidosEnvioConcluidos = pedidosEnvioAgrupados.filter((p) =>
-    pedidoEstaEnviado(p)
-  );
+  const pedidosEnvioConcluidos = useMemo(() => {
+    return pedidosEnvioAgrupados.filter((p) => pedidoEstaEnviado(p));
+  }, [pedidosEnvioAgrupados]);
 
   if (modoCadastroPublicoAtivo()) {
     return (
