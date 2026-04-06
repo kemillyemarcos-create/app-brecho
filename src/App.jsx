@@ -15,6 +15,11 @@ import {
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
+import PreviewModal from "./components/layout/PreviewModal";
+import EtiquetaPrint from "./components/print/EtiquetaPrint";
+import ExpedicaoSection from "./components/sections/ExpedicaoSection";
+import useExpedicaoMemo from "./hooks/useExpedicaoMemo";
+import useFinanceiroMemo from "./hooks/useFinanceiroMemo";
 import { Html5QrcodeScanner } from "html5-qrcode";
 import { supabase } from "./lib/supabase";
 import logoKchic from "./assets/logo-kchic.png";
@@ -201,112 +206,6 @@ Chave: CELULAR – 41988921085
 ❌Caso queira deixar em sacolinha nos avisar! Obrigada ☺️🌸
 
 🚚 Caso deseje envio, solicitar o envio que encaminho os dados para envio 🚚`;
-}
-
-function EtiquetaPrint({ peca }) {
-  const valorEtiqueta =
-    typeof peca.venda === "number" ? formatarBRL(peca.venda) : peca.venda || "R$ 0,00";
-
-  const obsEtiqueta =
-    typeof peca?.obs === "string" ? peca.obs.trim() : String(peca?.obs || "").trim();
-
-  return (
-    <div
-      className="etiqueta"
-      style={{
-        width: "37mm",
-        height: "46mm",
-        padding: "1mm 0.8mm 0.8mm 0.8mm",
-        boxSizing: "border-box",
-        fontFamily: "Arial, sans-serif",
-        textAlign: "center",
-        overflow: "hidden",
-        display: "grid",
-        gridTemplateRows: "8mm 3.5mm 4mm 4mm 18mm",
-        alignItems: "start",
-        justifyItems: "center",
-        rowGap: "0.1mm",
-        breakInside: "avoid",
-        pageBreakInside: "avoid",
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          fontWeight: "bold",
-          fontSize: "10.5px",
-          lineHeight: 1.05,
-          overflow: "hidden",
-          display: "-webkit-box",
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: "vertical",
-          wordBreak: "keep-all",
-          overflowWrap: "break-word",
-          hyphens: "auto",
-        }}
-      >
-        {peca.nome}
-      </div>
-
-      <div
-        style={{
-          width: "100%",
-          fontSize: "7.5px",
-          lineHeight: 1,
-          overflow: "hidden",
-          display: "-webkit-box",
-          WebkitLineClamp: 1,
-          WebkitBoxOrient: "vertical",
-          wordBreak: "break-word",
-          overflowWrap: "break-word",
-          color: "#444",
-        }}
-      >
-        {obsEtiqueta || ""}
-      </div>
-
-      <div
-        style={{
-          width: "100%",
-          fontSize: "9.5px",
-          fontWeight: "bold",
-          lineHeight: 1,
-          overflow: "hidden",
-        }}
-      >
-        {valorEtiqueta}
-      </div>
-
-      <div
-        style={{
-          width: "100%",
-          fontSize: "7px",
-          lineHeight: 1,
-          overflow: "hidden",
-          display: "-webkit-box",
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: "vertical",
-          wordBreak: "break-word",
-          overflowWrap: "break-word",
-        }}
-      >
-        Código: {peca.id}
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: "100%",
-          height: "100%",
-          marginTop: "-0.5mm",
-        }}
-      >
-        <QRCodeCanvas value={peca.id} size={62} />
-      </div>
-    </div>
-  );
 }
 
 export default function App() {
@@ -1956,51 +1855,77 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     });
   }
 
-  const resumoClientes = useMemo(() => {
-    const mapa = {};
+  const mapaPecasPorId = useMemo(() => {
+    if (!Array.isArray(pecas)) return {};
 
-    pecas
-      .filter((p) => p.vendido && p.cliente)
-      .forEach((p) => {
-        if (!mapa[p.cliente]) {
-          mapa[p.cliente] = {
-            nome: p.cliente,
-            pecas: 0,
-            total: 0,
-            itens: [],
-          };
-        }
-
-        mapa[p.cliente].pecas += 1;
-        mapa[p.cliente].total += limparMoeda(p.venda);
-        mapa[p.cliente].itens.push({
-          codigo: p.id,
-          nomePeca: p.nome,
-          valor: limparMoeda(p.venda),
-          dataVenda: p.data_venda || "",
-        });
-      });
-
-    return Object.values(mapa)
-      .map((c) => ({
-        ...c,
-        pago: !!pagamentosClientes[c.nome],
-      }))
-      .sort((a, b) => b.total - a.total);
-  }, [pecas, pagamentosClientes]);
-
-  const pecaIdsEnviados = useMemo(() => {
-    const sacolinhasEnviadasIds = new Set(
-      sacolinhasLive
-        .filter((s) => s.status === "enviada")
-        .map((s) => String(s.id))
+    return Object.fromEntries(
+      pecas.map((p) => [String(p.id), p])
     );
+  }, [pecas]);
 
-    return todasVendasLive
-      .filter((v) => sacolinhasEnviadasIds.has(String(v.sacolinha_id)))
-      .map((v) => String(v.peca_id));
-  }, [todasVendasLive, sacolinhasLive]);
+  const mapaLivesPorId = useMemo(() => {
+    if (!Array.isArray(listaLives)) return {};
 
+    return Object.fromEntries(
+      listaLives.map((live) => [String(live.id), live])
+    );
+  }, [listaLives]);
+
+  const {
+    pecaIdsEnviados,
+    sacolinhasAgrupadas,
+    sacolinhasAbertas,
+    sacolinhasSeparadas,
+    sacolinhasEnviadas,
+    mapaSacolinhasPorId,
+    pedidosEnvioAgrupados,
+    pedidosEnvioEmMontagem,
+    pedidosEnvioConcluidos,
+  } = useExpedicaoMemo({
+    todasVendasLive,
+    sacolinhasLive,
+    pedidoEnvioSacolinhas,
+    pedidosEnvio,
+  });
+
+  const {
+    resumoClientes,
+    resumoClientesLive,
+    clientesFiltrados,
+    clientesFiltradosCadastro,
+    pecasVendidasFiltradas,
+    livesFiltradas,
+    resumoFaturamentoPorLive,
+    totalPecas,
+    totalVendidas,
+    totalDisponiveis,
+    faturamento,
+    lucroEstimado,
+    totalPecasLive,
+    faturamentoLive,
+    lucroEstimadoLive,
+    faturamentoFiltrado,
+    lucroFiltrado,
+    quantidadeVendidaFiltrada,
+    ticketMedioFiltrado,
+  } = useFinanceiroMemo({
+    pecas,
+    pagamentosClientes,
+    vendasLive,
+    clientes,
+    buscaCliente,
+    filtroPagamentoCliente,
+    buscaClienteCadastro,
+    dataInicialFiltro,
+    dataFinalFiltro,
+    listaLives,
+    todasVendasLive,
+    mapaPecasPorId,
+    limparMoeda,
+    formatarCPF,
+    formatarTelefone,
+    converterDataPtBrParaIso,
+  });
   const pecasFiltradas = useMemo(() => {
     const termo = buscaPeca.trim().toLowerCase();
 
@@ -2052,460 +1977,9 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         const dataA = toTimestamp(a?.data_cadastro);
         const dataB = toTimestamp(b?.data_cadastro);
 
-        return dataB - dataA; // 🔥 MAIS NOVAS PRIMEIRO
+        return dataB - dataA;
       });
   }, [pecas, buscaPeca, filtroEstoque, pecaIdsEnviados]);
-
-  const mapaPecasPorId = useMemo(() => {
-    if (!Array.isArray(pecas)) return {};
-
-    return Object.fromEntries(
-      pecas.map((p) => [String(p.id), p])
-    );
-  }, [pecas]);
-
-  const resumoClientesLive = useMemo(
-    () =>
-      Object.values(
-        vendasLive.reduce((acc, venda) => {
-          const nome = venda.cliente_nome || "Sem nome";
-
-          if (!acc[nome]) {
-            acc[nome] = {
-              nome,
-              total: 0,
-              pecas: 0,
-              pago: true,
-              itens: [],
-            };
-          }
-
-          acc[nome].total += Number(venda.valor_venda || 0);
-          acc[nome].pecas += 1;
-
-          if (venda.status_pagamento !== "pago") {
-            acc[nome].pago = false;
-          }
-
-          acc[nome].itens.push({
-            codigo: venda.peca_id || "-",
-            nomePeca:
-              venda.nome_peca ||
-              mapaPecasPorId[String(venda.peca_id)]?.nome ||
-              venda.peca_id ||
-              "-",
-            valor: Number(venda.valor_venda || 0),
-            dataVenda: venda.data_hora || "-",
-          });
-
-          return acc;
-        }, {})
-      ),
-    [vendasLive, mapaPecasPorId]
-  );
-
-  const clientesFiltrados = useMemo(
-    () =>
-      resumoClientesLive.filter((c) => {
-        const bateBusca = c.nome.toLowerCase().includes(buscaCliente.toLowerCase());
-
-        if (!bateBusca) return false;
-        if (filtroPagamentoCliente === "todos") return true;
-        if (filtroPagamentoCliente === "pagos") return c.pago === true;
-        if (filtroPagamentoCliente === "pendentes") return c.pago === false;
-
-        return true;
-      }),
-    [resumoClientesLive, buscaCliente, filtroPagamentoCliente]
-  );
-
-  const clientesFiltradosCadastro = useMemo(() => {
-    const termo = buscaClienteCadastro.trim().toLowerCase();
-
-    if (!termo) return clientes;
-
-    return clientes.filter((c) => {
-      const nome = String(c?.nome || "").toLowerCase();
-      const cpf = formatarCPF(c?.cpf || "").toLowerCase();
-      const telefone = formatarTelefone(c?.telefone || "").toLowerCase();
-      const endereco = String(c?.endereco || "").toLowerCase();
-
-      return (
-        nome.includes(termo) ||
-        cpf.includes(termo) ||
-        telefone.includes(termo) ||
-        endereco.includes(termo)
-      );
-    });
-  }, [clientes, buscaClienteCadastro]);
-
-  const pecasVendidasFiltradas = useMemo(
-    () =>
-      pecas.filter((p) => {
-        if (!p.vendido || !p.data_venda) return false;
-
-        const dataVendaIso = converterDataPtBrParaIso(p.data_venda);
-        if (!dataVendaIso) return false;
-
-        if (dataInicialFiltro && dataVendaIso < dataInicialFiltro) return false;
-        if (dataFinalFiltro && dataVendaIso > dataFinalFiltro) return false;
-
-        return true;
-      }),
-    [pecas, dataInicialFiltro, dataFinalFiltro]
-  );
-
-  const livesFiltradas = useMemo(
-    () =>
-      listaLives.filter((live) => {
-        if (!live?.data_live) return true;
-
-        const partes = String(live.data_live).split("/");
-        if (partes.length !== 3) return true;
-
-        const [dia, mes, ano] = partes;
-        const dataLive = `${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
-
-        if (dataInicialFiltro && dataLive < dataInicialFiltro) return false;
-        if (dataFinalFiltro && dataLive > dataFinalFiltro) return false;
-
-        return true;
-      }),
-    [listaLives, dataInicialFiltro, dataFinalFiltro]
-  );
-
-  const mapaLivesPorId = useMemo(() => {
-    if (!Array.isArray(listaLives)) return {};
-
-    return Object.fromEntries(
-      listaLives.map((live) => [String(live.id), live])
-    );
-  }, [listaLives]);
-
-  const resumoFaturamentoPorLive = useMemo(
-    () =>
-      livesFiltradas.map((live) => {
-        const vendasDaLive = todasVendasLive.filter(
-          (v) => String(v.live_id) === String(live.id)
-        );
-
-        const faturamentoDaLive = vendasDaLive.reduce(
-          (acc, v) => acc + Number(v.valor_venda || 0),
-          0
-        );
-
-        const lucroDaLive = vendasDaLive.reduce((acc, v) => {
-          const pecaOriginal = mapaPecasPorId[String(v.peca_id)];
-          const custo = limparMoeda(pecaOriginal?.custo || 0);
-          return acc + (Number(v.valor_venda || 0) - custo);
-        }, 0);
-
-        const quantidade = vendasDaLive.length;
-        const ticketMedio = quantidade > 0 ? faturamentoDaLive / quantidade : 0;
-
-        return {
-          id: live.id,
-          nome: live.nome,
-          data: live.data_live || "-",
-          status: live.status || "-",
-          quantidade,
-          faturamento: faturamentoDaLive,
-          lucro: lucroDaLive,
-          ticketMedio,
-        };
-      }),
-    [livesFiltradas, todasVendasLive, mapaPecasPorId]
-  );
-
-  const totalPecas = pecas.length;
-  const totalVendidas = pecas.filter((p) => p.vendido).length;
-  const totalDisponiveis = pecas.filter((p) => !p.vendido).length;
-
-  const faturamento = pecas
-    .filter((p) => p.vendido)
-    .reduce((acc, p) => acc + Number(p.valor_venda_final ?? limparMoeda(p.venda)), 0);
-
-  const lucroEstimado = pecas
-    .filter((p) => p.vendido)
-    .reduce(
-      (acc, p) => acc + (Number(p.valor_venda_final ?? limparMoeda(p.venda)) - limparMoeda(p.custo)),
-      0
-    );
-
-  const totalPecasLive = vendasLive.length;
-
-  const faturamentoLive = vendasLive.reduce(
-    (acc, venda) => acc + Number(venda.valor_venda || 0),
-    0
-  );
-
-  const lucroEstimadoLive = vendasLive.reduce((acc, venda) => {
-    const pecaOriginal = mapaPecasPorId[String(venda.peca_id)];
-    const custo = limparMoeda(pecaOriginal?.custo || 0);
-    return acc + (Number(venda.valor_venda || 0) - custo);
-  }, 0);
-
-  const faturamentoFiltrado = pecasVendidasFiltradas.reduce(
-    (acc, p) => acc + Number(p.valor_venda_final ?? limparMoeda(p.venda)),
-    0
-  );
-
-  const lucroFiltrado = pecasVendidasFiltradas.reduce(
-    (acc, p) =>
-      acc +
-      (Number(p.valor_venda_final ?? limparMoeda(p.venda)) - limparMoeda(p.custo)),
-    0
-  );
-
-  const quantidadeVendidaFiltrada = pecasVendidasFiltradas.length;
-  const ticketMedioFiltrado =
-    quantidadeVendidaFiltrada > 0 ? faturamentoFiltrado / quantidadeVendidaFiltrada : 0;
-
-  const sacolinhasAgrupadas = useMemo(() => {
-    return sacolinhasLive
-      .map((sacolinha) => {
-        const itens = getItensDaSacolinha(sacolinha, todasVendasLive);
-
-        return {
-          ...sacolinha,
-          itens,
-          quantidade: itens.length,
-        };
-      })
-      .filter((sacolinha) => sacolinha.quantidade > 0)
-      .sort((a, b) =>
-        String(a.cliente_nome || "").localeCompare(
-          String(b.cliente_nome || ""),
-          "pt-BR",
-          { sensitivity: "base" }
-        )
-      );
-  }, [sacolinhasLive, todasVendasLive]);
-
-  const sacolinhasAbertas = useMemo(() => {
-    return sacolinhasAgrupadas.filter((s) => s.status === "aberta");
-  }, [sacolinhasAgrupadas]);
-
-  const sacolinhasSeparadas = useMemo(() => {
-    return sacolinhasAgrupadas.filter(
-      (s) =>
-        s.status === "separada" &&
-        !sacolinhaJaEstaEmPedidoAtivo(s.id, pedidoEnvioSacolinhas, pedidosEnvio)
-    );
-  }, [sacolinhasAgrupadas, pedidoEnvioSacolinhas, pedidosEnvio]);
-
-  const sacolinhasEnviadas = useMemo(() => {
-    return sacolinhasAgrupadas.filter((s) => s.status === "enviada");
-  }, [sacolinhasAgrupadas]);
-
-  const mapaSacolinhasPorId = useMemo(() => {
-    if (!Array.isArray(sacolinhasLive)) return {};
-
-    return Object.fromEntries(
-      sacolinhasLive.map((s) => [String(s.id), s])
-    );
-  }, [sacolinhasLive]);
-
-  const pedidosEnvioAgrupados = useMemo(() => {
-    return pedidosEnvio.map((pedido) => {
-      const vinculos = pedidoEnvioSacolinhas.filter(
-        (v) => String(v.pedido_envio_id) === String(pedido.id)
-      );
-
-      const sacolinhasDoPedido = vinculos
-        .map((v) => mapaSacolinhasPorId[String(v.sacolinha_id)])
-        .filter(Boolean);
-
-      // 🔥 TODOS OS ITENS DO PEDIDO (ESSENCIAL)
-      const itens = sacolinhasDoPedido.flatMap((sacolinha) =>
-        getItensDaSacolinha(sacolinha, todasVendasLive)
-      );
-
-      // 🔹 AGRUPAMENTO POR SACOLINHA
-      const sacolinhasAgrupadasPorLive = sacolinhasDoPedido.map((sacolinha) => {
-        const itensDaSacolinha = getItensDaSacolinha(sacolinha, todasVendasLive);
-
-        return {
-          ...sacolinha,
-          quantidade: itensDaSacolinha.length,
-          itens: itensDaSacolinha,
-        };
-      });
-
-      // 🔹 TOTAL DE PEÇAS
-      const quantidadeTotal = sacolinhasAgrupadasPorLive.reduce(
-        (acc, s) => acc + s.quantidade,
-        0
-      );
-
-      return {
-        ...pedido,
-        sacolinhas: sacolinhasAgrupadasPorLive,
-        quantidadeCalculada: quantidadeTotal,
-        itens,
-      };
-    });
-  }, [pedidosEnvio, pedidoEnvioSacolinhas, mapaSacolinhasPorId, todasVendasLive]);
-
-
-  // 🔹 FILTROS DE STATUS
-  const pedidosEnvioEmMontagem = useMemo(() => {
-    return pedidosEnvioAgrupados.filter((p) => pedidoEstaEmMontagem(p));
-  }, [pedidosEnvioAgrupados]);
-
-  const pedidosEnvioConcluidos = useMemo(() => {
-    return pedidosEnvioAgrupados.filter((p) => pedidoEstaEnviado(p));
-  }, [pedidosEnvioAgrupados]);
-
-  if (modoCadastroPublicoAtivo()) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "linear-gradient(135deg, #f7e8ec 0%, #f2d9df 45%, #efd3da 100%)",
-          padding: 20,
-          boxSizing: "border-box",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <div
-          style={{
-            width: "100%",
-            maxWidth: 520,
-            background: "#fff",
-            borderRadius: 24,
-            padding: 24,
-            boxShadow: "0 12px 30px rgba(149,79,96,0.14)",
-            display: "grid",
-            gap: 14,
-          }}
-        >
-          <div style={{ textAlign: "center" }}>
-            <img
-              src={logoKchic}
-              alt="K.chic"
-              style={{ width: 140, maxWidth: "100%", marginBottom: 12 }}
-            />
-            <h2 style={{ margin: 0, color: "#8f2745" }}>Cadastro de Cliente</h2>
-            <p style={{ marginTop: 8, color: "#64748b" }}>
-              Preencha seus dados para agilizar atendimento e envio.
-            </p>
-          </div>
-
-          {cadastroPublicoConcluido ? (
-            <div
-              style={{
-                background: "#f8fafc",
-                border: "1px solid #e2e8f0",
-                borderRadius: 18,
-                padding: 20,
-                textAlign: "center",
-                display: "grid",
-                gap: 12,
-              }}
-            >
-              <strong style={{ fontSize: 22, color: "#15803d" }}>
-                Cadastro enviado com sucesso
-              </strong>
-
-              <p style={{ margin: 0, color: "#475569" }}>
-                Seus dados já foram registrados. Agora é só aguardar o atendimento da live.
-              </p>
-
-              <button
-                style={botao}
-                onClick={() => setCadastroPublicoConcluido(false)}
-              >
-                Fazer novo cadastro
-              </button>
-            </div>
-          ) : (
-            <>
-              <input
-                style={inputCliente}
-                placeholder="Nome completo"
-                value={formCliente.nome}
-                onChange={(e) => setFormCliente({ ...formCliente, nome: e.target.value })}
-              />
-
-              <input
-                style={inputCliente}
-                placeholder="CPF"
-                value={formCliente.cpf}
-                onChange={(e) =>
-                  setFormCliente({ ...formCliente, cpf: formatarCPF(e.target.value) })
-                }
-              />
-
-              <input
-                style={inputCliente}
-                placeholder="Telefone com DDD"
-                value={formCliente.telefone}
-                onChange={(e) =>
-                  setFormCliente({
-                    ...formCliente,
-                    telefone: formatarTelefone(e.target.value),
-                  })
-                }
-              />
-
-              <input
-                style={inputCliente}
-                placeholder="CEP"
-                value={formCliente.cep}
-                onChange={(e) => {
-                  const cepFormatado = formatarCEP(e.target.value);
-                  setFormCliente({ ...formCliente, cep: cepFormatado });
-                  buscarCep(cepFormatado);
-                }}
-              />
-
-              <input
-                style={inputCliente}
-                placeholder="Endereço"
-                value={formCliente.endereco}
-                onChange={(e) =>
-                  setFormCliente({ ...formCliente, endereco: e.target.value })
-                }
-              />
-
-              <input
-                style={inputCliente}
-                placeholder="Número"
-                value={formCliente.numero}
-                onChange={(e) =>
-                  setFormCliente({ ...formCliente, numero: e.target.value })
-                }
-              />
-
-              <input
-                style={inputCliente}
-                placeholder="Complemento"
-                value={formCliente.complemento}
-                onChange={(e) =>
-                  setFormCliente({ ...formCliente, complemento: e.target.value })
-                }
-              />
-
-              <button
-                style={{
-                  ...botao,
-                  opacity: salvandoCadastroPublico ? 0.7 : 1,
-                  cursor: salvandoCadastroPublico ? "not-allowed" : "pointer",
-                }}
-                onClick={salvarCadastroClientePublico}
-                disabled={salvandoCadastroPublico}
-              >
-                {salvandoCadastroPublico ? "Enviando..." : "Enviar cadastro"}
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -4007,954 +3481,65 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
             )}
 
             {abaAtiva === "expedicao" && (
-              <div style={boxGrande}>
-                <h2 style={tituloSecao}>Expedição</h2>
-
-                {sacolinhasAgrupadas.length === 0 ? (
-                  <p>Nenhuma sacolinha encontrada.</p>
-                ) : (
-                  <div style={{ display: "grid", gap: 20 }}>
-                    <div>
-                      <div
-                        onClick={() => setMostrarAbertas((prev) => !prev)}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          cursor: "pointer",
-                          marginBottom: 12,
-                        }}
-                      >
-                        <h3 style={{ margin: 0 }}>Sacolinhas abertas ({sacolinhasAbertas.length})</h3>
-                        <span>{mostrarAbertas ? "▼" : "▶"}</span>
-                      </div>
-
-                      {mostrarAbertas &&
-                        (sacolinhasAbertas.length === 0 ? (
-                          <p>Nenhuma sacolinha aberta.</p>
-                        ) : (
-                          <div style={{ display: "grid", gap: 12 }}>
-                            {sacolinhasAbertas.map((s) => (
-                              <div key={s.id} style={cardCliente}>
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    gap: 12,
-                                    flexWrap: "wrap",
-                                  }}
-                                >
-                                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                    <button
-                                      onClick={() => toggleExpandirSacolinha(s.id)}
-                                      style={{
-                                        background: "transparent",
-                                        border: "none",
-                                        cursor: "pointer",
-                                        fontSize: 18,
-                                        width: "auto",
-                                        minWidth: "auto",
-                                        padding: "4px 6px",
-                                        flexShrink: 0,
-                                      }}
-                                    >
-                                      {sacolinhasExpandidas[s.id] ? "▼" : "▶"}
-                                    </button>
-
-                                    <strong>{s.cliente_nome}</strong>
-                                  </div>
-
-                                  <div style={{ fontSize: 14, color: "#555" }}>
-                                    Live: {mapaLivesPorId[String(s.live_id)]?.nome || s.live_id}
-                                  </div>
-
-                                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                                    <span
-                                      style={{
-                                        padding: "4px 10px",
-                                        borderRadius: 10,
-                                        background:
-                                          s.status === "aberta"
-                                            ? "#b45309"
-                                            : s.status === "separada"
-                                              ? "#f59e0b"
-                                              : "#15803d",
-                                        color: "#fff",
-                                        fontSize: 12,
-                                        fontWeight: "bold",
-                                        textTransform: "capitalize",
-                                      }}
-                                    >
-                                      {s.status}
-                                    </span>
-
-                                    <span>{s.quantidade} peça(s)</span>
-
-                                    {sacolinhaEstaVencida(s) && (
-                                      <span
-                                        style={{
-                                          padding: "4px 10px",
-                                          borderRadius: 10,
-                                          background: "#dc2626",
-                                          color: "#fff",
-                                          fontSize: 12,
-                                          fontWeight: "bold",
-                                          textTransform: "capitalize",
-                                        }}
-                                      >
-                                        vencida
-                                      </span>
-                                    )}
-
-                                    <button
-                                      style={{ ...botaoPequeno, background: "#f59e0b" }}
-                                      onClick={() => marcarSacolinhaComoSeparada(s.id)}
-                                    >
-                                      Marcar como separada
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {sacolinhasExpandidas[s.id] && (
-                                  <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-                                    {!s.itens || s.itens.length === 0 ? (
-                                      <div style={itemCliente}>Nenhum item encontrado nessa sacolinha.</div>
-                                    ) : (
-                                      s.itens.map((item, index) => (
-                                        <div key={item.id || `${item.peca_id}-${index}`} style={itemCliente}>
-                                          <div>
-                                            <strong>Peça:</strong>{" "}
-                                            {mapaPecasPorId[String(item.peca_id)]?.nome ||
-                                              item.nome_peca ||
-                                              item.nome ||
-                                              "-"}
-                                          </div>
-                                          <div><strong>Código:</strong> {item.peca_id || "-"}</div>
-                                          <div><strong>Valor:</strong> {formatarBRL(item.valor_venda || 0)}</div>
-                                        </div>
-                                      ))
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        ))}
-                    </div>
-
-                    <div>
-                      <div
-                        onClick={() => setMostrarSeparadas((prev) => !prev)}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          cursor: "pointer",
-                          marginBottom: 12,
-                        }}
-                      >
-                        <h3 style={{ margin: 0 }}>Separadas ({sacolinhasSeparadas.length})</h3>
-                        <span>{mostrarSeparadas ? "▼" : "▶"}</span>
-                      </div>
-
-                      {mostrarSeparadas &&
-                        (sacolinhasSeparadas.length === 0 ? (
-                          <p>Nenhuma sacolinha separada.</p>
-                        ) : (
-                          <div style={{ display: "grid", gap: 12 }}>
-                            {sacolinhasSeparadas.map((s) => {
-                              const statusSacolinha = getStatusSacolinha(s, todasVendasLive);
-                              const podeIrParaExpedicao = sacolinhaPodeIrParaExpedicao(s, todasVendasLive);
-
-                              return (
-                                <div key={s.id} style={cardCliente}>
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      justifyContent: "space-between",
-                                      alignItems: "center",
-                                      gap: 12,
-                                      flexWrap: "wrap",
-                                    }}
-                                  >
-                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                      <button
-                                        onClick={() => toggleExpandirSacolinha(s.id)}
-                                        style={{
-                                          background: "transparent",
-                                          border: "none",
-                                          cursor: "pointer",
-                                          fontSize: 18,
-                                          width: "auto",
-                                          minWidth: "auto",
-                                          padding: "4px 6px",
-                                          flexShrink: 0,
-                                        }}
-                                      >
-                                        {sacolinhasExpandidas[s.id] ? "▼" : "▶"}
-                                      </button>
-
-                                      <strong>{s.cliente_nome}</strong>
-                                    </div>
-
-                                    <div style={{ fontSize: 14, color: "#555" }}>
-                                      Live: {mapaLivesPorId[String(s.live_id)]?.nome || s.live_id}
-                                    </div>
-
-                                    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                                      <span
-                                        style={{
-                                          padding: "4px 10px",
-                                          borderRadius: 10,
-                                          background:
-                                            s.status === "aberta"
-                                              ? "#b45309"
-                                              : s.status === "separada"
-                                                ? "#f59e0b"
-                                                : "#15803d",
-                                          color: "#fff",
-                                          fontSize: 12,
-                                          fontWeight: "bold",
-                                          textTransform: "capitalize",
-                                        }}
-                                      >
-                                        {s.status}
-                                      </span>
-
-                                      <span>{s.quantidade} peça(s)</span>
-
-                                      <button
-                                        style={{
-                                          ...botaoPequeno,
-                                          background: "#2563eb",
-                                          opacity: criandoPedidoEnvioCliente === s.cliente_nome ? 0.7 : 1,
-                                          cursor:
-                                            criandoPedidoEnvioCliente === s.cliente_nome
-                                              ? "not-allowed"
-                                              : "pointer",
-                                        }}
-                                        onClick={() => criarPedidoDeEnvio(s.cliente_nome)}
-                                        disabled={criandoPedidoEnvioCliente === s.cliente_nome}
-                                      >
-                                        {criandoPedidoEnvioCliente === s.cliente_nome
-                                          ? "Criando pedido..."
-                                          : "Criar pedido de envio"}
-                                      </button>
-
-                                      {sacolinhaEstaVencida(s) && (
-                                        <span
-                                          style={{
-                                            padding: "4px 10px",
-                                            borderRadius: 10,
-                                            background: "#dc2626",
-                                            color: "#fff",
-                                            fontSize: 12,
-                                            fontWeight: "bold",
-                                          }}
-                                        >
-                                          vencida
-                                        </span>
-                                      )}
-
-                                      {/* 🔥 BOTÃO AJUSTADO */}
-                                      <button
-                                        style={{
-                                          ...botaoPequeno,
-                                          background: podeIrParaExpedicao ? "#15803d" : "#9ca3af",
-                                          cursor: podeIrParaExpedicao ? "pointer" : "not-allowed",
-                                        }}
-                                        onClick={() => {
-                                          if (!podeIrParaExpedicao) return;
-                                          marcarSacolinhaComoEnviada(s.id, s);
-                                        }}
-                                      >
-                                        {podeIrParaExpedicao
-                                          ? "Marcar como enviada"
-                                          : "Aguardando pagamento"}
-                                      </button>
-
-                                      {/* 🔥 STATUS AJUSTADO */}
-                                      <span
-                                        style={{
-                                          padding: "4px 10px",
-                                          borderRadius: 10,
-                                          background:
-                                            statusSacolinha === "pronta_envio"
-                                              ? "#15803d"
-                                              : statusSacolinha === "enviada"
-                                                ? "#2563eb"
-                                                : "#dc2626",
-                                          color: "#fff",
-                                          fontSize: 12,
-                                          fontWeight: "bold",
-                                          textTransform: "capitalize",
-                                        }}
-                                      >
-                                        {statusSacolinha === "pronta_envio" && "pago"}
-                                        {statusSacolinha === "aguardando_pagamento" && "pendente"}
-                                        {statusSacolinha === "enviada" && "enviado"}
-                                        {statusSacolinha === "em_andamento" && "em andamento"}
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  {sacolinhasExpandidas[s.id] && (
-                                    <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-                                      {!s.itens || s.itens.length === 0 ? (
-                                        <div style={itemCliente}>Nenhum item encontrado nessa sacolinha.</div>
-                                      ) : (
-                                        s.itens.map((item, index) => (
-                                          <div key={item.id || `${item.peca_id}-${index}`} style={itemCliente}>
-                                            <div>
-                                              <strong>Peça:</strong>{" "}
-                                              {mapaPecasPorId[String(item.peca_id)]?.nome ||
-                                                item.nome_peca ||
-                                                item.nome ||
-                                                "-"}
-                                            </div>
-                                            <div><strong>Código:</strong> {item.peca_id || "-"}</div>
-                                            <div><strong>Valor:</strong> {formatarBRL(item.valor_venda || 0)}</div>
-                                          </div>
-                                        ))
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ))}
-                    </div>
-
-                    <div>
-                      <div
-                        onClick={() => setMostrarPedidosEnvio((prev) => !prev)}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          cursor: "pointer",
-                          marginBottom: 12,
-                        }}
-                      >
-                        <h3 style={{ margin: 0 }}>Pedidos de Envio ({pedidosEnvioEmMontagem.length})</h3>
-                        <span>{mostrarPedidosEnvio ? "▼" : "▶"}</span>
-                      </div>
-
-                      {mostrarPedidosEnvio &&
-                        (carregandoPedidosEnvio ? (
-                          <p>Carregando pedidos de envio...</p>
-                        ) : pedidosEnvioEmMontagem.length === 0 ? (
-                          <p>Nenhum pedido de envio criado ainda.</p>
-                        ) : (
-                          <div style={{ display: "grid", gap: 12 }}>
-                            {pedidosEnvioEmMontagem.map((p) => (
-                              <div key={p.id} style={cardCliente}>
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    gap: 12,
-                                    flexWrap: "wrap",
-                                  }}
-                                >
-                                  {/* ESQUERDA */}
-                                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                    <button
-                                      onClick={() => toggleExpandirPedidoEnvio(p.id)}
-                                      style={{
-                                        background: "transparent",
-                                        border: "none",
-                                        cursor: "pointer",
-                                        fontSize: 18,
-                                        padding: "4px 6px",
-                                      }}
-                                    >
-                                      {pedidosEnvioExpandidos[p.id] ? "▼" : "▶"}
-                                    </button>
-
-                                    <strong>{p.cliente_nome}</strong>
-                                  </div>
-
-                                  {/* DIREITA */}
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      gap: 10,
-                                      alignItems: "center",
-                                      flexWrap: "wrap",
-                                    }}
-                                  >
-                                    <span
-                                      style={{
-                                        padding: "4px 10px",
-                                        borderRadius: 10,
-                                        background: "#2563eb",
-                                        color: "#fff",
-                                        fontSize: 12,
-                                        fontWeight: "bold",
-                                      }}
-                                    >
-                                      {p.status}
-                                    </span>
-
-                                    <span>{p.sacolinhas?.length || 0} sacolinha(s)</span>
-
-                                    <span>{p.quantidadeCalculada} peça(s)</span>
-
-                                    <span
-                                      style={{
-                                        padding: "4px 10px",
-                                        borderRadius: 10,
-                                        background: pedidoEstaConferido(p, itensConferidosPedido)
-                                          ? "#15803d"
-                                          : "#b45309",
-                                        color: "#fff",
-                                        fontSize: 12,
-                                        fontWeight: "bold",
-                                      }}
-                                    >
-                                      Conferido: {(itensConferidosPedido[p.id] || []).length} / {p.quantidadeCalculada}
-                                    </span>
-
-                                    <button
-                                      style={{ ...botaoPequeno, background: "#6b7280" }}
-                                      onClick={() => cancelarPedidoDeEnvio(p.id, p.cliente_nome)}
-                                    >
-                                      Voltar para separadas
-                                    </button>
-
-                                    <button
-                                      style={{
-                                        ...botaoPequeno,
-                                        background: pedidoEstaConferido(p, itensConferidosPedido)
-                                          ? "#15803d"
-                                          : "#9ca3af",
-                                        cursor: pedidoEstaConferido(p, itensConferidosPedido)
-                                          ? "pointer"
-                                          : "not-allowed",
-                                      }}
-                                      onClick={() => {
-                                        if ((itensConferidosPedido[p.id] || []).length !== p.quantidadeCalculada) return;
-                                        marcarPedidoComoEnviado(p);
-                                      }}
-                                    >
-                                      Marcar pedido como enviado
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {pedidosEnvioExpandidos[p.id] && (
-                                  <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-                                    <div
-                                      style={{
-                                        background: "#f8fafc",
-                                        border: "1px solid #e2e8f0",
-                                        borderRadius: 12,
-                                        padding: 12,
-                                        display: "grid",
-                                        gap: 8,
-                                      }}
-                                    >
-                                      <strong>Sacolinhas incluídas</strong>
-
-                                      {!p.sacolinhas || p.sacolinhas.length === 0 ? (
-                                        <div>Nenhuma sacolinha vinculada.</div>
-                                      ) : (
-                                        p.sacolinhas.map((sacolinha) => (
-                                          <div key={sacolinha.id} style={itemCliente}>
-                                            <div>
-                                              <strong>Live:</strong>{" "}
-                                              {mapaLivesPorId[String(sacolinha.live_id)]?.nome ||
-                                                sacolinha.live_id ||
-                                                "-"}
-                                            </div>
-
-                                            <div><strong>Sacolinha:</strong> {sacolinha.id}</div>
-                                            <div><strong>Peças:</strong> {sacolinha.quantidade || 0}</div>
-                                          </div>
-                                        ))
-                                      )}
-                                    </div>
-
-                                    <div
-                                      style={{
-                                        background: "#f8fafc",
-                                        border: "1px solid #e2e8f0",
-                                        borderRadius: 12,
-                                        padding: 12,
-                                        display: "grid",
-                                        gap: 8,
-                                      }}
-                                    >
-                                      <strong>Itens do pedido</strong>
-
-                                      {!p.itens || p.itens.length === 0 ? (
-                                        <div>Nenhum item encontrado.</div>
-                                      ) : (
-                                        p.itens.map((item, index) => {
-                                          const itemKey = item.id || `${item.peca_id}-${index}`;
-
-                                          const checked =
-                                            itensConferidosPedido[p.id]?.includes(itemKey) || false;
-
-                                          // 🔥 BUSCA O NOME REAL DA PEÇA
-                                          const peca = mapaPecasPorId[String(item.peca_id)];
-
-                                          return (
-                                            <div
-                                              key={itemKey}
-                                              style={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: 10,
-                                                padding: 8,
-                                                border: "1px solid #e5e7eb",
-                                                borderRadius: 10,
-                                              }}
-                                            >
-                                              <input
-                                                type="checkbox"
-                                                checked={checked}
-                                                onChange={() =>
-                                                  toggleItemConferidoPedido(p.id, itemKey)
-                                                }
-                                              />
-
-                                              <div>
-                                                <div>
-                                                  <strong>
-                                                    {peca?.nome || item.nome_peca || item.nome || "-"}
-                                                  </strong>
-                                                </div>
-
-                                                <div style={{ fontSize: 12, color: "#555" }}>
-                                                  Código: {item.peca_id || "-"}
-                                                </div>
-                                              </div>
-                                            </div>
-                                          );
-                                        })
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        ))}
-                    </div>
-
-                    <div>
-                      <div
-                        onClick={() => setMostrarEnviadas((prev) => !prev)}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          cursor: "pointer",
-                          marginBottom: 12,
-                        }}
-                      >
-                        <h3 style={{ margin: 0 }}>Enviadas ({pedidosEnvioConcluidos.length})</h3>
-                        <span>{mostrarEnviadas ? "▼" : "▶"}</span>
-                      </div>
-
-                      {mostrarEnviadas &&
-                        (pedidosEnvioConcluidos.length === 0 ? (
-                          <p>Nenhum pedido enviado ainda.</p>
-                        ) : (
-                          <div style={{ display: "grid", gap: 12 }}>
-                            {pedidosEnvioConcluidos.map((p) => (
-                              <div key={p.id} style={{ ...cardCliente, opacity: 0.88 }}>
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    gap: 12,
-                                    flexWrap: "wrap",
-                                  }}
-                                >
-                                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                    <button
-                                      onClick={() => toggleExpandirPedidoEnvio(p.id)}
-                                      style={{
-                                        background: "transparent",
-                                        border: "none",
-                                        cursor: "pointer",
-                                        fontSize: 18,
-                                        padding: "4px 6px",
-                                      }}
-                                    >
-                                      {pedidosEnvioExpandidos[p.id] ? "▼" : "▶"}
-                                    </button>
-
-                                    <strong>{p.cliente_nome}</strong>
-                                  </div>
-
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      gap: 10,
-                                      alignItems: "center",
-                                      flexWrap: "wrap",
-                                    }}
-                                  >
-                                    <span
-                                      style={{
-                                        padding: "4px 10px",
-                                        borderRadius: 10,
-                                        background: "#15803d",
-                                        color: "#fff",
-                                        fontSize: 12,
-                                        fontWeight: "bold",
-                                      }}
-                                    >
-                                      enviado
-                                    </span>
-
-                                    <span>{p.sacolinhas?.length || 0} sacolinha(s)</span>
-                                    <span>{p.quantidadeCalculada} peça(s)</span>
-                                    <span>Enviado em: {p.enviado_em || "-"}</span>
-                                  </div>
-                                </div>
-
-                                {pedidosEnvioExpandidos[p.id] && (
-                                  <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-                                    <div
-                                      style={{
-                                        background: "#f8fafc",
-                                        border: "1px solid #e2e8f0",
-                                        borderRadius: 12,
-                                        padding: 12,
-                                        display: "grid",
-                                        gap: 8,
-                                      }}
-                                    >
-                                      <strong>Sacolinhas enviadas</strong>
-
-                                      {!p.sacolinhas || p.sacolinhas.length === 0 ? (
-                                        <div>Nenhuma sacolinha vinculada.</div>
-                                      ) : (
-                                        p.sacolinhas.map((sacolinha) => (
-                                          <div key={sacolinha.id} style={itemCliente}>
-                                            <div>
-                                              <strong>Live:</strong>{" "}
-                                              {mapaLivesPorId[String(sacolinha.live_id)]?.nome ||
-                                                sacolinha.live_id ||
-                                                "-"}
-                                            </div>
-                                            <div><strong>Sacolinha:</strong> {sacolinha.id}</div>
-                                            <div><strong>Peças:</strong> {sacolinha.quantidade || 0}</div>
-                                          </div>
-                                        ))
-                                      )}
-                                    </div>
-
-                                    <div
-                                      style={{
-                                        background: "#f8fafc",
-                                        border: "1px solid #e2e8f0",
-                                        borderRadius: 12,
-                                        padding: 12,
-                                        display: "grid",
-                                        gap: 8,
-                                      }}
-                                    >
-                                      <strong>Itens enviados</strong>
-
-                                      {!p.itens || p.itens.length === 0 ? (
-                                        <div>Nenhum item encontrado.</div>
-                                      ) : (
-                                        p.itens.map((item, index) => (
-                                          <div
-                                            key={item.id || `${item.peca_id}-${index}`}
-                                            style={{
-                                              display: "flex",
-                                              alignItems: "center",
-                                              gap: 10,
-                                              padding: 8,
-                                              border: "1px solid #e5e7eb",
-                                              borderRadius: 10,
-                                            }}
-                                          >
-                                            <div>
-                                              <div>
-                                                <strong>{item.nome_peca || item.nome || "-"}</strong>
-                                              </div>
-                                              <div style={{ fontSize: 12, color: "#555" }}>
-                                                Código: {item.peca_id || "-"}
-                                              </div>
-                                            </div>
-                                          </div>
-                                        ))
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <ExpedicaoSection
+                boxGrande={boxGrande}
+                tituloSecao={tituloSecao}
+                cardCliente={cardCliente}
+                itemCliente={itemCliente}
+                botaoPequeno={botaoPequeno}
+                sacolinhasAgrupadas={sacolinhasAgrupadas}
+                sacolinhasAbertas={sacolinhasAbertas}
+                sacolinhasSeparadas={sacolinhasSeparadas}
+                pedidosEnvioEmMontagem={pedidosEnvioEmMontagem}
+                pedidosEnvioConcluidos={pedidosEnvioConcluidos}
+                carregandoPedidosEnvio={carregandoPedidosEnvio}
+                mostrarAbertas={mostrarAbertas}
+                setMostrarAbertas={setMostrarAbertas}
+                mostrarSeparadas={mostrarSeparadas}
+                setMostrarSeparadas={setMostrarSeparadas}
+                mostrarPedidosEnvio={mostrarPedidosEnvio}
+                setMostrarPedidosEnvio={setMostrarPedidosEnvio}
+                mostrarEnviadas={mostrarEnviadas}
+                setMostrarEnviadas={setMostrarEnviadas}
+                sacolinhasExpandidas={sacolinhasExpandidas}
+                toggleExpandirSacolinha={toggleExpandirSacolinha}
+                pedidosEnvioExpandidos={pedidosEnvioExpandidos}
+                toggleExpandirPedidoEnvio={toggleExpandirPedidoEnvio}
+                mapaLivesPorId={mapaLivesPorId}
+                mapaPecasPorId={mapaPecasPorId}
+                todasVendasLive={todasVendasLive}
+                getStatusSacolinha={getStatusSacolinha}
+                sacolinhaPodeIrParaExpedicao={sacolinhaPodeIrParaExpedicao}
+                sacolinhaEstaVencida={sacolinhaEstaVencida}
+                marcarSacolinhaComoSeparada={marcarSacolinhaComoSeparada}
+                marcarSacolinhaComoEnviada={marcarSacolinhaComoEnviada}
+                criarPedidoDeEnvio={criarPedidoDeEnvio}
+                criandoPedidoEnvioCliente={criandoPedidoEnvioCliente}
+                formatarBRL={formatarBRL}
+                cancelarPedidoDeEnvio={cancelarPedidoDeEnvio}
+                pedidoEstaConferido={pedidoEstaConferido}
+                itensConferidosPedido={itensConferidosPedido}
+                marcarPedidoComoEnviado={marcarPedidoComoEnviado}
+                toggleItemConferidoPedido={toggleItemConferidoPedido}
+              />
             )}
-
           </div>
         </main>
 
-        {previewAberto && (
-          <div
-            className="overlay-preview-impressao"
-            style={{
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0,0,0,0.6)",
-              zIndex: 9999,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 20,
-            }}
-          >
-            <div
-              className="modal-preview-impressao"
-              style={{
-                width: "min(1000px, 95vw)",
-                maxHeight: "90vh",
-                background: "#fff",
-                borderRadius: 16,
-                overflow: "hidden",
-                display: "flex",
-                flexDirection: "column",
-              }}
-            >
-              <div
-                className="no-print"
-                style={{
-                  padding: 16,
-                  borderBottom: "1px solid #ddd",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 12,
-                  flexWrap: "wrap",
-                }}
-              >
-                <strong>
-                  {tipoPreview === PREVIEW_TIPO.COMANDA
-                    ? "Preview da Comanda"
-                    : "Preview de Etiquetas"}
-                </strong>
-
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  <button
-                    style={{ ...botao, background: "#2563eb" }}
-                    onClick={() => window.print()}
-                  >
-                    Imprimir
-                  </button>
-
-                  <button
-                    style={{ ...botao, background: "#6b7280" }}
-                    onClick={fecharPreview}
-                  >
-                    Fechar
-                  </button>
-                </div>
-              </div>
-
-              <div
-                id="area-preview-impressao"
-                style={{
-                  padding: 20,
-                  overflow: "auto",
-                  background: "#f8fafc",
-                }}
-              >
-                {tipoPreview === PREVIEW_TIPO.COMANDA && dadosPreview && (
-                  <div
-                    className="comanda-print"
-                    style={{
-                      maxWidth: 780,
-                      margin: "0 auto",
-                      background: "#fff",
-                      padding: 24,
-                      borderRadius: 12,
-                      display: "grid",
-                      gap: 16,
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                    }}
-                  >
-                    <div
-                      className="no-print"
-                      style={{ display: "flex", gap: 10, flexWrap: "wrap" }}
-                    >
-                      <button
-                        style={{ ...botaoPequeno, background: "#2563eb" }}
-                        onClick={() => copiarTextoComanda(dadosPreview)}
-                      >
-                        Copiar texto
-                      </button>
-
-                      <button
-                        style={{ ...botaoPequeno, background: "#16a34a" }}
-                        onClick={() => abrirWhatsappComanda(dadosPreview)}
-                      >
-                        Abrir WhatsApp
-                      </button>
-                    </div>
-
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                        gap: 20,
-                        borderBottom: "2px solid #eef2f7",
-                        paddingBottom: 18,
-                      }}
-                    >
-                      <div>
-                        <h1 style={{ margin: 0, fontSize: 28 }}>Comanda da Cliente</h1>
-                        <div style={{ color: "#6b7280", marginTop: 6 }}>
-                          Brechó • Resumo da compra
-                        </div>
-                      </div>
-
-                      <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: 13, color: "#6b7280" }}>Data</div>
-                        <div>{new Date().toLocaleString("pt-BR")}</div>
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        background: "#f9fafb",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: 14,
-                        padding: 16,
-                        display: "grid",
-                        gridTemplateColumns: "repeat(4, 1fr)",
-                        gap: 12,
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontSize: 13, color: "#6b7280" }}>Cliente</div>
-                        <div style={{ fontWeight: "bold" }}>{dadosPreview.nome}</div>
-                      </div>
-
-                      <div>
-                        <div style={{ fontSize: 13, color: "#6b7280" }}>Status</div>
-                        <div
-                          style={{
-                            color: dadosPreview.pago ? "#15803d" : "#b45309",
-                            fontWeight: "bold",
-                          }}
-                        >
-                          {dadosPreview.pago ? "Pago" : "Pendente"}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div style={{ fontSize: 13, color: "#6b7280" }}>Peças</div>
-                        <div style={{ fontWeight: "bold" }}>{dadosPreview.pecas}</div>
-                      </div>
-
-                      <div>
-                        <div style={{ fontSize: 13, color: "#6b7280" }}>Total</div>
-                        <div style={{ fontWeight: "bold" }}>
-                          {formatarBRL(dadosPreview.total)}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        background: "#f9fafb",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: 14,
-                        padding: 16,
-                      }}
-                    >
-                      <h3 style={{ marginTop: 0 }}>Itens</h3>
-
-                      <div style={{ display: "grid", gap: 10 }}>
-                        {dadosPreview.itens?.map((item, i) => (
-                          <div
-                            key={`${item.codigo}-${i}`}
-                            style={{
-                              border: "1px solid #e5e7eb",
-                              borderRadius: 10,
-                              padding: 12,
-                              background: "#fff",
-                            }}
-                          >
-                            <div><strong>{i + 1}. Peça:</strong> {item.nomePeca}</div>
-                            <div><strong>Código:</strong> {item.codigo}</div>
-                            <div><strong>Valor:</strong> {formatarBRL(item.valor)}</div>
-                            <div><strong>Data:</strong> {item.dataVenda || "-"}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        background: "#f9fafb",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: 14,
-                        padding: 16,
-                        lineHeight: 1.7,
-                      }}
-                    >
-                      <h3 style={{ marginTop: 0 }}>Pagamento</h3>
-
-                      <div>PIX para pagamento:</div>
-                      <div>
-                        Chave: <strong>CELULAR</strong> – <strong>41988921085</strong>
-                      </div>
-
-                      <br />
-
-                      <div>🏦 Banco: <strong>cloudwalk</strong></div>
-                      <div>👩‍💼 Nome: <strong>Kemilly Lima</strong></div>
-
-                      <br />
-
-                      <div>💳 Cartão: solicitar link (até 12x com taxas)</div>
-
-                      <br />
-
-                      <div>❌ Pode deixar em sacolinha se quiser</div>
-                      <div>🚚 Solicitar envio para calcular frete</div>
-                    </div>
-                  </div>
-                )}
-
-                {tipoPreview === PREVIEW_TIPO.ETIQUETAS && Array.isArray(dadosPreview) && (
-                  <div className="paginas-etiquetas-preview">
-                    {agruparEtiquetasEmPaginas(dadosPreview, 25).map((pagina, paginaIndex) => (
-                      <div
-                        key={paginaIndex}
-                        className="pagina-etiquetas"
-                      >
-                        {pagina.map((peca, index) => (
-                          <EtiquetaPrint key={`${peca.id}-${index}`} peca={peca} />
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+        <PreviewModal
+          previewAberto={previewAberto}
+          tipoPreview={tipoPreview}
+          dadosPreview={dadosPreview}
+          PREVIEW_TIPO={PREVIEW_TIPO}
+          botao={botao}
+          botaoPequeno={botaoPequeno}
+          fecharPreview={fecharPreview}
+          copiarTextoComanda={copiarTextoComanda}
+          abrirWhatsappComanda={abrirWhatsappComanda}
+          formatarBRL={formatarBRL}
+          agruparEtiquetasEmPaginas={agruparEtiquetasEmPaginas}
+          EtiquetaPrint={EtiquetaPrint}
+        />
 
         <style>
           {`
