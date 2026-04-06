@@ -17,7 +17,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import PreviewModal from "./components/layout/PreviewModal";
 import EtiquetaPrint from "./components/print/EtiquetaPrint";
+import ClientesSection from "./components/sections/ClientesSection";
+import EstoqueSection from "./components/sections/EstoqueSection";
 import ExpedicaoSection from "./components/sections/ExpedicaoSection";
+import VendasSection from "./components/sections/VendasSection";
 import useExpedicaoMemo from "./hooks/useExpedicaoMemo";
 import useFinanceiroMemo from "./hooks/useFinanceiroMemo";
 import { Html5QrcodeScanner } from "html5-qrcode";
@@ -2506,767 +2509,124 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
             )}
 
             {abaAtiva === "pecas" && (
-              <div style={boxGrande}>
-                <div style={cabecalhoSecao}>
-                  <h2 style={tituloSecao}>Peças</h2>
+              <EstoqueSection
+                pecasFiltradas={pecasFiltradas}
+                totalPecas={totalPecas}
+                totalDisponiveis={totalDisponiveis}
+                totalVendidas={totalVendidas}
 
-                  <div style={linhaResumoHorizontal}>
-                    <div style={cardResumo}>
-                      <strong>Total de peças</strong>
-                      <div style={valorResumo}>{totalPecas}</div>
-                    </div>
+                buscaPeca={buscaPeca}
+                setBuscaPeca={setBuscaPeca}
+                filtroEstoque={filtroEstoque}
+                setFiltroEstoque={setFiltroEstoque}
 
-                    <div style={cardResumo}>
-                      <strong>Disponíveis</strong>
-                      <div style={valorResumo}>{totalDisponiveis}</div>
-                    </div>
+                etiquetasSelecionadas={etiquetasSelecionadas}
+                toggleEtiqueta={toggleEtiqueta}
+                marcarTodasEtiquetas={marcarTodasEtiquetas}
+                desmarcarTodasEtiquetas={desmarcarTodasEtiquetas}
+                imprimirEtiquetasSelecionadas={imprimirEtiquetasSelecionadas}
 
-                    <div style={cardResumo}>
-                      <strong>Vendidas</strong>
-                      <div style={valorResumo}>{totalVendidas}</div>
-                    </div>
-                  </div>
+                abrirPreview={abrirPreview}
+                PREVIEW_TIPO={PREVIEW_TIPO}
+                cancelarVenda={cancelarVenda}
+                removerPeca={removerPeca}
 
+                formatarBRL={formatarBRL}
 
-                  <div style={linhaFiltros}>
-                    <input
-                      style={{ ...input, maxWidth: 340 }}
-                      placeholder="Buscar por peça, código ou cliente"
-                      value={buscaPeca}
-                      onChange={(e) => setBuscaPeca(e.target.value)}
-                    />
-
-                    <button
-                      style={
-                        filtroEstoque === "todas"
-                          ? { ...botaoPequeno, background: "#111827" }
-                          : { ...botaoPequeno, background: "#6b7280" }
-                      }
-                      onClick={() => setFiltroEstoque("todas")}
-                    >
-                      Todas
-                    </button>
-
-                    <button
-                      style={
-                        filtroEstoque === "disponiveis"
-                          ? { ...botaoPequeno, background: "#2563eb" }
-                          : { ...botaoPequeno, background: "#6b7280" }
-                      }
-                      onClick={() => setFiltroEstoque("disponiveis")}
-                    >
-                      Disponíveis
-                    </button>
-
-                    <button
-                      style={
-                        filtroEstoque === "vendidas"
-                          ? { ...botaoPequeno, background: "#15803d" }
-                          : { ...botaoPequeno, background: "#6b7280" }
-                      }
-                      onClick={() => setFiltroEstoque("vendidas")}
-                    >
-                      Vendidas
-                    </button>
-                  </div>
-                </div>
-
-                <div style={linhaAcoes}>
-                  <button
-                    style={{ ...botao, background: "#111827" }}
-                    onClick={marcarTodasEtiquetas}
-                  >
-                    Marcar todas
-                  </button>
-
-                  <button
-                    style={{ ...botao, background: "#6b7280" }}
-                    onClick={desmarcarTodasEtiquetas}
-                  >
-                    Desmarcar todas
-                  </button>
-
-                  <button
-                    style={{ ...botao, background: "#2563eb" }}
-                    onClick={imprimirEtiquetasSelecionadas}
-                  >
-                    Imprimir selecionadas
-                  </button>
-                </div>
-
-                {pecasFiltradas.length === 0 ? (
-                  <p>Nenhuma peça encontrada.</p>
-                ) : (
-                  <div style={gridPecas}>
-                    {pecasFiltradas.map((p, index) => {
-                      const codigo = String(p?.id || `sem-codigo-${index}`);
-                      const nome = p?.nome || "Sem nome";
-                      const custo = p?.custo ? p.custo : formatarBRL(0);
-                      const venda = p?.venda ? p.venda : formatarBRL(0);
-                      const obs = p?.obs || "-";
-                      const cadastro = p?.data_cadastro || "-";
-                      const clienteNome = p?.cliente || "";
-                      const vendido = !!p?.vendido;
-                      const dataVenda = p?.data_venda || "";
-
-                      return (
-                        <div key={codigo} style={cardPeca}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                            <input
-                              type="checkbox"
-                              checked={etiquetasSelecionadas.includes(codigo)}
-                              onChange={() => toggleEtiqueta(codigo)}
-                            />
-                            <span style={{ fontSize: 14, color: "#374151" }}>
-                              Selecionar etiqueta
-                            </span>
-                          </div>
-
-                          {p?.foto ? (
-                            <img
-                              src={p.foto}
-                              alt={nome}
-                              style={{
-                                width: "100%",
-                                height: 220,
-                                objectFit: "cover",
-                                borderRadius: 10,
-                                marginBottom: 12,
-                              }}
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                              }}
-                            />
-                          ) : null}
-
-                          <p style={{ margin: "0 0 8px 0", fontSize: 18 }}>
-                            <strong>{nome}</strong>
-                          </p>
-
-                          <p style={textoItem}>Código: {codigo}</p>
-                          <p style={textoItem}>Compra: {custo}</p>
-                          <p style={textoItem}>Venda: {venda}</p>
-                          <p style={textoItem}>Obs: {obs}</p>
-                          <p style={textoItem}>Cadastro: {cadastro}</p>
-                          <p style={textoItem}>
-                            Status:{" "}
-                            <strong style={{ color: vendido ? "green" : "#333" }}>
-                              {vendido ? `Vendido para ${clienteNome}` : "Disponível"}
-                            </strong>
-                          </p>
-
-                          {vendido && <p style={textoItem}>Data da venda: {dataVenda}</p>}
-
-                          <div style={{ marginTop: 12, marginBottom: 12 }}>
-                            <QRCodeCanvas value={codigo} size={120} />
-                          </div>
-
-                          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                            <button
-                              style={{ ...botao, background: "#2563eb" }}
-                              onClick={() => {
-                                abrirPreview(PREVIEW_TIPO.ETIQUETAS, [
-                                  {
-                                    ...p,
-                                    id: codigo,
-                                    nome,
-                                    venda,
-                                    obs,
-                                  },
-                                ]);
-                              }}
-                            >
-                              Imprimir etiqueta
-                            </button>
-
-                            {vendido ? (
-                              <button
-                                style={{ ...botao, background: "#b8860b" }}
-                                onClick={() => cancelarVenda(codigo)}
-                              >
-                                Cancelar venda
-                              </button>
-                            ) : null}
-
-                            <button
-                              style={{ ...botao, background: "#555" }}
-                              onClick={() => removerPeca(codigo)}
-                            >
-                              Remover peça
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+                boxGrande={boxGrande}
+                cabecalhoSecao={cabecalhoSecao}
+                tituloSecao={tituloSecao}
+                linhaResumoHorizontal={linhaResumoHorizontal}
+                cardResumo={cardResumo}
+                valorResumo={valorResumo}
+                linhaFiltros={linhaFiltros}
+                input={input}
+                botao={botao}
+                botaoPequeno={botaoPequeno}
+                gridPecas={gridPecas}
+                cardPeca={cardPeca}
+                textoItem={textoItem}
+              />
             )}
 
             {abaAtiva === "vendas" && (
-              <div style={{ display: "grid", gap: 24 }}>
-                <div style={boxGrande}>
-                  <h2 style={tituloSecao}>Registro de Vendas</h2>
-
-                  <div className="grid-vendas" style={gridVendas}>
-                    <div style={gridForm}>
-                      <input
-                        style={input}
-                        placeholder="Código da peça"
-                        value={vendaId}
-                        onChange={(e) => setVendaId(e.target.value)}
-                      />
-
-                      <input
-                        style={input}
-                        placeholder="Nome da cliente"
-                        value={cliente}
-                        onChange={(e) => setCliente(e.target.value)}
-                      />
-
-                      <input
-                        style={input}
-                        placeholder="Valor com desconto (opcional)"
-                        value={valorDesconto}
-                        onChange={(e) => setValorDesconto(formatarValorDescontoInput(e.target.value))}
-                        inputMode="numeric"
-                      />
-
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: isMobile ? "1fr" : "repeat(2, auto)",
-                          gap: 12,
-                          width: "100%",
-                        }}
-                      >
-                        <button
-                          style={{
-                            ...botao,
-                            opacity: salvandoVenda ? 0.7 : 1,
-                            cursor: salvandoVenda ? "not-allowed" : "pointer",
-                            width: "100%",
-                          }}
-                          onClick={registrarVenda}
-                          disabled={salvandoVenda}
-                        >
-                          {salvandoVenda ? "Salvando..." : "Registrar venda"}
-                        </button>
-
-                        <button
-                          style={{ ...botao, background: "#0f766e", width: "100%" }}
-                          onClick={() => setScannerAtivo((prev) => !prev)}
-                        >
-                          {scannerAtivo ? "Fechar scanner" : "Ler QR Code"}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        ...previewBox,
-                        minHeight: isMobile ? "auto" : undefined,
-                        padding: isMobile ? 16 : previewBox.padding,
-                      }}
-                    >
-                      <h3 style={{ marginTop: 0, marginBottom: 12 }}>Scanner</h3>
-
-                      {scannerAtivo ? (
-                        <div>
-                          <div
-                            id={scannerElementId}
-                            style={{
-                              width: "100%",
-                              minHeight: isMobile ? 220 : 280,
-                              overflow: "hidden",
-                              borderRadius: 12,
-                              border: "1px solid #ddd",
-                              padding: 8,
-                              background: "#fff",
-                              boxSizing: "border-box",
-                            }}
-                          />
-                          <p style={{ fontSize: 14, color: "#555", marginTop: 10 }}>
-                            Aponte a câmera para o QR Code da peça.
-                          </p>
-                        </div>
-                      ) : (
-                        <div
-                          style={{
-                            ...semFoto,
-                            minHeight: isMobile ? 120 : 180,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          Scanner fechado
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={boxGrande}>
-                  <div style={cabecalhoSecao}>
-                    <h2 style={tituloSecao}>
-                      {liveEmVisualizacao
-                        ? `Resumo por Clientes - ${liveEmVisualizacao.nome}`
-                        : "Resumo por Clientes"}
-                    </h2>
-
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-                      <input
-                        style={{ ...input, maxWidth: 320 }}
-                        placeholder="Buscar cliente"
-                        value={buscaCliente}
-                        onChange={(e) => setBuscaCliente(e.target.value)}
-                      />
-
-                      <button
-                        style={
-                          filtroPagamentoCliente === "todos"
-                            ? { ...botaoPequeno, background: "#111827" }
-                            : { ...botaoPequeno, background: "#6b7280" }
-                        }
-                        onClick={() => setFiltroPagamentoCliente("todos")}
-                      >
-                        Todos
-                      </button>
-
-                      <button
-                        style={
-                          filtroPagamentoCliente === "pendentes"
-                            ? { ...botaoPequeno, background: "#b45309" }
-                            : { ...botaoPequeno, background: "#6b7280" }
-                        }
-                        onClick={() => setFiltroPagamentoCliente("pendentes")}
-                      >
-                        Pendentes
-                      </button>
-
-                      <button
-                        style={
-                          filtroPagamentoCliente === "pagos"
-                            ? { ...botaoPequeno, background: "#15803d" }
-                            : { ...botaoPequeno, background: "#6b7280" }
-                        }
-                        onClick={() => setFiltroPagamentoCliente("pagos")}
-                      >
-                        Pagos
-                      </button>
-                    </div>
-                  </div>
-
-                  {liveEmVisualizacao && (
-                    <div className="linha-resumo" style={linhaResumo}>
-                      <div style={cardResumo}>
-                        <strong>Peças da live</strong>
-                        <div style={valorResumo}>{totalPecasLive}</div>
-                      </div>
-
-                      <div style={cardResumo}>
-                        <strong>Faturamento da live</strong>
-                        <div style={valorResumo}>{formatarBRL(faturamentoLive)}</div>
-                      </div>
-
-                      <div style={cardResumo}>
-                        <strong>Lucro estimado da live</strong>
-                        <div style={valorResumo}>{formatarBRL(lucroEstimadoLive)}</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {!liveEmVisualizacao ? (
-                    <p>Inicie uma live ou abra uma live do histórico para visualizar o resumo por clientes.</p>
-                  ) : clientesFiltrados.length === 0 ? (
-                    <p>Nenhuma cliente registrada nessa live ainda.</p>
-                  ) : (
-                    <div style={{ display: "grid", gap: 14 }}>
-                      {[...clientesFiltrados]
-                        .sort((a, b) =>
-                          (a.nome || "")
-                            .toString()
-                            .localeCompare((b.nome || "").toString(), "pt-BR", {
-                              sensitivity: "base",
-                            })
-                        )
-                        .map((c) => (
-                          <div key={c.nome} style={cardCliente}>
-                            <div
-                              style={
-                                isMobile
-                                  ? {
-                                    display: "grid",
-                                    gap: 12,
-                                    alignItems: "start",
-                                  }
-                                  : {
-                                    display: "grid",
-                                    gridTemplateColumns:
-                                      "minmax(220px, 1.2fr) minmax(160px, 1fr) 140px 120px",
-                                    gap: 16,
-                                    alignItems: "center",
-                                  }
-                              }
-                            >
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 8,
-                                  minWidth: 0,
-                                  overflow: "hidden",
-                                }}
-                              >
-                                <button
-                                  onClick={() => toggleExpandirCliente(c.nome)}
-                                  style={{
-                                    background: "transparent",
-                                    border: "none",
-                                    cursor: "pointer",
-                                    fontSize: 18,
-                                    padding: "4px 6px",
-                                    lineHeight: 1,
-                                    flexShrink: 0,
-                                    width: "auto",
-                                    minWidth: "auto",
-                                  }}
-                                >
-                                  {clientesExpandidos[c.nome] ? "▼" : "▶"}
-                                </button>
-
-                                <strong
-                                  style={{
-                                    fontSize: 18,
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                  }}
-                                  title={c.nome}
-                                >
-                                  {c.nome}
-                                </strong>
-                              </div>
-
-                              <div
-                                style={
-                                  isMobile
-                                    ? {
-                                      display: "grid",
-                                      gridTemplateColumns: "1fr",
-                                      gap: 8,
-                                    }
-                                    : {
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "flex-start",
-                                      gap: 8,
-                                      flexWrap: "nowrap",
-                                      whiteSpace: "nowrap",
-                                      paddingLeft: 8,
-                                    }
-                                }
-                              >
-                                <button
-                                  style={{
-                                    ...botaoPequeno,
-                                    background: "#2563eb",
-                                    width: isMobile ? "100%" : "auto",
-                                  }}
-                                  onClick={() => exportarClienteCSV(c)}
-                                >
-                                  CSV
-                                </button>
-
-                                <button
-                                  style={{
-                                    ...botaoPequeno,
-                                    background: "#111827",
-                                    width: isMobile ? "100%" : "auto",
-                                  }}
-                                  onClick={() => gerarComanda(c)}
-                                >
-                                  Comanda
-                                </button>
-
-                                <button
-                                  style={{
-                                    ...botaoPequeno,
-                                    background: c.pago ? "#15803d" : "#b45309",
-                                    width: isMobile ? "100%" : "auto",
-                                  }}
-                                  onClick={() => togglePagamentoClienteLive(c.nome, c.pago)}
-                                >
-                                  {c.pago ? "Pago" : "Pendente"}
-                                </button>
-                              </div>
-
-                              <div
-                                className="expedicao-info-direita"
-                                style={
-                                  isMobile
-                                    ? {
-                                      display: "grid",
-                                      gap: 4,
-                                      textAlign: "left",
-                                    }
-                                    : {
-                                      display: "grid",
-                                      gridTemplateColumns: "90px 90px",
-                                      justifyContent: "start",
-                                      alignItems: "center",
-                                      columnGap: 12,
-                                      textAlign: "right",
-                                      whiteSpace: "nowrap",
-                                      paddingLeft: 10,
-                                    }
-                                }
-                              >
-                                <span>{c.pecas} peça(s)</span>
-                                <strong>{formatarBRL(c.total)}</strong>
-                              </div>
-                            </div>
-
-                            {clientesExpandidos[c.nome] && (
-                              <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
-                                {c.itens.map((item, index) => (
-                                  <div key={`${item.codigo}-${index}`} style={itemCliente}>
-                                    <div><strong>Peça:</strong> {item.nomePeca}</div>
-                                    <div><strong>Código:</strong> {item.codigo}</div>
-                                    <div><strong>Valor:</strong> {formatarBRL(item.valor)}</div>
-                                    <div><strong>Vendido em:</strong> {item.dataVenda || "-"}</div>
-
-                                    <div style={{ marginTop: 8 }}>
-                                      <button
-                                        style={{
-                                          ...botaoPequeno,
-                                          background: "#b91c1c",
-                                          width: isMobile ? "100%" : "auto",
-                                        }}
-                                        onClick={() => cancelarVenda(item.codigo)}
-                                      >
-                                        Cancelar venda
-                                      </button>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <VendasSection
+                boxGrande={boxGrande}
+                tituloSecao={tituloSecao}
+                cabecalhoSecao={cabecalhoSecao}
+                linhaResumo={linhaResumo}
+                cardResumo={cardResumo}
+                valorResumo={valorResumo}
+                cardCliente={cardCliente}
+                itemCliente={itemCliente}
+                botao={botao}
+                botaoPequeno={botaoPequeno}
+                input={input}
+                gridVendas={gridVendas}
+                gridForm={gridForm}
+                previewBox={previewBox}
+                semFoto={semFoto}
+                isMobile={isMobile}
+                scannerAtivo={scannerAtivo}
+                setScannerAtivo={setScannerAtivo}
+                scannerElementId={scannerElementId}
+                vendaId={vendaId}
+                setVendaId={setVendaId}
+                cliente={cliente}
+                setCliente={setCliente}
+                valorDesconto={valorDesconto}
+                setValorDesconto={setValorDesconto}
+                formatarValorDescontoInput={formatarValorDescontoInput}
+                registrarVenda={registrarVenda}
+                salvandoVenda={salvandoVenda}
+                liveEmVisualizacao={liveEmVisualizacao}
+                buscaCliente={buscaCliente}
+                setBuscaCliente={setBuscaCliente}
+                filtroPagamentoCliente={filtroPagamentoCliente}
+                setFiltroPagamentoCliente={setFiltroPagamentoCliente}
+                totalPecasLive={totalPecasLive}
+                faturamentoLive={faturamentoLive}
+                lucroEstimadoLive={lucroEstimadoLive}
+                clientesFiltrados={clientesFiltrados}
+                clientesExpandidos={clientesExpandidos}
+                toggleExpandirCliente={toggleExpandirCliente}
+                exportarClienteCSV={exportarClienteCSV}
+                gerarComanda={gerarComanda}
+                togglePagamentoClienteLive={togglePagamentoClienteLive}
+                cancelarVenda={cancelarVenda}
+                formatarBRL={formatarBRL}
+              />
             )}
 
             {abaAtiva === "clientes" && (
-              <div style={boxGrande}>
-                <h2 style={tituloSecao}>Cadastro de Clientes</h2>
-
-                <div
-                  style={{
-                    display: "grid",
-                    gap: 14,
-                    marginBottom: 18,
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 10,
-                      flexWrap: "wrap",
-                      alignItems: "center",
-                    }}
-                  >
-                    <input
-                      style={{ ...inputCliente, maxWidth: 360 }}
-                      placeholder="Buscar cliente por nome, CPF, telefone ou endereço"
-                      value={buscaClienteCadastro}
-                      onChange={(e) => setBuscaClienteCadastro(e.target.value)}
-                    />
-
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <button
-                        style={{ ...botao, background: "#111827" }}
-                        onClick={copiarLinkCadastroCliente}
-                      >
-                        Copiar link
-                      </button>
-
-                      <button
-                        style={{ ...botao, background: "#15803d" }}
-                        onClick={copiarMensagemWhatsAppCadastroCliente}
-                      >
-                        WhatsApp
-                      </button>
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      background: "#f8fafc",
-                      border: "1px solid #e2e8f0",
-                      borderRadius: 14,
-                      padding: 14,
-                      color: "#334155",
-                      fontSize: 14,
-                    }}
-                  >
-                    <strong>Link público para clientes:</strong>
-                    <div
-                      style={{
-                        marginTop: 6,
-                        wordBreak: "break-word",
-                        fontSize: 13,
-                        color: "#64748b",
-                      }}
-                    >
-                      {gerarLinkCadastroCliente()}
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  className="grid-clientes"
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1.1fr 0.9fr",
-                    gap: 20,
-                    alignItems: "start",
-                  }}
-                >
-                  <div style={{ display: "grid", gap: 10, alignContent: "start" }}>
-                    <input
-                      style={inputCliente}
-                      placeholder="Nome completo"
-                      value={formCliente.nome}
-                      onChange={(e) => setFormCliente({ ...formCliente, nome: e.target.value })}
-                    />
-
-                    <input
-                      style={inputCliente}
-                      placeholder="CPF"
-                      value={formCliente.cpf}
-                      onChange={(e) =>
-                        setFormCliente({ ...formCliente, cpf: formatarCPF(e.target.value) })
-                      }
-                    />
-
-                    <input
-                      style={inputCliente}
-                      placeholder="Telefone com DDD"
-                      value={formCliente.telefone}
-                      onChange={(e) =>
-                        setFormCliente({
-                          ...formCliente,
-                          telefone: formatarTelefone(e.target.value),
-                        })
-                      }
-                    />
-
-                    <input
-                      style={inputCliente}
-                      placeholder="CEP"
-                      value={formCliente.cep}
-                      onChange={(e) => {
-                        const cepFormatado = formatarCEP(e.target.value);
-                        setFormCliente({ ...formCliente, cep: cepFormatado });
-                        buscarCep(cepFormatado);
-                      }}
-                    />
-
-                    <input
-                      style={inputCliente}
-                      placeholder="Endereço"
-                      value={formCliente.endereco}
-                      onChange={(e) =>
-                        setFormCliente({ ...formCliente, endereco: e.target.value })
-                      }
-                    />
-
-                    <input
-                      style={inputCliente}
-                      placeholder="Número"
-                      value={formCliente.numero}
-                      onChange={(e) =>
-                        setFormCliente({ ...formCliente, numero: e.target.value })
-                      }
-                    />
-
-                    <input
-                      style={inputCliente}
-                      placeholder="Complemento"
-                      value={formCliente.complemento}
-                      onChange={(e) =>
-                        setFormCliente({ ...formCliente, complemento: e.target.value })
-                      }
-                    />
-
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                      <button style={botao} onClick={salvarCliente}>
-                        {clienteEditandoId ? "Atualizar Cliente" : "Salvar Cliente"}
-                      </button>
-
-                      {clienteEditandoId && (
-                        <button
-                          style={{ ...botao, background: "#6b7280" }}
-                          onClick={cancelarEdicaoCliente}
-                        >
-                          Cancelar edição
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div style={{ display: "grid", gap: 10, alignContent: "start" }}>
-                    {clientesFiltradosCadastro.length === 0 ? (
-                      <p>Nenhum cliente encontrado.</p>
-                    ) : (
-                      clientesFiltradosCadastro.map((c) => (
-                        <div key={c.id} style={cardCliente}>
-                          <strong>{c.nome}</strong>
-                          <div><strong>CPF:</strong> {c.cpf ? formatarCPF(c.cpf) : "-"}</div>
-                          <div>
-                            <strong>Telefone:</strong> {c.telefone ? formatarTelefone(c.telefone) : "-"}
-                          </div>
-                          <div><strong>CEP:</strong> {c.cep ? formatarCEP(c.cep) : "-"}</div>
-                          <div><strong>Endereço:</strong> {c.endereco || "-"}</div>
-                          <div>
-                            <strong>Nº:</strong> {c.numero || "-"}
-                            {c.complemento ? ` - ${c.complemento}` : ""}
-                          </div>
-
-                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-                            <button
-                              style={{ ...botaoPequeno, background: "#2563eb" }}
-                              onClick={() => editarCliente(c)}
-                            >
-                              Editar
-                            </button>
-
-                            <button
-                              style={{ ...botaoPequeno, background: "#111827" }}
-                              onClick={() => compartilharCliente(c)}
-                            >
-                              Compartilhar
-                            </button>
-
-                            <button
-                              style={{ ...botaoPequeno, background: "#b91c1c" }}
-                              onClick={() => excluirCliente(c.id)}
-                            >
-                              Excluir
-                            </button>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
+              <ClientesSection
+                boxGrande={boxGrande}
+                tituloSecao={tituloSecao}
+                inputCliente={inputCliente}
+                botao={botao}
+                botaoPequeno={botaoPequeno}
+                cardCliente={cardCliente}
+                clientesFiltradosCadastro={clientesFiltradosCadastro}
+                buscaClienteCadastro={buscaClienteCadastro}
+                setBuscaClienteCadastro={setBuscaClienteCadastro}
+                copiarLinkCadastroCliente={copiarLinkCadastroCliente}
+                copiarMensagemWhatsAppCadastroCliente={copiarMensagemWhatsAppCadastroCliente}
+                gerarLinkCadastroCliente={gerarLinkCadastroCliente}
+                formCliente={formCliente}
+                setFormCliente={setFormCliente}
+                formatarCPF={formatarCPF}
+                formatarTelefone={formatarTelefone}
+                formatarCEP={formatarCEP}
+                buscarCep={buscarCep}
+                salvarCliente={salvarCliente}
+                clienteEditandoId={clienteEditandoId}
+                cancelarEdicaoCliente={cancelarEdicaoCliente}
+                editarCliente={editarCliente}
+                compartilharCliente={compartilharCliente}
+                excluirCliente={excluirCliente}
+              />
             )}
+
             {abaAtiva === "lives" && (
               <div style={boxGrande}>
                 <h2 style={tituloSecao}>Controle de Lives</h2>
