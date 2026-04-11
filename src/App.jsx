@@ -234,6 +234,7 @@ export default function App() {
   const [nomeNovaLive, setNomeNovaLive] = useState("");
 
   const [vendaId, setVendaId] = useState("");
+  const [mostrarSugestoesVenda, setMostrarSugestoesVenda] = useState(false);
   const [cliente, setCliente] = useState("");
   const [valorDesconto, setValorDesconto] = useState("");
   const [salvandoVenda, setSalvandoVenda] = useState(false);
@@ -337,19 +338,34 @@ export default function App() {
   async function carregarPecas() {
     setCarregando(true);
 
-    const { data, error } = await supabase
-      .from("pecas")
-      .select("*")
-      .order("data_cadastro", { ascending: false });
+    let todas = [];
+    let from = 0;
+    const pageSize = 1000;
 
-    if (error) {
-      console.error(error);
-      alert("Erro ao carregar peças do banco.");
-      setCarregando(false);
-      return;
+    while (true) {
+      const { data, error } = await supabase
+        .from("pecas")
+        .select("*")
+        .order("data_cadastro", { ascending: false })
+        .range(from, from + pageSize - 1);
+
+      if (error) {
+        console.error(error);
+        alert("Erro ao carregar peças do banco.");
+        setCarregando(false);
+        return;
+      }
+
+      if (!data || data.length === 0) break;
+
+      todas = [...todas, ...data];
+
+      if (data.length < pageSize) break;
+
+      from += pageSize;
     }
 
-    setPecas(data || []);
+    setPecas(todas);
     setCarregando(false);
   }
 
@@ -1123,6 +1139,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         carregarTodasVendasLive(),
       ]);
 
+      setMostrarSugestoesVenda(false);
       setVendaId("");
       setCliente("");
       setValorDesconto("");
@@ -1866,6 +1883,32 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     );
   }, [pecas]);
 
+  const sugestoesPecasVenda = useMemo(() => {
+    const termo = String(vendaId || "").trim().toLowerCase();
+
+    // só começa a sugerir com 4 ou mais caracteres
+    if (termo.length < 4) return [];
+
+    return (pecas || [])
+      .filter((p) => {
+        if (p?.vendido) return false;
+
+        const codigoCompleto = String(p?.id || "");
+        const codigo = codigoCompleto.toLowerCase();
+        const nome = String(p?.nome || "").toLowerCase();
+
+        const numeros = codigoCompleto.replace(/\D/g, "");
+        const ultimos4 = numeros.slice(-4);
+
+        return (
+          nome.includes(termo) ||
+          codigo.includes(termo) ||
+          ultimos4.includes(termo)
+        );
+      })
+      .slice(0, 8);
+  }, [pecas, vendaId]);
+
   const mapaLivesPorId = useMemo(() => {
     if (!Array.isArray(listaLives)) return {};
 
@@ -2572,6 +2615,9 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 scannerElementId={scannerElementId}
                 vendaId={vendaId}
                 setVendaId={setVendaId}
+                sugestoesPecasVenda={sugestoesPecasVenda}
+                mostrarSugestoesVenda={mostrarSugestoesVenda}
+                setMostrarSugestoesVenda={setMostrarSugestoesVenda}
                 cliente={cliente}
                 setCliente={setCliente}
                 valorDesconto={valorDesconto}
