@@ -25,6 +25,8 @@ export default function VendasSection({
     setMostrarSugestoesVenda,
     cliente,
     setCliente,
+    filaEspera,
+    setFilaEspera,
     valorDesconto,
     setValorDesconto,
     formatarValorDescontoInput,
@@ -45,6 +47,7 @@ export default function VendasSection({
     gerarComanda,
     togglePagamentoClienteLive,
     cancelarVenda,
+    passarVendaParaFila,
     formatarBRL,
 }) {
     return (
@@ -54,89 +57,105 @@ export default function VendasSection({
 
                 <div className="grid-vendas" style={gridVendas}>
                     <div style={gridForm}>
-                        <div style={{ position: "relative", width: "100%" }}>
+                        <div
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                                gap: 12,
+                                width: "100%",
+                            }}
+                        >
+                            <div style={{ position: "relative", width: "100%" }}>
+                                <input
+                                    style={input}
+                                    placeholder="Código da peça"
+                                    value={vendaId}
+                                    onChange={(e) => {
+                                        const valor = e.target.value;
+                                        setVendaId(valor);
+
+                                        if (valor.trim().length >= 4) {
+                                            setMostrarSugestoesVenda(true);
+                                        } else {
+                                            setMostrarSugestoesVenda(false);
+                                        }
+                                    }}
+                                    onFocus={() => {
+                                        if (String(vendaId || "").trim().length >= 4) {
+                                            setMostrarSugestoesVenda(true);
+                                        }
+                                    }}
+                                />
+
+                                {mostrarSugestoesVenda && sugestoesPecasVenda.length > 0 && (
+                                    <div
+                                        style={{
+                                            position: "absolute",
+                                            top: "100%",
+                                            left: 0,
+                                            right: 0,
+                                            zIndex: 30,
+                                            background: "#fff",
+                                            border: "1px solid #d1d5db",
+                                            borderRadius: 10,
+                                            marginTop: 4,
+                                            boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+                                            maxHeight: 260,
+                                            overflowY: "auto",
+                                        }}
+                                    >
+                                        {sugestoesPecasVenda.map((peca) => (
+                                            <button
+                                                key={peca.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    setVendaId(String(peca.id));
+                                                    setMostrarSugestoesVenda(false);
+                                                }}
+                                                style={{
+                                                    width: "100%",
+                                                    textAlign: "left",
+                                                    padding: "10px 12px",
+                                                    border: "none",
+                                                    borderBottom: "1px solid #f1f5f9",
+                                                    background: "#fff",
+                                                    cursor: "pointer",
+                                                }}
+                                            >
+                                                <div style={{ fontWeight: "bold" }}>
+                                                    {peca.id} • {peca.nome || "Sem nome"}
+                                                </div>
+                                                <div style={{ fontSize: 13, color: "#64748b" }}>
+                                                    {peca.venda || "Sem valor"} {peca.obs ? `• ${peca.obs}` : ""}
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
                             <input
                                 style={input}
-                                placeholder="Código da peça"
-                                value={vendaId}
-                                onChange={(e) => {
-                                    const valor = e.target.value;
-                                    setVendaId(valor);
-
-                                    if (valor.trim().length >= 4) {
-                                        setMostrarSugestoesVenda(true);
-                                    } else {
-                                        setMostrarSugestoesVenda(false);
-                                    }
-                                }}
-                                onFocus={() => {
-                                    if (String(vendaId || "").trim().length >= 4) {
-                                        setMostrarSugestoesVenda(true);
-                                    }
-                                }}
+                                placeholder="Valor com desconto (opcional)"
+                                value={valorDesconto}
+                                onChange={(e) => setValorDesconto(formatarValorDescontoInput(e.target.value))}
+                                inputMode="numeric"
                             />
 
-                            {mostrarSugestoesVenda && sugestoesPecasVenda.length > 0 && (
-                                <div
-                                    style={{
-                                        position: "absolute",
-                                        top: "100%",
-                                        left: 0,
-                                        right: 0,
-                                        zIndex: 30,
-                                        background: "#fff",
-                                        border: "1px solid #d1d5db",
-                                        borderRadius: 10,
-                                        marginTop: 4,
-                                        boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
-                                        maxHeight: 260,
-                                        overflowY: "auto",
-                                    }}
-                                >
-                                    {sugestoesPecasVenda.map((peca) => (
-                                        <button
-                                            key={peca.id}
-                                            type="button"
-                                            onClick={() => {
-                                                setVendaId(String(peca.id));
-                                                setMostrarSugestoesVenda(false);
-                                            }}
-                                            style={{
-                                                width: "100%",
-                                                textAlign: "left",
-                                                padding: "10px 12px",
-                                                border: "none",
-                                                borderBottom: "1px solid #f1f5f9",
-                                                background: "#fff",
-                                                cursor: "pointer",
-                                            }}
-                                        >
-                                            <div style={{ fontWeight: "bold" }}>
-                                                {peca.id} • {peca.nome || "Sem nome"}
-                                            </div>
-                                            <div style={{ fontSize: 13, color: "#64748b" }}>
-                                                {peca.venda || "Sem valor"} {peca.obs ? `• ${peca.obs}` : ""}
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
+                            <input
+                                style={input}
+                                placeholder="Nome da cliente"
+                                value={cliente}
+                                onChange={(e) => setCliente(e.target.value)}
+                            />
+
+                            <input
+                                style={input}
+                                placeholder="Fila (opcional)"
+                                value={filaEspera}
+                                onChange={(e) => setFilaEspera(e.target.value)}
+                            />
                         </div>
-
-                        <input
-                            style={input}
-                            placeholder="Nome da cliente"
-                            value={cliente}
-                            onChange={(e) => setCliente(e.target.value)}
-                        />
-
-                        <input
-                            style={input}
-                            placeholder="Valor com desconto (opcional)"
-                            value={valorDesconto}
-                            onChange={(e) => setValorDesconto(formatarValorDescontoInput(e.target.value))}
-                            inputMode="numeric"
-                        />
 
                         <div
                             style={{
@@ -443,7 +462,18 @@ export default function VendasSection({
                                                     <div><strong>Valor:</strong> {formatarBRL(item.valor)}</div>
                                                     <div><strong>Vendido em:</strong> {item.dataVenda || "-"}</div>
 
-                                                    <div style={{ marginTop: 8 }}>
+                                                    {item.filaEspera ? (
+                                                        <div><strong>Fila:</strong> {item.filaEspera}</div>
+                                                    ) : null}
+
+                                                    <div
+                                                        style={{
+                                                            marginTop: 8,
+                                                            display: "flex",
+                                                            gap: 8,
+                                                            flexWrap: "wrap",
+                                                        }}
+                                                    >
                                                         <button
                                                             style={{
                                                                 ...botaoPequeno,
@@ -454,6 +484,19 @@ export default function VendasSection({
                                                         >
                                                             Cancelar venda
                                                         </button>
+
+                                                        {item.filaEspera ? (
+                                                            <button
+                                                                style={{
+                                                                    ...botaoPequeno,
+                                                                    background: "#2563eb",
+                                                                    width: isMobile ? "100%" : "auto",
+                                                                }}
+                                                                onClick={() => passarVendaParaFila(item.codigo)}
+                                                            >
+                                                                Passar para fila
+                                                            </button>
+                                                        ) : null}
                                                     </div>
                                                 </div>
                                             ))}

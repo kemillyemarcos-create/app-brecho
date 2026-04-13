@@ -234,6 +234,7 @@ export default function App() {
   const [nomeNovaLive, setNomeNovaLive] = useState("");
 
   const [vendaId, setVendaId] = useState("");
+  const [filaEspera, setFilaEspera] = useState("");
   const [mostrarSugestoesVenda, setMostrarSugestoesVenda] = useState(false);
   const [cliente, setCliente] = useState("");
   const [valorDesconto, setValorDesconto] = useState("");
@@ -1118,6 +1119,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         peca_id: vendaId.trim(),
         nome_peca: peca.nome || "-",
         cliente_nome: cliente.trim(),
+        fila_espera_nome: String(filaEspera || "").trim() || null,
         valor_venda: valorFinal,
         data_hora: new Date().toLocaleString("pt-BR"),
         status_pagamento: "pendente",
@@ -1142,10 +1144,75 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       setMostrarSugestoesVenda(false);
       setVendaId("");
       setCliente("");
+      setFilaEspera("");
       setValorDesconto("");
     } finally {
       setSalvandoVenda(false);
     }
+  }
+
+  async function passarVendaParaFila(itemCodigo) {
+    if (!liveEmVisualizacao) {
+      alert("Nenhuma live selecionada.");
+      return;
+    }
+
+    const venda = vendasLive.find(
+      (v) =>
+        String(v.peca_id || "").trim() === String(itemCodigo || "").trim() &&
+        String(v.live_id || "") === String(liveEmVisualizacao.id || "")
+    );
+
+    if (!venda) {
+      alert("Venda não encontrada.");
+      return;
+    }
+
+    const proximaCliente = String(venda.fila_espera_nome || "").trim();
+
+    if (!proximaCliente) {
+      alert("Essa peça não possui cliente na fila.");
+      return;
+    }
+
+    const { error: errorVenda } = await supabase
+      .from("vendas_live")
+      .update({
+        cliente_nome: proximaCliente,
+        fila_espera_nome: null,
+        status_pagamento: "pendente",
+        data_hora: new Date().toLocaleString("pt-BR"),
+      })
+      .eq("id", venda.id);
+
+    if (errorVenda) {
+      console.error("ERRO AO PASSAR VENDA PARA FILA:", errorVenda);
+      alert("Erro ao transferir venda para a cliente da fila.");
+      return;
+    }
+
+    const { error: errorPeca } = await supabase
+      .from("pecas")
+      .update({
+        cliente: proximaCliente,
+        data_venda: new Date().toLocaleString("pt-BR"),
+        vendido: true,
+      })
+      .eq("id", venda.peca_id);
+
+    if (errorPeca) {
+      console.error("ERRO AO ATUALIZAR PEÇA PARA FILA:", errorPeca);
+      alert("A venda foi transferida, mas houve erro ao atualizar a peça.");
+      return;
+    }
+
+    await carregarVendasLive(
+      liveEmVisualizacao.id === liveAtual?.id ? liveAtual : liveEmVisualizacao
+    );
+
+    await carregarPecas();
+
+    alert(`Venda transferida para ${proximaCliente}.`);
   }
 
   async function cancelarVenda(id) {
@@ -2620,6 +2687,8 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 setMostrarSugestoesVenda={setMostrarSugestoesVenda}
                 cliente={cliente}
                 setCliente={setCliente}
+                filaEspera={filaEspera}
+                setFilaEspera={setFilaEspera}
                 valorDesconto={valorDesconto}
                 setValorDesconto={setValorDesconto}
                 formatarValorDescontoInput={formatarValorDescontoInput}
@@ -2640,6 +2709,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 gerarComanda={gerarComanda}
                 togglePagamentoClienteLive={togglePagamentoClienteLive}
                 cancelarVenda={cancelarVenda}
+                passarVendaParaFila={passarVendaParaFila}
                 formatarBRL={formatarBRL}
               />
             )}
@@ -2754,35 +2824,71 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                     <p>Nenhuma live cadastrada ainda.</p>
                   ) : (
                     <div style={{ display: "grid", gap: 10 }}>
-                      {listaLives.map((live) => (
-                        <div
-                          key={live.id}
-                          style={{
-                            ...cardCliente,
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            gap: 12,
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <div>
-                            <strong>{live.nome}</strong>
-                            <div>Data: {live.data_live || "-"}</div>
-                            <div>Status: {live.status || "-"}</div>
-                          </div>
 
-                          <button
-                            style={{ ...botaoPequeno, background: "#2563eb" }}
-                            onClick={async () => {
-                              await abrirLiveHistorica(live);
-                              setAbaAtiva("vendas");
+                      {/* 🔥 CABEÇALHO DAS COLUNAS */}
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1.45fr 1fr 1fr auto",
+                          fontWeight: "bold",
+                          padding: "1px 16  px",
+                          color: "#475569",
+                        }}
+                      >
+                        <div>Live</div>
+                        <div>Data</div>
+                        <div>Status</div>
+                        <div></div>
+                      </div>
+
+                      {[...listaLives]
+                        .sort((a, b) => {
+                          function toDate(dataStr) {
+                            if (!dataStr) return new Date(0);
+
+                            const [dia, mes, ano] = dataStr.split("/");
+
+                            return new Date(`${ano}-${mes}-${dia}`);
+                          }
+
+                          return toDate(b.data_live) - toDate(a.data_live);
+                        })
+                        .map((live) => (
+                          <div
+                            key={live.id}
+                            style={{
+                              ...cardCliente,
+                              display: "grid",
+                              gridTemplateColumns: "1.7fr 1.2fr 1fr auto",
+                              alignItems: "center",
+                              gap: 12,
                             }}
                           >
-                            Abrir
-                          </button>
-                        </div>
-                      ))}
+                            <div>
+                              <strong>{live.nome}</strong>
+                            </div>
+
+                            <div>
+                              {live.data_live || "-"}
+                            </div>
+
+                            <div>
+                              {live.status || "-"}
+                            </div>
+
+                            <div>
+                              <button
+                                style={{ ...botaoPequeno, background: "#2563eb" }}
+                                onClick={async () => {
+                                  await abrirLiveHistorica(live);
+                                  setAbaAtiva("vendas");
+                                }}
+                              >
+                                Abrir
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                     </div>
                   )}
                 </div>
@@ -2862,21 +2968,76 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                   </div>
 
                   <div style={{ marginTop: 24 }}>
-                    <h3 style={{ marginBottom: 12 }}>Resumo por Live</h3>
+                    <h3 style={{ marginTop: 24, marginBottom: 12 }}>Resumo por Live</h3>
 
                     {resumoFaturamentoPorLive.length === 0 ? (
                       <p>Nenhuma live encontrada no período.</p>
                     ) : (
-                      <div style={{ display: "grid", gap: 10 }}>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: isMobile
+                            ? "1fr"
+                            : "repeat(4, 1fr)",
+                          gap: 16,
+                          alignItems: "start",
+                        }}
+                      >
                         {resumoFaturamentoPorLive.map((live) => (
-                          <div key={live.id} style={cardCliente}>
-                            <strong>{live.nome}</strong>
-                            <div>Data: {live.data}</div>
-                            <div>Status: {live.status}</div>
-                            <div>Quantidade de vendas: {live.quantidade}</div>
-                            <div>Faturamento: {formatarBRL(live.faturamento)}</div>
-                            <div>Lucro: {formatarBRL(live.lucro)}</div>
-                            <div>Ticket médio: {formatarBRL(live.ticketMedio)}</div>
+                          <div
+                            key={live.id}
+                            style={{
+                              border: "1px solid #e5e7eb",
+                              borderRadius: 16,
+                              background: "#fff",
+                              padding: 18,
+                              display: "grid",
+                              gap: 8,
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                              alignContent: "start",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "flex-start",
+                                gap: 12,
+                              }}
+                            >
+                              <strong style={{ fontSize: 20 }}>{live.nome}</strong>
+
+                              <span
+                                style={{
+                                  padding: "4px 10px",
+                                  borderRadius: 10,
+                                  background:
+                                    live.status === "aberta"
+                                      ? "#2563eb"
+                                      : live.status === "encerrada"
+                                        ? "#6b7280"
+                                        : "#15803d",
+                                  color: "#fff",
+                                  fontSize: 12,
+                                  fontWeight: "bold",
+                                  textTransform: "capitalize",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {live.status || "-"}
+                              </span>
+                            </div>
+
+                            <div style={{ color: "#475569", fontSize: 14 }}>
+                              <strong>Data:</strong> {live.data || "-"}
+                            </div>
+
+                            <div style={{ display: "grid", gap: 6, marginTop: 4 }}>
+                              <div><strong>Quantidade de vendas:</strong> {live.quantidade}</div>
+                              <div><strong>Faturamento:</strong> {formatarBRL(live.faturamento)}</div>
+                              <div><strong>Lucro:</strong> {formatarBRL(live.lucro)}</div>
+                              <div><strong>Ticket médio:</strong> {formatarBRL(live.ticketMedio)}</div>
+                            </div>
                           </div>
                         ))}
                       </div>
