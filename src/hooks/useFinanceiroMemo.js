@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { getDataIsoLocal } from "../utils/dateUtils";
 
 export default function useFinanceiroMemo({
     pecas,
@@ -18,6 +19,44 @@ export default function useFinanceiroMemo({
     formatarTelefone,
     converterDataPtBrParaIso,
 }) {
+
+    function parseDataFlex(valor) {
+        if (!valor) return null;
+
+        if (valor.includes("T")) {
+            return new Date(valor); // ISO
+        }
+
+        if (valor.includes("/")) {
+            const [dia, mes, ano] = valor.split("/");
+            return new Date(`${ano}-${mes}-${dia}`);
+        }
+
+        return new Date(valor);
+    }
+
+    function formatarDataBR(valor) {
+        const iso = getDataIsoLocal(valor);
+        if (!iso) return "";
+
+        const [ano, mes, dia] = iso.split("-");
+        return `${dia}/${mes}/${ano}`;
+    }
+
+    const livesFiltradas = useMemo(
+        () =>
+            (listaLives || []).filter((live) => {
+                const iso = getDataIsoLocal(live.data_live);
+                if (!iso) return true;
+
+                if (dataInicialFiltro && iso < dataInicialFiltro) return false;
+                if (dataFinalFiltro && iso > dataFinalFiltro) return false;
+
+                return true;
+            }),
+        [listaLives, dataInicialFiltro, dataFinalFiltro]
+    );
+
     const resumoClientes = useMemo(() => {
         const mapa = {};
 
@@ -132,7 +171,7 @@ export default function useFinanceiroMemo({
             (pecas || []).filter((p) => {
                 if (!p.vendido || !p.data_venda) return false;
 
-                const dataVendaIso = converterDataPtBrParaIso(p.data_venda);
+                const dataVendaIso = getDataIsoLocal(p.data_venda);
                 if (!dataVendaIso) return false;
 
                 if (dataInicialFiltro && dataVendaIso < dataInicialFiltro) return false;
@@ -140,60 +179,46 @@ export default function useFinanceiroMemo({
 
                 return true;
             }),
-        [pecas, dataInicialFiltro, dataFinalFiltro, converterDataPtBrParaIso]
-    );
-
-    const livesFiltradas = useMemo(
-        () =>
-            (listaLives || []).filter((live) => {
-                if (!live?.data_live) return true;
-
-                const partes = String(live.data_live).split("/");
-                if (partes.length !== 3) return true;
-
-                const [dia, mes, ano] = partes;
-                const dataLive = `${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
-
-                if (dataInicialFiltro && dataLive < dataInicialFiltro) return false;
-                if (dataFinalFiltro && dataLive > dataFinalFiltro) return false;
-
-                return true;
-            }),
-        [listaLives, dataInicialFiltro, dataFinalFiltro]
+        [pecas, dataInicialFiltro, dataFinalFiltro]
     );
 
     const resumoFaturamentoPorLive = useMemo(
         () =>
-            livesFiltradas.map((live) => {
-                const vendasDaLive = (todasVendasLive || []).filter(
-                    (v) => String(v.live_id) === String(live.id)
-                );
+            livesFiltradas
+                .map((live) => {
+                    const vendasDaLive = (todasVendasLive || []).filter(
+                        (v) => String(v.live_id) === String(live.id)
+                    );
 
-                const faturamentoDaLive = vendasDaLive.reduce(
-                    (acc, v) => acc + Number(v.valor_venda || 0),
-                    0
-                );
+                    const faturamentoDaLive = vendasDaLive.reduce(
+                        (acc, v) => acc + Number(v.valor_venda || 0),
+                        0
+                    );
 
-                const lucroDaLive = vendasDaLive.reduce((acc, v) => {
-                    const pecaOriginal = mapaPecasPorId[String(v.peca_id)];
-                    const custo = limparMoeda(pecaOriginal?.custo || 0);
-                    return acc + (Number(v.valor_venda || 0) - custo);
-                }, 0);
+                    const lucroDaLive = vendasDaLive.reduce((acc, v) => {
+                        const pecaOriginal = mapaPecasPorId[String(v.peca_id)];
+                        const custo = limparMoeda(pecaOriginal?.custo || 0);
+                        return acc + (Number(v.valor_venda || 0) - custo);
+                    }, 0);
 
-                const quantidade = vendasDaLive.length;
-                const ticketMedio = quantidade > 0 ? faturamentoDaLive / quantidade : 0;
+                    const quantidade = vendasDaLive.length;
+                    const ticketMedio = quantidade > 0 ? faturamentoDaLive / quantidade : 0;
+                    const dataObj = parseDataFlex(live.data_live);
+                    const dataTimestamp = dataObj?.getTime() || 0;
 
-                return {
-                    id: live.id,
-                    nome: live.nome,
-                    data: live.data_live || "-",
-                    status: live.status || "-",
-                    quantidade,
-                    faturamento: faturamentoDaLive,
-                    lucro: lucroDaLive,
-                    ticketMedio,
-                };
-            }),
+                    return {
+                        id: live.id,
+                        nome: live.nome,
+                        data: formatarDataBR(live.data_live) || "-",
+                        dataTimestamp,
+                        status: live.status || "-",
+                        quantidade,
+                        faturamento: faturamentoDaLive,
+                        lucro: lucroDaLive,
+                        ticketMedio,
+                    };
+                })
+                .sort((a, b) => b.dataTimestamp - a.dataTimestamp),
         [livesFiltradas, todasVendasLive, mapaPecasPorId, limparMoeda]
     );
 

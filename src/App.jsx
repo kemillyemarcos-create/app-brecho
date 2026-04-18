@@ -156,18 +156,73 @@ function agruparEtiquetasEmPaginas(lista, porPagina = 25) {
 }
 
 function converterDataPtBrParaIso(dataStr) {
-  if (!dataStr) return null;
+  const data = parseDataFlex(dataStr);
+  if (!data) return null;
 
-  const parteData = String(dataStr).split(",")[0].trim();
-  const partes = parteData.split("/");
+  const ano = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, "0");
+  const dia = String(data.getDate()).padStart(2, "0");
 
-  if (partes.length !== 3) return null;
-
-  const [dia, mes, ano] = partes;
-  if (!dia || !mes || !ano) return null;
-
-  return `${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
+  return `${ano}-${mes}-${dia}`;
 }
+
+function agoraIso() {
+  return new Date().toISOString();
+}
+
+function parseDataFlex(valor) {
+  if (!valor) return null;
+
+  if (valor instanceof Date) {
+    return isNaN(valor.getTime()) ? null : valor;
+  }
+
+  const texto = String(valor).trim();
+
+  if (!texto) return null;
+
+  // ISO ou formato já aceito pelo JS
+  const tentativaDireta = new Date(texto);
+  if (!isNaN(tentativaDireta.getTime()) && (texto.includes("T") || texto.includes("-"))) {
+    return tentativaDireta;
+  }
+
+  // dd/mm/yyyy ou dd/mm/yyyy, hh:mm[:ss]
+  const match = texto.match(
+    /^(\d{2})\/(\d{2})\/(\d{4})(?:,?\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/
+  );
+
+  if (match) {
+    const [, dia, mes, ano, hora = "00", minuto = "00", segundo = "00"] = match;
+
+    const data = new Date(
+      Number(ano),
+      Number(mes) - 1,
+      Number(dia),
+      Number(hora),
+      Number(minuto),
+      Number(segundo)
+    );
+
+    return isNaN(data.getTime()) ? null : data;
+  }
+
+  return null;
+}
+
+function formatarDataHoraBR(valor) {
+  const data = parseDataFlex(valor);
+  if (!data) return "";
+  return data.toLocaleString("pt-BR");
+}
+
+function formatarDataBR(valor) {
+  const data = parseDataFlex(valor);
+  if (!data) return "";
+  return data.toLocaleDateString("pt-BR");
+  
+}
+
 
 function baixarCSV(nomeArquivo, linhas) {
   const csv = linhas.map((linha) => linha.map(csvEscape).join(";")).join("\n");
@@ -306,7 +361,7 @@ export default function App() {
             cliente_nome: clienteNome,
             live_id: liveId,
             status: "aberta",
-            criado_em: new Date().toLocaleString("pt-BR"),
+            criado_em: agoraIso(),
           },
         ]);
 
@@ -324,8 +379,8 @@ export default function App() {
     const { data, error } = await supabase.from("clientes_pagamento").select("*");
 
     if (error) {
-      console.error(error);
-      return;
+      console.error("ERRO AO CARREGAR PAGAMENTOS DOS CLIENTES:", error);
+      throw new Error(`Erro ao carregar pagamentos dos clientes: ${error.message}`);
     }
 
     const mapa = {};
@@ -337,8 +392,6 @@ export default function App() {
   }
 
   async function carregarPecas() {
-    setCarregando(true);
-
     let todas = [];
     let from = 0;
     const pageSize = 1000;
@@ -351,10 +404,8 @@ export default function App() {
         .range(from, from + pageSize - 1);
 
       if (error) {
-        console.error(error);
-        alert("Erro ao carregar peças do banco.");
-        setCarregando(false);
-        return;
+        console.error("ERRO AO CARREGAR PEÇAS:", error);
+        throw new Error(`Erro ao carregar peças: ${error.message}`);
       }
 
       if (!data || data.length === 0) break;
@@ -367,7 +418,6 @@ export default function App() {
     }
 
     setPecas(todas);
-    setCarregando(false);
   }
 
   async function carregarClientes() {
@@ -377,9 +427,8 @@ export default function App() {
       .order("criado_em", { ascending: false });
 
     if (error) {
-      console.error(error);
-      alert("Erro ao carregar clientes");
-      return;
+      console.error("ERRO AO CARREGAR CLIENTES:", error);
+      throw new Error(`Erro ao carregar clientes: ${error.message}`);
     }
 
     setClientes(data || []);
@@ -393,7 +442,7 @@ export default function App() {
 
     if (error) {
       console.error("ERRO AO CARREGAR LIVES:", error);
-      return;
+      throw new Error(`Erro ao carregar lives: ${error.message}`);
     }
 
     setListaLives(data || []);
@@ -424,14 +473,35 @@ export default function App() {
   }
 
   async function carregarTodasVendasLive() {
-    const { data, error } = await supabase.from("vendas_live").select("*");
+    const pageSize = 1000;
+    let from = 0;
+    let todas = [];
+    let continuar = true;
 
-    if (error) {
-      console.error("ERRO AO CARREGAR TODAS AS VENDAS:", error);
-      return;
+    while (continuar) {
+      const { data, error } = await supabase
+        .from("vendas_live")
+        .select("*")
+        .range(from, from + pageSize - 1);
+
+      if (error) {
+        console.error("ERRO AO CARREGAR TODAS AS VENDAS:", error);
+        throw new Error(`Erro ao carregar vendas da live: ${error.message}`);
+      }
+
+      if (data && data.length > 0) {
+        todas = [...todas, ...data];
+        from += pageSize;
+      }
+
+      if (!data || data.length < pageSize) {
+        continuar = false;
+      }
     }
 
-    setTodasVendasLive(data || []);
+    console.log("TOTAL vendas carregadas:", todas.length);
+
+    setTodasVendasLive(todas);
   }
 
   async function carregarVendasLive(live = liveAtual) {
@@ -440,17 +510,36 @@ export default function App() {
       return;
     }
 
-    const { data, error } = await supabase
-      .from("vendas_live")
-      .select("*")
-      .eq("live_id", live.id);
+    const pageSize = 1000;
+    let from = 0;
+    let todas = [];
+    let continuar = true;
 
-    if (error) {
-      console.error("ERRO AO CARREGAR vendas_live:", error);
-      return;
+    while (continuar) {
+      const { data, error } = await supabase
+        .from("vendas_live")
+        .select("*")
+        .eq("live_id", live.id)
+        .range(from, from + pageSize - 1);
+
+      if (error) {
+        console.error("ERRO AO CARREGAR vendas_live:", error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        todas = [...todas, ...data];
+        from += pageSize;
+      }
+
+      if (!data || data.length < pageSize) {
+        continuar = false;
+      }
     }
 
-    setVendasLive(data || []);
+    console.log("TOTAL vendas da live carregadas:", todas.length);
+
+    setVendasLive(todas);
   }
 
   async function abrirLiveHistorica(live) {
@@ -482,17 +571,27 @@ export default function App() {
   }
 
   async function carregarTudoInicial() {
-    await Promise.all([
-      carregarPecas(),
-      carregarClientes(),
-      carregarLives(),
-      carregarLiveAberta(),
-      carregarPagamentosClientes(),
-      carregarTodasVendasLive(),
-      carregarSacolinhasLive(),
-      carregarPedidosEnvio(),
-      carregarPedidoEnvioSacolinhas(),
-    ]);
+    try {
+      setCarregando(true);
+
+      await Promise.all([
+        carregarPecas(),
+        carregarClientes(),
+        carregarLives(),
+        carregarPagamentosClientes(),
+        carregarTodasVendasLive(),
+        carregarSacolinhasLive(),
+        carregarPedidosEnvio(),
+        carregarPedidoEnvioSacolinhas(),
+      ]);
+
+      await carregarLiveAberta();
+    } catch (error) {
+      console.error("ERRO NO CARREGAMENTO INICIAL:", error);
+      alert(error.message || "Erro ao carregar dados iniciais.");
+    } finally {
+      setCarregando(false);
+    }
   }
 
   async function recarregarExpedicao() {
@@ -509,13 +608,31 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (liveAtual) {
-      carregarVendasLive(liveAtual);
-      setLiveSelecionada((prev) => prev || liveAtual);
-    } else if (!liveSelecionada) {
+    let ativo = true;
+
+    async function sincronizarLiveAtual() {
+      if (liveAtual) {
+        await carregarVendasLive(liveAtual);
+        if (!ativo) return;
+
+        await carregarTodasVendasLive();
+        if (!ativo) return;
+
+        setLiveSelecionada(liveAtual);
+        return;
+      }
+
       setVendasLive([]);
+      await carregarTodasVendasLive();
     }
+
+    sincronizarLiveAtual();
+
+    return () => {
+      ativo = false;
+    };
   }, [liveAtual]);
+
 
   useEffect(() => {
     const channelPecas = supabase
@@ -523,9 +640,7 @@ export default function App() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "pecas" },
-        async () => {
-          await carregarPecas();
-        }
+        carregarPecas
       )
       .subscribe();
 
@@ -534,9 +649,7 @@ export default function App() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "clientes_pagamento" },
-        async () => {
-          await carregarPagamentosClientes();
-        }
+        carregarPagamentosClientes
       )
       .subscribe();
 
@@ -552,29 +665,12 @@ export default function App() {
       )
       .subscribe();
 
-    const channelVendasLive = supabase
-      .channel("vendas-live-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "vendas_live" },
-        async () => {
-          await carregarTodasVendasLive();
-          await carregarSacolinhasLive();
-          if (liveEmVisualizacao) {
-            await carregarVendasLive(liveEmVisualizacao);
-          }
-        }
-      )
-      .subscribe();
-
     const channelSacolinhas = supabase
       .channel("sacolinhas-live-realtime")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "sacolinhas_live" },
-        async () => {
-          await carregarSacolinhasLive();
-        }
+        carregarSacolinhasLive
       )
       .subscribe();
 
@@ -583,9 +679,7 @@ export default function App() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "pedidos_envio" },
-        async () => {
-          await carregarPedidosEnvio();
-        }
+        carregarPedidosEnvio
       )
       .subscribe();
 
@@ -594,9 +688,7 @@ export default function App() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "pedido_envio_sacolinhas" },
-        async () => {
-          await carregarPedidoEnvioSacolinhas();
-        }
+        carregarPedidoEnvioSacolinhas
       )
       .subscribe();
 
@@ -604,12 +696,40 @@ export default function App() {
       supabase.removeChannel(channelPecas);
       supabase.removeChannel(channelPagamentos);
       supabase.removeChannel(channelLives);
-      supabase.removeChannel(channelVendasLive);
       supabase.removeChannel(channelSacolinhas);
       supabase.removeChannel(channelPedidosEnvio);
       supabase.removeChannel(channelPedidoEnvioSacolinhas);
     };
-  }, [liveEmVisualizacao]);
+  }, []);
+
+  useEffect(() => {
+    if (!liveEmVisualizacao?.id) return;
+
+    const channelVendasLive = supabase
+      .channel("vendas-live-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "vendas_live" },
+        async () => {
+          await Promise.all([
+            carregarTodasVendasLive(),
+            carregarSacolinhasLive(),
+            carregarLives(),
+            carregarLiveAberta(),
+          ]);
+
+          if (liveEmVisualizacao?.id) {
+            await carregarVendasLive(liveEmVisualizacao);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channelVendasLive);
+    };
+  }, [liveEmVisualizacao?.id]);
+
 
   useEffect(() => {
     if (!scannerAtivo) return;
@@ -801,7 +921,7 @@ export default function App() {
         const novo = {
           id: gerarCodigo("CLI"),
           ...payload,
-          criado_em: new Date().toLocaleString("pt-BR"),
+          criado_em: agoraIso(),
         };
 
         const { error } = await supabase.from("clientes").insert(novo);
@@ -856,7 +976,7 @@ export default function App() {
         endereco: formCliente.endereco,
         numero: formCliente.numero,
         complemento: formCliente.complemento,
-        criado_em: new Date().toLocaleString("pt-BR"),
+        criado_em: agoraIso(),
       };
 
       const { error } = await supabase.from("clientes").insert(novo);
@@ -985,7 +1105,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       foto: form.foto || "",
       vendido: false,
       cliente: "",
-      data_cadastro: new Date().toLocaleString("pt-BR"),
+      data_cadastro: agoraIso(),
       data_venda: "",
     };
 
@@ -1044,7 +1164,10 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
     if (!vendaId.trim() || !cliente.trim()) return;
 
-    const peca = mapaPecasPorId[String(vendaId.trim())];
+    const codigoPeca = vendaId.trim();
+    const nomeCliente = cliente.trim();
+
+    const peca = mapaPecasPorId[String(codigoPeca)];
 
     if (!peca) {
       alert("Código da peça não encontrado.");
@@ -1056,15 +1179,31 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       return;
     }
 
-    const sacolinhaId = await obterOuCriarSacolinha(cliente.trim(), liveAtual.id);
-
-    if (!sacolinhaId) {
-      return;
-    }
-
     setSalvandoVenda(true);
 
     try {
+      const { data: vendaExistente, error: errorBuscaVenda } = await supabase
+        .from("vendas_live")
+        .select("id")
+        .eq("peca_id", codigoPeca)
+        .eq("live_id", liveAtual.id)
+        .limit(1);
+
+      if (errorBuscaVenda) {
+        console.error("ERRO AO VERIFICAR VENDA EXISTENTE:", errorBuscaVenda);
+        alert("Erro ao verificar venda existente.");
+        return;
+      }
+
+      if (vendaExistente && vendaExistente.length > 0) {
+        alert("Essa peça já está registrada na live.");
+        return;
+      }
+
+      const sacolinhaId = await obterOuCriarSacolinha(nomeCliente, liveAtual.id);
+
+      if (!sacolinhaId) return;
+
       const valorFinal = valorDesconto
         ? limparMoeda(valorDesconto)
         : limparMoeda(peca.venda);
@@ -1073,16 +1212,16 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         .from("pecas")
         .update({
           vendido: true,
-          cliente: cliente.trim(),
-          data_venda: new Date().toLocaleString("pt-BR"),
+          cliente: nomeCliente,
+          data_venda: agoraIso(),
           valor_venda_final: valorFinal,
         })
-        .eq("id", vendaId.trim())
+        .eq("id", codigoPeca)
         .eq("vendido", false)
         .select();
 
       if (errorPeca) {
-        console.error(errorPeca);
+        console.error("ERRO AO ATUALIZAR PEÇA:", errorPeca);
         alert("Erro ao registrar venda.");
         return;
       }
@@ -1093,35 +1232,16 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         return;
       }
 
-      const { data: vendaExistente, error: errorBuscaVenda } = await supabase
-        .from("vendas_live")
-        .select("id")
-        .eq("peca_id", vendaId.trim())
-        .limit(1);
-
-      if (errorBuscaVenda) {
-        console.error("ERRO AO VERIFICAR venda existente:", errorBuscaVenda);
-        alert("Erro ao verificar venda existente.");
-        return;
-      }
-
-      if (vendaExistente && vendaExistente.length > 0) {
-        alert("Essa peça já está registrada na live.");
-        await carregarPecas();
-        await carregarVendasLive();
-        return;
-      }
-
       const novaVendaLive = {
         id: gerarCodigo("VENDA"),
         live_id: liveAtual.id,
         sacolinha_id: sacolinhaId,
-        peca_id: vendaId.trim(),
+        peca_id: codigoPeca,
         nome_peca: peca.nome || "-",
-        cliente_nome: cliente.trim(),
+        cliente_nome: nomeCliente,
         fila_espera_nome: String(filaEspera || "").trim() || null,
         valor_venda: valorFinal,
-        data_hora: new Date().toLocaleString("pt-BR"),
+        data_hora: agoraIso(),
         status_pagamento: "pendente",
       };
 
@@ -1131,15 +1251,36 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
       if (errorVendaLive) {
         console.error("ERRO AO SALVAR EM vendas_live:", errorVendaLive);
+
+        // rollback manual da peça
+        const { error: rollbackError } = await supabase
+          .from("pecas")
+          .update({
+            vendido: false,
+            cliente: null,
+            data_venda: null,
+            valor_venda_final: null,
+          })
+          .eq("id", codigoPeca);
+
+        if (rollbackError) {
+          console.error("ERRO NO ROLLBACK DA PEÇA:", rollbackError);
+        }
+
         alert(`Erro ao salvar na vendas_live: ${errorVendaLive.message}`);
+        await Promise.all([
+          carregarPecas(),
+          carregarTodasVendasLive(),
+        ]);
         return;
       }
 
-      await Promise.all([
-        carregarVendasLive(),
-        carregarPecas(),
-        carregarTodasVendasLive(),
-      ]);
+      await carregarVendasLive(liveAtual);
+      await carregarTodasVendasLive();
+      await carregarSacolinhasLive();
+      await carregarPecas();
+      await carregarLives();
+      await carregarLiveAberta();
 
       setMostrarSugestoesVenda(false);
       setVendaId("");
@@ -1168,6 +1309,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       return;
     }
 
+    const clienteAnterior = String(venda.cliente_nome || "").trim();
     const proximaCliente = String(venda.fila_espera_nome || "").trim();
 
     if (!proximaCliente) {
@@ -1175,13 +1317,15 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       return;
     }
 
+    const novaData = agoraIso();
+
     const { error: errorVenda } = await supabase
       .from("vendas_live")
       .update({
         cliente_nome: proximaCliente,
         fila_espera_nome: null,
         status_pagamento: "pendente",
-        data_hora: new Date().toLocaleString("pt-BR"),
+        data_hora: novaData,
       })
       .eq("id", venda.id);
 
@@ -1195,22 +1339,45 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       .from("pecas")
       .update({
         cliente: proximaCliente,
-        data_venda: new Date().toLocaleString("pt-BR"),
+        data_venda: novaData,
         vendido: true,
       })
       .eq("id", venda.peca_id);
 
     if (errorPeca) {
       console.error("ERRO AO ATUALIZAR PEÇA PARA FILA:", errorPeca);
-      alert("A venda foi transferida, mas houve erro ao atualizar a peça.");
+
+      // rollback manual da venda
+      const { error: rollbackError } = await supabase
+        .from("vendas_live")
+        .update({
+          cliente_nome: clienteAnterior,
+          fila_espera_nome: proximaCliente,
+        })
+        .eq("id", venda.id);
+
+      if (rollbackError) {
+        console.error("ERRO NO ROLLBACK DA VENDA PARA FILA:", rollbackError);
+      }
+
+      alert("A venda foi alterada, mas houve erro ao atualizar a peça.");
+      await Promise.all([
+        carregarVendasLive(
+          liveEmVisualizacao.id === liveAtual?.id ? liveAtual : liveEmVisualizacao
+        ),
+        carregarPecas(),
+      ]);
       return;
     }
 
     await carregarVendasLive(
       liveEmVisualizacao.id === liveAtual?.id ? liveAtual : liveEmVisualizacao
     );
-
+    await carregarTodasVendasLive();
+    await carregarSacolinhasLive();
     await carregarPecas();
+    await carregarLives();
+    await carregarLiveAberta();
 
     alert(`Venda transferida para ${proximaCliente}.`);
   }
@@ -1221,21 +1388,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     );
     if (!confirmar) return;
 
-    const { error: errorPeca } = await supabase
-      .from("pecas")
-      .update({
-        vendido: false,
-        cliente: null,
-        data_venda: null,
-        valor_venda_final: null,
-      })
-      .eq("id", id);
-
-    if (errorPeca) {
-      console.error("ERRO AO VOLTAR PEÇA:", errorPeca);
-      alert(`Erro ao cancelar venda: ${errorPeca.message}`);
-      return;
-    }
+    const pecaOriginal = mapaPecasPorId[String(id)] || null;
 
     const { data: removidas, error: errorVendaLive } = await supabase
       .from("vendas_live")
@@ -1249,16 +1402,49 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       return;
     }
 
+    const { error: errorPeca } = await supabase
+      .from("pecas")
+      .update({
+        vendido: false,
+        cliente: null,
+        data_venda: null,
+        valor_venda_final: null,
+      })
+      .eq("id", id);
+
+    if (errorPeca) {
+      console.error("ERRO AO VOLTAR PEÇA:", errorPeca);
+
+      // tentativa simples de rollback da venda removida
+      if (removidas && removidas.length > 0) {
+        const { error: rollbackError } = await supabase
+          .from("vendas_live")
+          .insert(removidas);
+
+        if (rollbackError) {
+          console.error("ERRO NO ROLLBACK DA VENDA CANCELADA:", rollbackError);
+        }
+      }
+
+      alert(`Erro ao cancelar venda: ${errorPeca.message}`);
+      await Promise.all([
+        carregarPecas(),
+        carregarTodasVendasLive(),
+      ]);
+      return;
+    }
+
     if (!removidas || removidas.length === 0) {
       console.warn("Nenhum registro foi removido da vendas_live para a peça:", id);
       alert(
         `A peça voltou para disponível, mas não encontrei registro na vendas_live para o código ${id}.`
       );
-      await Promise.all([carregarPecas(), carregarTodasVendasLive()]);
-      return;
     }
 
-    await Promise.all([carregarPecas(), carregarTodasVendasLive()]);
+    await Promise.all([
+      carregarPecas(),
+      carregarTodasVendasLive(),
+    ]);
 
     if (liveEmVisualizacao) {
       await carregarVendasLive(
@@ -1295,13 +1481,15 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       return;
     }
 
+    const agora = agoraIso();
+
     const novaLive = {
       id: gerarCodigo("LIVE"),
       nome: nomeNovaLive,
-      data_live: new Date().toLocaleDateString("pt-BR"),
-      hora_inicio: new Date().toLocaleTimeString("pt-BR"),
+      data_live: agora,
+      hora_inicio: agora,
       status: "aberta",
-      criado_em: new Date().toLocaleString("pt-BR"),
+      criado_em: agora,
     };
 
     const { error } = await supabase.from("lives").insert(novaLive);
@@ -1328,7 +1516,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       .from("lives")
       .update({
         status: "encerrada",
-        hora_fim: new Date().toLocaleTimeString("pt-BR"),
+        hora_fim: agoraIso(),
       })
       .eq("id", liveAtual.id);
 
@@ -1450,7 +1638,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     if (error) {
       console.error("ERRO AO CARREGAR SACOLINHAS:", error);
       setCarregandoSacolinhas(false);
-      return;
+      throw new Error(`Erro ao carregar sacolinhas: ${error.message}`);
     }
 
     setSacolinhasLive(data || []);
@@ -1498,21 +1686,24 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
   async function cancelarPedidoDeEnvio(pedidoId, clienteNome) {
     const confirmar = window.confirm(
-      `Cancelar o pedido de envio de ${clienteNome} e devolver as sacolinhas para Separadas?`
+      `Cancelar pedido de ${clienteNome}?`
     );
-
     if (!confirmar) return;
 
     try {
+      // guarda vínculos
+      const { data: vinculos } = await supabase
+        .from("pedido_envio_sacolinhas")
+        .select("*")
+        .eq("pedido_envio_id", pedidoId);
+
       const { error: erroVinculos } = await supabase
         .from("pedido_envio_sacolinhas")
         .delete()
         .eq("pedido_envio_id", pedidoId);
 
       if (erroVinculos) {
-        console.error("ERRO AO REMOVER VÍNCULOS DO PEDIDO DE ENVIO:", erroVinculos);
-        alert(`Erro ao remover vínculos do pedido: ${erroVinculos.message}`);
-        return;
+        throw new Error(`Erro ao remover vínculos: ${erroVinculos.message}`);
       }
 
       const { error: erroPedido } = await supabase
@@ -1521,18 +1712,21 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         .eq("id", pedidoId);
 
       if (erroPedido) {
-        console.error("ERRO AO CANCELAR PEDIDO DE ENVIO:", erroPedido);
-        alert(`Erro ao cancelar pedido de envio: ${erroPedido.message}`);
-        return;
+        // rollback dos vínculos
+        if (vinculos && vinculos.length > 0) {
+          await supabase.from("pedido_envio_sacolinhas").insert(vinculos);
+        }
+
+        throw new Error(`Erro ao cancelar pedido: ${erroPedido.message}`);
       }
 
       await recarregarExpedicao();
       resetExpansoesExpedicao();
 
-      alert("Pedido de envio cancelado com sucesso.");
+      alert("Pedido cancelado com sucesso.");
     } catch (error) {
-      console.error("ERRO GERAL AO CANCELAR PEDIDO DE ENVIO:", error);
-      alert("Erro inesperado ao cancelar pedido de envio.");
+      console.error("ERRO AO CANCELAR PEDIDO:", error);
+      alert(error.message || "Erro ao cancelar pedido.");
     }
   }
 
@@ -1540,23 +1734,16 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     const itensConferidos = itensConferidosPedido[pedido.id] || [];
     const totalItens = pedido.quantidadeCalculada || 0;
 
-    if (totalItens === 0) {
-      alert("Esse pedido não possui itens.");
-      return;
-    }
-
     if (itensConferidos.length !== totalItens) {
-      alert("Confira todos os itens antes de marcar como enviado.");
+      alert("Confira todos os itens antes.");
       return;
     }
 
-    const confirmar = window.confirm(
-      `Deseja marcar o pedido de ${pedido.cliente_nome} como enviado?`
-    );
+    const confirmar = window.confirm("Finalizar envio?");
     if (!confirmar) return;
 
     try {
-      const agora = new Date().toLocaleString("pt-BR");
+      const agora = agoraIso();
 
       const { error: erroPedido } = await supabase
         .from("pedidos_envio")
@@ -1564,15 +1751,12 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           status: "enviado",
           conferido: true,
           quantidade_conferida: totalItens,
-          atualizado_em: agora,
           enviado_em: agora,
         })
         .eq("id", pedido.id);
 
       if (erroPedido) {
-        console.error("ERRO AO MARCAR PEDIDO COMO ENVIADO:", erroPedido);
-        alert(`Erro ao finalizar pedido: ${erroPedido.message}`);
-        return;
+        throw new Error(`Erro ao atualizar pedido: ${erroPedido.message}`);
       }
 
       const idsSacolinhas = (pedido.sacolinhas || []).map((s) => s.id);
@@ -1580,25 +1764,30 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       if (idsSacolinhas.length > 0) {
         const { error: erroSacolinhas } = await supabase
           .from("sacolinhas_live")
-          .update({
-            status: "enviada",
-          })
+          .update({ status: "enviada" })
           .in("id", idsSacolinhas);
 
         if (erroSacolinhas) {
-          console.error("ERRO AO MARCAR SACOLINHAS COMO ENVIADAS:", erroSacolinhas);
-          alert(`Erro ao atualizar sacolinhas: ${erroSacolinhas.message}`);
-          return;
+          // rollback pedido
+          await supabase
+            .from("pedidos_envio")
+            .update({
+              status: "montagem",
+              conferido: false,
+            })
+            .eq("id", pedido.id);
+
+          throw new Error(`Erro ao atualizar sacolinhas: ${erroSacolinhas.message}`);
         }
       }
 
       await recarregarExpedicao();
       resetExpansoesExpedicao();
 
-      alert("Pedido marcado como enviado com sucesso.");
+      alert("Pedido enviado com sucesso.");
     } catch (error) {
-      console.error("ERRO GERAL AO ENVIAR PEDIDO:", error);
-      alert("Erro inesperado ao finalizar envio.");
+      console.error("ERRO AO FINALIZAR PEDIDO:", error);
+      alert(error.message || "Erro ao finalizar envio.");
     }
   }
 
@@ -1613,26 +1802,28 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     const sacolinhasElegiveis = obterSacolinhasSeparadasElegiveisPorCliente(clienteNome);
 
     if (!sacolinhasElegiveis.length) {
-      alert("Não há sacolinhas separadas disponíveis para criar pedido de envio.");
+      alert("Não há sacolinhas separadas disponíveis.");
       return;
     }
 
     const confirmar = window.confirm(
-      `Criar pedido de envio para ${clienteNome} com ${sacolinhasElegiveis.length} sacolinha(s)?`
+      `Criar pedido de envio para ${clienteNome}?`
     );
     if (!confirmar) return;
 
     try {
       setCriandoPedidoEnvioCliente(clienteNome);
 
-      const itensDoPedido = sacolinhasElegiveis.flatMap((sacolinha) =>
-        getItensDaSacolinha(sacolinha, todasVendasLive)
+      const pedidoId = gerarCodigo("ENV");
+      const criadoEm = agoraIso();
+
+      const itensDoPedido = sacolinhasElegiveis.flatMap((s) =>
+        getItensDaSacolinha(s, todasVendasLive)
       );
 
       const quantidadeEsperada = itensDoPedido.length;
-      const pedidoId = gerarCodigo("ENV");
-      const criadoEm = new Date().toLocaleString("pt-BR");
 
+      // 1️⃣ cria pedido
       const { error: erroPedido } = await supabase
         .from("pedidos_envio")
         .insert([
@@ -1641,29 +1832,20 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
             cliente_nome: clienteNome,
             status: "montagem",
             quantidade_esperada: quantidadeEsperada,
-            quantidade_conferida: null,
-            conferido: false,
-            altura_cm: null,
-            largura_cm: null,
-            comprimento_cm: null,
-            peso_kg: null,
-            observacoes: "",
             criado_em: criadoEm,
             atualizado_em: criadoEm,
-            enviado_em: null,
           },
         ]);
 
       if (erroPedido) {
-        console.error("ERRO AO CRIAR PEDIDO DE ENVIO:", erroPedido);
-        alert(`Erro ao criar pedido de envio: ${erroPedido.message}`);
-        return;
+        throw new Error(`Erro ao criar pedido: ${erroPedido.message}`);
       }
 
-      const vinculos = sacolinhasElegiveis.map((sacolinha) => ({
+      // 2️⃣ cria vínculos
+      const vinculos = sacolinhasElegiveis.map((s) => ({
         id: crypto.randomUUID(),
         pedido_envio_id: pedidoId,
-        sacolinha_id: sacolinha.id,
+        sacolinha_id: s.id,
       }));
 
       const { error: erroVinculos } = await supabase
@@ -1671,18 +1853,19 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         .insert(vinculos);
 
       if (erroVinculos) {
-        console.error("ERRO AO VINCULAR SACOLINHAS AO PEDIDO:", erroVinculos);
-        alert(`Erro ao vincular sacolinhas: ${erroVinculos.message}`);
-        return;
+        // rollback do pedido
+        await supabase.from("pedidos_envio").delete().eq("id", pedidoId);
+
+        throw new Error(`Erro ao vincular sacolinhas: ${erroVinculos.message}`);
       }
 
       await recarregarExpedicao();
       resetExpansoesExpedicao();
 
-      alert("Pedido de envio criado com sucesso.");
+      alert("Pedido criado com sucesso.");
     } catch (error) {
-      console.error("ERRO GERAL AO CRIAR PEDIDO DE ENVIO:", error);
-      alert("Erro inesperado ao criar pedido de envio.");
+      console.error("ERRO AO CRIAR PEDIDO:", error);
+      alert(error.message || "Erro ao criar pedido.");
     } finally {
       setCriandoPedidoEnvioCliente("");
     }
@@ -1728,7 +1911,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     if (error) {
       console.error("ERRO AO CARREGAR PEDIDOS DE ENVIO:", error);
       setCarregandoPedidosEnvio(false);
-      return;
+      throw new Error(`Erro ao carregar pedidos de envio: ${error.message}`);
     }
 
     setPedidosEnvio(data || []);
@@ -1742,7 +1925,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
     if (error) {
       console.error("ERRO AO CARREGAR VÍNCULOS DE PEDIDOS DE ENVIO:", error);
-      return;
+      throw new Error(`Erro ao carregar vínculos dos pedidos de envio: ${error.message}`);
     }
 
     setPedidoEnvioSacolinhas(data || []);
@@ -1812,7 +1995,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
               live_id: grupo.live_id,
               cliente_nome: grupo.cliente_nome,
               status: "aberta",
-              criado_em: new Date().toLocaleString("pt-BR"),
+              criado_em: agoraIso(),
             },
           ]);
 
@@ -1840,11 +2023,10 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         }
       }
 
-      await Promise.all([
-        carregarSacolinhasLive(),
-        carregarTodasVendasLive(),
-        carregarLives(),
-      ]);
+      await carregarSacolinhasLive();
+      await carregarTodasVendasLive();
+      await carregarLives();
+      await carregarLiveAberta();
 
       alert("Sacolinhas antigas corrigidas com sucesso.");
     } catch (err) {
@@ -2039,6 +2221,42 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     formatarTelefone,
     converterDataPtBrParaIso,
   });
+
+  useEffect(() => {
+    console.log("liveAtual", liveAtual);
+    console.log("liveSelecionada", liveSelecionada);
+    console.log("liveEmVisualizacao", liveEmVisualizacao);
+    console.log("vendasLive qtd", vendasLive?.length);
+    console.log("todasVendasLive qtd", todasVendasLive?.length);
+    console.log(
+      "resumo live atual",
+      resumoFaturamentoPorLive.find((l) => String(l.id) === String(liveAtual?.id))
+    );
+  }, [
+    liveAtual,
+    liveSelecionada,
+    liveEmVisualizacao,
+    vendasLive,
+    todasVendasLive,
+    resumoFaturamentoPorLive,
+  ]);
+  useEffect(() => {
+    const liveIdAtual = String(liveAtual?.id || "");
+
+    const vendasDaLiveAtual = (todasVendasLive || []).filter(
+      (v) => String(v.live_id) === liveIdAtual
+    );
+
+    console.log("LIVE ATUAL ID:", liveIdAtual);
+    console.log("TOTAL vendasLive:", vendasLive?.length);
+    console.log("TOTAL vendas da live atual em todasVendasLive:", vendasDaLiveAtual.length);
+    console.log(
+      "RESUMO FATURAMENTO LIVE ATUAL:",
+      resumoFaturamentoPorLive.find((l) => String(l.id) === liveIdAtual)
+    );
+    console.log("AMOSTRA vendasDaLiveAtual:", vendasDaLiveAtual.slice(0, 5));
+  }, [liveAtual, vendasLive, todasVendasLive, resumoFaturamentoPorLive]);
+
   const pecasFiltradas = useMemo(() => {
     const termo = buscaPeca.trim().toLowerCase();
 
@@ -2764,7 +2982,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                   <div style={{ display: "grid", gap: 16 }}>
                     <div>
                       <strong>Live ativa: {liveAtual.nome}</strong>
-                      <div>Iniciada em: {liveAtual.hora_inicio}</div>
+                      <div>Iniciada em: {liveAtual.hora_inicio ? formatarDataHoraBR(liveAtual.hora_inicio) : "-"}</div>
                     </div>
 
                     <button
@@ -2869,7 +3087,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                             </div>
 
                             <div>
-                              {live.data_live || "-"}
+                              {live.data_live ? formatarDataBR(live.data_live) : "-"}
                             </div>
 
                             <div>
@@ -2900,6 +3118,11 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
               <div style={{ display: "grid", gap: 24 }}>
                 <div style={boxGrande}>
                   <h2 style={tituloSecao}>Faturamento</h2>
+
+                  <div style={{ marginBottom: 12, fontSize: 12, color: "#64748b" }}>
+                    <div>ID live atual: {liveAtual?.id}</div>
+                    <div>ID live em visualização: {liveEmVisualizacao?.id}</div>
+                  </div>
 
                   <div
                     style={{
@@ -2997,6 +3220,10 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                               alignContent: "start",
                             }}
                           >
+                            <div style={{ fontSize: 12, color: "#64748b" }}>
+                              ID: {live.id}
+                            </div>
+
                             <div
                               style={{
                                 display: "flex",
@@ -3029,7 +3256,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                             </div>
 
                             <div style={{ color: "#475569", fontSize: 14 }}>
-                              <strong>Data:</strong> {live.data || "-"}
+                              <strong>Data:</strong> {live.data ? formatarDataBR(live.data) : "-"}
                             </div>
 
                             <div style={{ display: "grid", gap: 6, marginTop: 4 }}>

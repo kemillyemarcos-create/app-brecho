@@ -1,5 +1,39 @@
 // src/utils/expedicaoRules.js
 
+function parseDataFlex(valor) {
+    if (!valor) return null;
+
+    const texto = String(valor).trim();
+    if (!texto) return null;
+
+    if (texto.includes("T")) {
+        const dataIso = new Date(texto);
+        return Number.isNaN(dataIso.getTime()) ? null : dataIso;
+    }
+
+    const match = texto.match(
+        /^(\d{2})\/(\d{2})\/(\d{4})(?:,?\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/
+    );
+
+    if (match) {
+        const [, dia, mes, ano, hora = "00", minuto = "00", segundo = "00"] = match;
+
+        const dataBr = new Date(
+            Number(ano),
+            Number(mes) - 1,
+            Number(dia),
+            Number(hora),
+            Number(minuto),
+            Number(segundo)
+        );
+
+        return Number.isNaN(dataBr.getTime()) ? null : dataBr;
+    }
+
+    const dataDireta = new Date(texto);
+    return Number.isNaN(dataDireta.getTime()) ? null : dataDireta;
+}
+
 export function getItensDaSacolinha(sacolinha, todasVendasLive = []) {
     if (!sacolinha?.id) return [];
 
@@ -19,22 +53,11 @@ export function sacolinhaEstaPaga(sacolinha, todasVendasLive = []) {
 export function sacolinhaEstaVencida(sacolinha) {
     if (!sacolinha?.criado_em) return false;
 
-    const parteDataHora = String(sacolinha.criado_em)
-        .split(",")
-        .map((p) => p.trim());
+    const dataCriacao = parseDataFlex(sacolinha.criado_em);
+    if (!dataCriacao) return false;
 
-    const parteData = parteDataHora[0];
-    if (!parteData) return false;
-
-    const [dia, mes, ano] = parteData.split("/");
-    if (!dia || !mes || !ano) return false;
-
-    const dataCriacao = new Date(
-        `${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}T00:00:00`
-    );
-
-    const hoje = new Date();
-    const diffDias = (hoje - dataCriacao) / (1000 * 60 * 60 * 24);
+    const agora = new Date();
+    const diffDias = (agora - dataCriacao) / (1000 * 60 * 60 * 24);
 
     return diffDias > 30 && sacolinha.status !== "enviada";
 }
@@ -62,9 +85,9 @@ export function pedidoEstaEnviado(pedido) {
     return pedido?.status === "enviado";
 }
 
-export function pedidoEstaConferido(pedido, itensConferidosPedido) {
-    const conferidos = itensConferidosPedido[pedido.id] || [];
-    return conferidos.length === pedido.quantidadeCalculada;
+export function pedidoEstaConferido(pedido, itensConferidosPedido = {}) {
+    const conferidos = itensConferidosPedido?.[pedido?.id] || [];
+    return conferidos.length === (pedido?.quantidadeCalculada || 0);
 }
 
 export function clienteJaTemPedidoAtivo(clienteNome, pedidosEnvio) {
