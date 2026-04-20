@@ -2846,58 +2846,33 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
             )}
 
             {abaAtiva === "clientes" && (
-              <VendasSection
+              <ClientesSection
                 boxGrande={boxGrande}
                 tituloSecao={tituloSecao}
-                cabecalhoSecao={cabecalhoSecao}
-                linhaResumo={linhaResumo}
-                cardResumo={cardResumo}
-                valorResumo={valorResumo}
-                cardCliente={cardCliente}
-                itemCliente={itemCliente}
+                inputCliente={inputCliente}
                 botao={botao}
                 botaoPequeno={botaoPequeno}
-                input={input}
-                gridVendas={gridVendas}
-                gridForm={gridForm}
-                previewBox={previewBox}
-                semFoto={semFoto}
-                isMobile={isMobile}
-                scannerAtivo={scannerAtivo}
-                setScannerAtivo={setScannerAtivo}
-                scannerElementId={scannerElementId}
-                vendaId={vendaId}
-                setVendaId={setVendaId}
-                sugestoesPecasVenda={sugestoesPecasVenda}
-                mostrarSugestoesVenda={mostrarSugestoesVenda}
-                setMostrarSugestoesVenda={setMostrarSugestoesVenda}
-                cliente={cliente}
-                setCliente={setCliente}
-                filaEspera={filaEspera}
-                setFilaEspera={setFilaEspera}
-                valorDesconto={valorDesconto}
-                setValorDesconto={setValorDesconto}
-                formatarValorDescontoInput={formatarValorDescontoInput}
-                registrarVenda={registrarVenda}
-                salvandoVenda={salvandoVenda}
-                liveEmVisualizacao={liveEmVisualizacao}
-                vendasLive={vendasLive}
-                buscaCliente={buscaCliente}
-                setBuscaCliente={setBuscaCliente}
-                filtroPagamentoCliente={filtroPagamentoCliente}
-                setFiltroPagamentoCliente={setFiltroPagamentoCliente}
-                totalPecasLive={totalPecasLive}
-                faturamentoLive={faturamentoLive}
-                lucroEstimadoLive={lucroEstimadoLive}
-                clientesFiltrados={clientesFiltrados}
+                cardCliente={cardCliente}
+                clientesFiltradosCadastro={clientesFiltradosCadastro}
+                buscaClienteCadastro={buscaClienteCadastro}
+                setBuscaClienteCadastro={setBuscaClienteCadastro}
+                copiarLinkCadastroCliente={copiarLinkCadastroCliente}
+                copiarMensagemWhatsAppCadastroCliente={copiarMensagemWhatsAppCadastroCliente}
+                gerarLinkCadastroCliente={gerarLinkCadastroCliente}
+                formCliente={formCliente}
+                setFormCliente={setFormCliente}
+                formatarCPF={formatarCPF}
+                formatarTelefone={formatarTelefone}
+                formatarCEP={formatarCEP}
+                buscarCep={buscarCep}
+                salvarCliente={salvarCliente}
+                clienteEditandoId={clienteEditandoId}
+                cancelarEdicaoCliente={cancelarEdicaoCliente}
+                editarCliente={editarCliente}
+                compartilharCliente={compartilharCliente}
+                excluirCliente={excluirCliente}
                 clientesExpandidos={clientesExpandidos}
                 toggleExpandirCliente={toggleExpandirCliente}
-                exportarClienteCSV={exportarClienteCSV}
-                gerarComanda={gerarComanda}
-                togglePagamentoClienteLive={togglePagamentoClienteLive}
-                cancelarVenda={cancelarVenda}
-                passarVendaParaFila={passarVendaParaFila}
-                formatarBRL={formatarBRL}
               />
             )}
 
