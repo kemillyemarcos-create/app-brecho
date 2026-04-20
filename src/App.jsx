@@ -2233,10 +2233,15 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       margin: 0;
       padding: 0;
       overflow-x: hidden;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
     }
 
     * {
       box-sizing: border-box;
+      min-width: 0;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
     }
 
     img {
@@ -2254,6 +2259,23 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     .menu-lista,
     .area-principal {
       min-width: 0;
+    }
+
+    .painel-principal h1,
+    .painel-principal h2,
+    .painel-principal h3 {
+      line-height: 1.12;
+      word-break: break-word;
+    }
+
+    .painel-principal p,
+    .painel-principal span,
+    .painel-principal div,
+    .painel-principal label,
+    .painel-principal strong,
+    .painel-principal input,
+    .painel-principal button {
+      word-break: break-word;
     }
 
     @media (max-width: 767px) {
@@ -2301,8 +2323,39 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         font-size: 18px !important;
       }
 
+      .painel-principal h1,
+      .painel-principal h2 {
+        line-height: 1.1 !important;
+      }
+
+      .painel-principal h3 {
+        line-height: 1.15 !important;
+      }
+
+      .painel-principal h2 {
+        font-size: 32px !important;
+      }
+
+      .painel-principal h3 {
+        font-size: 22px !important;
+      }
+
       button {
-        font-size: 14px;
+        font-size: 14px !important;
+      }
+
+      .painel-principal p,
+      .painel-principal span,
+      .painel-principal div,
+      .painel-principal label,
+      .painel-principal strong,
+      .painel-principal input,
+      .painel-principal button {
+        font-size: 14px !important;
+      }
+
+      .painel-principal input {
+        min-height: 46px !important;
       }
 
       .painel-principal button,
@@ -2311,18 +2364,14 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       .grid-clientes button,
       .linha-resumo button {
         width: 100%;
+        min-height: 46px !important;
       }
 
       input {
         width: 100% !important;
       }
-
-      * {
-        min-width: 0;
-      }
     }
 
-    /* PREVIEW EM TELA */
     .paginas-etiquetas-preview {
       display: grid;
       gap: 12px;
@@ -2345,116 +2394,116 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     }
 
     @media print {
-  html,
-  body {
-    width: 210mm !important;
-    height: auto !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #fff !important;
-    overflow: visible !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
+      html,
+      body {
+        width: 210mm !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+        overflow: visible !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
 
-  .topo-mobile,
-  .sidebar-app,
-  .no-print {
-    display: none !important;
-  }
+      .topo-mobile,
+      .sidebar-app,
+      .no-print {
+        display: none !important;
+      }
 
-  .layout-app {
-    display: block !important;
-    grid-template-columns: 1fr !important;
-    padding: 0 !important;
-    gap: 0 !important;
-    background: #fff !important;
-    min-height: auto !important;
-  }
+      .layout-app {
+        display: block !important;
+        grid-template-columns: 1fr !important;
+        padding: 0 !important;
+        gap: 0 !important;
+        background: #fff !important;
+        min-height: auto !important;
+      }
 
-  .area-principal {
-    display: block !important;
-    width: 100% !important;
-    min-width: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
+      .area-principal {
+        display: block !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
 
-  .painel-principal {
-    display: block !important;
-    min-height: auto !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    background: #fff !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    overflow: visible !important;
-  }
+      .painel-principal {
+        display: block !important;
+        min-height: auto !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: #fff !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+      }
 
-  .painel-principal > *:not(.overlay-preview-impressao) {
-    display: none !important;
-  }
+      .painel-principal > *:not(.overlay-preview-impressao) {
+        display: none !important;
+      }
 
-  .overlay-preview-impressao,
-  .modal-preview-impressao,
-  #area-preview-impressao,
-  .paginas-etiquetas-preview {
-    display: block !important;
-    position: static !important;
-    width: auto !important;
-    height: auto !important;
-    min-height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #fff !important;
-    overflow: visible !important;
-    page-break-before: auto !important;
-    page-break-after: auto !important;
-    break-before: auto !important;
-    break-after: auto !important;
-  }
+      .overlay-preview-impressao,
+      .modal-preview-impressao,
+      #area-preview-impressao,
+      .paginas-etiquetas-preview {
+        display: block !important;
+        position: static !important;
+        width: auto !important;
+        height: auto !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+        overflow: visible !important;
+        page-break-before: auto !important;
+        page-break-after: auto !important;
+        break-before: auto !important;
+        break-after: auto !important;
+      }
 
-  .pagina-etiquetas {
-    width: 210mm !important;
-    min-height: 297mm !important;
-    height: auto !important;
-    margin: 0 !important;
-    padding: 14mm 4mm 4mm 4mm !important;
-    box-sizing: border-box !important;
-    background: #fff !important;
-    display: grid !important;
-    grid-template-columns: repeat(5, 37mm) !important;
-    grid-template-rows: repeat(5, 46mm) !important;
-    column-gap: 2mm !important;
-    row-gap: 2mm !important;
-    justify-content: start !important;
-    align-content: start !important;
-    page-break-before: auto !important;
-    page-break-after: auto !important;
-    break-before: auto !important;
-    break-after: auto !important;
-  }
+      .pagina-etiquetas {
+        width: 210mm !important;
+        min-height: 297mm !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 14mm 4mm 4mm 4mm !important;
+        box-sizing: border-box !important;
+        background: #fff !important;
+        display: grid !important;
+        grid-template-columns: repeat(5, 37mm) !important;
+        grid-template-rows: repeat(5, 46mm) !important;
+        column-gap: 2mm !important;
+        row-gap: 2mm !important;
+        justify-content: start !important;
+        align-content: start !important;
+        page-break-before: auto !important;
+        page-break-after: auto !important;
+        break-before: auto !important;
+        break-after: auto !important;
+      }
 
-  .pagina-etiquetas:not(:last-child) {
-    page-break-after: always !important;
-    break-after: page !important;
-  }
+      .pagina-etiquetas:not(:last-child) {
+        page-break-after: always !important;
+        break-after: page !important;
+      }
 
-  .etiqueta {
-    display: grid !important;
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-  }
+      .etiqueta {
+        display: grid !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
 
-  canvas {
-    display: block !important;
-  }
+      canvas {
+        display: block !important;
+      }
 
-  @page {
-    size: A4 portrait;
-    margin: 0;
-  }
-}
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
+    }
   `}
       </style>
 
@@ -2486,7 +2535,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
             <strong
               style={{
                 display: "block",
-                fontSize: 18,
+                fontSize: "clamp(16px, 4vw, 18px)",
                 color: "#8f2745",
                 whiteSpace: "nowrap",
                 overflow: "hidden",
@@ -2510,7 +2559,8 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
               color: "#fff",
               border: "none",
               borderRadius: 12,
-              padding: "10px 14px",
+              padding: "10px 12px",
+              fontSize: "clamp(13px, 3.5vw, 14px)",
               fontWeight: "bold",
               cursor: "pointer",
               width: "auto",
@@ -2897,11 +2947,14 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                   <div style={{ display: "grid", gap: 16 }}>
                     <div>
                       <strong>Live ativa: {liveAtual.nome}</strong>
-                      <div>Iniciada em: {liveAtual.hora_inicio ? formatarDataHoraBR(liveAtual.hora_inicio) : "-"}</div>
+                      <div>
+                        Iniciada em:{" "}
+                        {liveAtual.hora_inicio ? formatarDataHoraBR(liveAtual.hora_inicio) : "-"}
+                      </div>
                     </div>
 
                     <button
-                      style={{ ...botao, background: "#b91c1c", maxWidth: 220 }}
+                      style={{ ...botao, background: "#b91c1c", maxWidth: isMobile ? "100%" : 220 }}
                       onClick={encerrarLive}
                     >
                       Encerrar Live
@@ -2957,14 +3010,12 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                     <p>Nenhuma live cadastrada ainda.</p>
                   ) : (
                     <div style={{ display: "grid", gap: 10 }}>
-
-                      {/* 🔥 CABEÇALHO DAS COLUNAS */}
                       <div
                         style={{
-                          display: "grid",
+                          display: isMobile ? "none" : "grid",
                           gridTemplateColumns: "1.45fr 1fr 1fr auto",
                           fontWeight: "bold",
-                          padding: "1px 16  px",
+                          padding: "1px 16px",
                           color: "#475569",
                         }}
                       >
@@ -2978,9 +3029,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                         .sort((a, b) => {
                           function toDate(dataStr) {
                             if (!dataStr) return new Date(0);
-
                             const [dia, mes, ano] = dataStr.split("/");
-
                             return new Date(`${ano}-${mes}-${dia}`);
                           }
 
@@ -2992,7 +3041,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                             style={{
                               ...cardCliente,
                               display: "grid",
-                              gridTemplateColumns: "1.7fr 1.2fr 1fr auto",
+                              gridTemplateColumns: isMobile ? "1fr" : "1.7fr 1.2fr 1fr auto",
                               alignItems: "center",
                               gap: 12,
                             }}
@@ -3002,16 +3051,22 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                             </div>
 
                             <div>
+                              {isMobile ? <strong>Data: </strong> : null}
                               {live.data_live ? formatarDataBR(live.data_live) : "-"}
                             </div>
 
                             <div>
+                              {isMobile ? <strong>Status: </strong> : null}
                               {live.status || "-"}
                             </div>
 
                             <div>
                               <button
-                                style={{ ...botaoPequeno, background: "#2563eb" }}
+                                style={{
+                                  ...botaoPequeno,
+                                  background: "#2563eb",
+                                  width: isMobile ? "100%" : "auto",
+                                }}
                                 onClick={async () => {
                                   await abrirLiveHistorica(live);
                                   setAbaAtiva("vendas");
@@ -3310,7 +3365,7 @@ const inputCliente = {
   height: 48,
   borderRadius: 12,
   border: "1px solid #cfd8e3",
-  fontSize: 15,
+  fontSize: "clamp(14px, 1.8vw, 15px)",
   background: "#fff",
   boxSizing: "border-box",
   width: "100%",
@@ -3336,10 +3391,11 @@ const boxGrande = {
 const tituloSecao = {
   marginTop: 0,
   marginBottom: 16,
-  fontSize: 22,
+  fontSize: "clamp(20px, 2.2vw, 22px)",
   fontWeight: 800,
   color: "#123044",
   letterSpacing: "-0.3px",
+  lineHeight: 1.15,
 };
 
 const cabecalhoSecao = {
@@ -3393,10 +3449,12 @@ const input = {
   padding: "12px 14px",
   borderRadius: 12,
   border: "1px solid #cfd8e3",
-  fontSize: 15,
+  fontSize: "clamp(14px, 1.8vw, 15px)",
   background: "#fff",
   outline: "none",
   transition: "all 0.2s ease",
+  width: "100%",
+  boxSizing: "border-box",
 };
 
 const botao = {
@@ -3405,7 +3463,7 @@ const botao = {
   border: "none",
   background: "linear-gradient(135deg, #d96b82 0%, #b83c57 100%)",
   color: "#fff",
-  fontSize: 15,
+  fontSize: "clamp(14px, 1.8vw, 15px)",
   cursor: "pointer",
   fontWeight: 800,
   boxShadow: "0 10px 20px rgba(184,60,87,0.28)",
@@ -3417,7 +3475,7 @@ const botaoPequeno = {
   borderRadius: 10,
   border: "none",
   color: "#fff",
-  fontSize: 13,
+  fontSize: "clamp(12px, 1.5vw, 13px)",
   cursor: "pointer",
   fontWeight: 700,
 };
@@ -3472,15 +3530,18 @@ const linhaFiltros = {
 
 const valorResumo = {
   marginTop: 10,
-  fontSize: 32,
+  fontSize: "clamp(24px, 4vw, 32px)",
   fontWeight: 800,
   color: "#9f4156",
   letterSpacing: "-0.5px",
+  lineHeight: 1.1,
 };
 
 const textoItem = {
   margin: "4px 0",
   color: "#475569",
+  fontSize: "clamp(13px, 1.7vw, 14px)",
+  lineHeight: 1.4,
 };
 
 const cardCliente = {
@@ -3528,15 +3589,17 @@ const sidebarTopo = {
 
 const sidebarTitulo = {
   margin: 0,
-  fontSize: 22,
+  fontSize: "clamp(20px, 2.5vw, 22px)",
   fontWeight: 800,
   letterSpacing: "-0.3px",
+  lineHeight: 1.1,
 };
 
 const sidebarSubtitulo = {
   margin: "6px 0 0 0",
-  fontSize: 13,
+  fontSize: "clamp(12px, 1.6vw, 13px)",
   color: "rgba(255,255,255,0.72)",
+  lineHeight: 1.4,
 };
 
 const menuLista = {
@@ -3603,15 +3666,17 @@ const topoPainel = {
 
 const topoPainelTitulo = {
   margin: 0,
-  fontSize: 28,
+  fontSize: "clamp(26px, 3.5vw, 28px)",
   fontWeight: 800,
   color: "#7c2d3c",
   letterSpacing: "-0.4px",
+  lineHeight: 1.1,
 };
 
 const topoPainelTexto = {
   color: "#5b6b79",
   marginTop: 6,
   marginBottom: 0,
-  fontSize: 14,
+  fontSize: "clamp(13px, 1.8vw, 14px)",
+  lineHeight: 1.4,
 };
