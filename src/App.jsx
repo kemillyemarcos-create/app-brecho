@@ -13,16 +13,43 @@ import {
   sacolinhaJaEstaEmPedidoAtivo
 } from "./utils/expedicaoRules";
 
+import {
+  gerarLinkCadastroCliente,
+  copiarTexto,
+  copiarLinkCadastroCliente,
+  gerarMensagemWhatsAppCadastroCliente,
+  copiarMensagemWhatsAppCadastroCliente,
+} from "./utils/cadastroClienteLinks";
+
+import {
+  montarPayloadCliente,
+  buscarClientePorCpf,
+  formatarCPF,
+  formatarTelefone,
+  formatarCEP,
+  normalizarCPF,
+  normalizarTelefone,
+  buscarEnderecoPorCep,
+} from "./utils/clientes";
+
+import {
+  inserirCliente,
+  atualizarCliente,
+  deletarCliente,
+} from "./services/clientes";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import PreviewModal from "./components/layout/PreviewModal";
 import EtiquetaPrint from "./components/print/EtiquetaPrint";
 import ClientesSection from "./components/sections/ClientesSection";
+import CadastroPublicoCliente from "./components/CadastroPublicoCliente";
 import EstoqueSection from "./components/sections/EstoqueSection";
 import ExpedicaoSection from "./components/sections/ExpedicaoSection";
 import VendasSection from "./components/sections/VendasSection";
 import useExpedicaoMemo from "./hooks/useExpedicaoMemo";
 import useFinanceiroMemo from "./hooks/useFinanceiroMemo";
+import { lerArquivoComoDataURL } from "./utils/arquivos";
 import { Html5QrcodeScanner } from "html5-qrcode";
 import { supabase } from "./lib/supabase";
 import logoKchic from "./assets/logo-kchic.png";
@@ -102,41 +129,6 @@ function csvEscape(valor) {
     return `"${texto.replace(/"/g, '""')}"`;
   }
   return texto;
-}
-
-function formatarCPF(valor) {
-  const numeros = String(valor || "")
-    .replace(/\D/g, "")
-    .slice(0, 11);
-
-  return numeros
-    .replace(/^(\d{3})(\d)/, "$1.$2")
-    .replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
-    .replace(/\.(\d{3})(\d)/, ".$1-$2");
-}
-
-function formatarTelefone(valor) {
-  const numeros = String(valor || "")
-    .replace(/\D/g, "")
-    .slice(0, 11);
-
-  if (numeros.length <= 10) {
-    return numeros
-      .replace(/^(\d{2})(\d)/, "($1) $2")
-      .replace(/(\d{4})(\d)/, "$1-$2");
-  }
-
-  return numeros
-    .replace(/^(\d{2})(\d)/, "($1) $2")
-    .replace(/(\d{5})(\d)/, "$1-$2");
-}
-
-function formatarCEP(valor) {
-  const numeros = String(valor || "")
-    .replace(/\D/g, "")
-    .slice(0, 8);
-
-  return numeros.replace(/^(\d{5})(\d)/, "$1-$2");
 }
 
 function gerarCodigo(prefixo = "KC", custo = "") {
@@ -220,7 +212,7 @@ function formatarDataBR(valor) {
   const data = parseDataFlex(valor);
   if (!data) return "";
   return data.toLocaleDateString("pt-BR");
-  
+
 }
 
 
@@ -547,29 +539,6 @@ export default function App() {
     await carregarVendasLive(live);
   }
 
-  async function buscarCep(cep) {
-    const cepLimpo = String(cep || "").replace(/\D/g, "");
-    if (cepLimpo.length !== 8) return;
-
-    try {
-      const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
-      const data = await res.json();
-
-      if (data.erro) return;
-
-      const enderecoMontado = `${data.logradouro || ""}${data.bairro ? " - " + data.bairro : ""
-        }${data.localidade ? " - " + data.localidade : ""}${data.uf ? "/" + data.uf : ""
-        }`;
-
-      setFormCliente((prev) => ({
-        ...prev,
-        endereco: enderecoMontado || prev.endereco,
-      }));
-    } catch (err) {
-      console.error("Erro ao buscar CEP:", err);
-    }
-  }
-
   async function carregarTudoInicial() {
     try {
       setCarregando(true);
@@ -798,79 +767,10 @@ export default function App() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  function normalizarCPF(valor) {
-    return String(valor || "").replace(/\D/g, "").slice(0, 11);
-  }
-
-  function normalizarTelefone(valor) {
-    return String(valor || "").replace(/\D/g, "").slice(0, 11);
-  }
-
   function modoCadastroPublicoAtivo() {
     if (typeof window === "undefined") return false;
     const params = new URLSearchParams(window.location.search);
     return params.get("cadastro") === "cliente";
-  }
-
-  async function buscarClientePorCpf(cpf, idIgnorar = null) {
-    const cpfLimpo = normalizarCPF(cpf);
-
-    if (!cpfLimpo || cpfLimpo.length !== 11) return null;
-
-    let query = supabase
-      .from("clientes")
-      .select("id, nome, cpf")
-      .eq("cpf", cpfLimpo)
-      .limit(1);
-
-    if (idIgnorar) {
-      query = query.neq("id", idIgnorar);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error("ERRO AO BUSCAR CPF:", error);
-      throw error;
-    }
-
-    return Array.isArray(data) && data.length > 0 ? data[0] : null;
-  }
-
-  function gerarLinkCadastroCliente() {
-    if (typeof window === "undefined") return "";
-
-    const url = new URL(window.location.origin);
-    url.searchParams.set("cadastro", "cliente");
-
-    return url.toString();
-  }
-
-  async function copiarTexto(texto, mensagemSucesso, mensagemErro) {
-    try {
-      if (!navigator?.clipboard) {
-        alert(mensagemErro);
-        return false;
-      }
-
-      await navigator.clipboard.writeText(texto);
-      alert(mensagemSucesso);
-      return true;
-    } catch (error) {
-      console.error(error);
-      alert(mensagemErro);
-      return false;
-    }
-  }
-
-  async function copiarLinkCadastroCliente() {
-    const link = gerarLinkCadastroCliente();
-
-    await copiarTexto(
-      link,
-      "Link de cadastro copiado com sucesso.",
-      "Não foi possível copiar o link."
-    );
   }
 
   async function salvarCliente() {
@@ -879,119 +779,58 @@ export default function App() {
       return;
     }
 
-    const cpfLimpo = normalizarCPF(formCliente.cpf);
-
-    if (cpfLimpo && cpfLimpo.length !== 11) {
-      alert("CPF inválido. Preencha os 11 dígitos.");
-      return;
-    }
-
     try {
-      const clienteExistente = await buscarClientePorCpf(cpfLimpo, clienteEditandoId);
+      const payload = montarPayloadCliente(formCliente);
+      const clienteExistente = await buscarClientePorCpf(payload.cpf, clienteEditandoId);
 
       if (clienteExistente) {
         alert(`Já existe cliente cadastrada com este CPF: ${clienteExistente.nome}`);
         return;
       }
 
-      const payload = {
-        nome: formCliente.nome.trim(),
-        cpf: cpfLimpo,
-        telefone: normalizarTelefone(formCliente.telefone),
-        cep: String(formCliente.cep || "").replace(/\D/g, "").slice(0, 8),
-        endereco: formCliente.endereco,
-        numero: formCliente.numero,
-        complemento: formCliente.complemento,
-      };
-
       if (clienteEditandoId) {
-        const { error } = await supabase
-          .from("clientes")
-          .update(payload)
-          .eq("id", clienteEditandoId);
-
-        if (error) {
-          console.error("ERRO AO ATUALIZAR CLIENTE:", error);
-          alert(`Erro ao atualizar cliente: ${error.message}`);
-          return;
-        }
-
+        await atualizarCliente(clienteEditandoId, payload);
         alert("Cliente atualizado com sucesso.");
       } else {
-        const novo = {
+        await inserirCliente({
           id: gerarCodigo("CLI"),
           ...payload,
           criado_em: agoraIso(),
-        };
-
-        const { error } = await supabase.from("clientes").insert(novo);
-
-        if (error) {
-          console.error("ERRO AO SALVAR CLIENTE:", error);
-          alert(`Erro ao salvar cliente: ${error.message}`);
-          return;
-        }
-
+        });
         alert("Cliente salvo com sucesso.");
       }
 
-      setFormCliente(FORM_INICIAL_CLIENTE);
-      setClienteEditandoId(null);
+      resetFormularioCliente();
       await carregarClientes();
     } catch (error) {
-      console.error("ERRO AO VALIDAR CPF:", error);
-      alert("Erro ao validar CPF no banco.");
+      console.error("ERRO AO SALVAR CLIENTE:", error);
+      alert(error.message || "Erro ao salvar cliente.");
     }
   }
 
   async function salvarCadastroClientePublico() {
-    if (!formCliente.nome.trim()) {
-      alert("Preencha seu nome.");
-      return;
-    }
-
-    const cpfLimpo = normalizarCPF(formCliente.cpf);
-
-    if (!cpfLimpo || cpfLimpo.length !== 11) {
-      alert("Informe um CPF válido com 11 dígitos.");
-      return;
-    }
-
     try {
       setSalvandoCadastroPublico(true);
 
-      const clienteExistente = await buscarClientePorCpf(cpfLimpo);
+      const payload = montarPayloadCliente(formCliente, { exigirCpf: true });
+      const clienteExistente = await buscarClientePorCpf(payload.cpf);
 
       if (clienteExistente) {
         alert(`Já existe cadastro com este CPF: ${clienteExistente.nome}`);
         return;
       }
 
-      const novo = {
+      await inserirCliente({
         id: gerarCodigo("CLI"),
-        nome: formCliente.nome.trim(),
-        cpf: cpfLimpo,
-        telefone: normalizarTelefone(formCliente.telefone),
-        cep: String(formCliente.cep || "").replace(/\D/g, "").slice(0, 8),
-        endereco: formCliente.endereco,
-        numero: formCliente.numero,
-        complemento: formCliente.complemento,
+        ...payload,
         criado_em: agoraIso(),
-      };
-
-      const { error } = await supabase.from("clientes").insert(novo);
-
-      if (error) {
-        console.error("ERRO AO SALVAR CADASTRO PÚBLICO:", error);
-        alert(`Erro ao enviar cadastro: ${error.message}`);
-        return;
-      }
+      });
 
       setFormCliente(FORM_INICIAL_CLIENTE);
       setCadastroPublicoConcluido(true);
     } catch (error) {
       console.error("ERRO NO CADASTRO PÚBLICO:", error);
-      alert("Erro ao validar ou salvar cadastro.");
+      alert(error.message || "Erro ao validar ou salvar cadastro.");
     } finally {
       setSalvandoCadastroPublico(false);
     }
@@ -1012,28 +851,54 @@ export default function App() {
   }
 
   function cancelarEdicaoCliente() {
-    setClienteEditandoId(null);
+    resetFormularioCliente();
+  }
+
+  function resetFormularioCliente() {
     setFormCliente(FORM_INICIAL_CLIENTE);
+    setClienteEditandoId(null);
+  }
+
+  function resetFormularioVenda() {
+    setMostrarSugestoesVenda(false);
+    setVendaId("");
+    setCliente("");
+    setFilaEspera("");
+    setValorDesconto("");
+  }
+
+  async function buscarCep(cep) {
+    try {
+      const resultado = await buscarEnderecoPorCep(cep);
+
+      if (!resultado) return;
+
+      setFormCliente((prev) => ({
+        ...prev,
+        endereco: resultado.endereco || prev.endereco,
+      }));
+    } catch (err) {
+      console.error("Erro ao buscar CEP:", err);
+    }
   }
 
   async function excluirCliente(id) {
     const confirmar = window.confirm("Deseja excluir este cliente?");
     if (!confirmar) return;
 
-    const { error } = await supabase.from("clientes").delete().eq("id", id);
+    try {
+      await deletarCliente(id);
 
-    if (error) {
+      if (clienteEditandoId === id) {
+        cancelarEdicaoCliente();
+      }
+
+      await carregarClientes();
+      alert("Cliente excluído com sucesso.");
+    } catch (error) {
       console.error("ERRO AO EXCLUIR CLIENTE:", error);
-      alert(`Erro ao excluir cliente: ${error.message}`);
-      return;
+      alert(error.message || "Erro ao excluir cliente.");
     }
-
-    if (clienteEditandoId === id) {
-      cancelarEdicaoCliente();
-    }
-
-    await carregarClientes();
-    alert("Cliente excluído com sucesso.");
   }
 
   async function compartilharCliente(clienteSelecionado) {
@@ -1064,33 +929,23 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     );
   }
 
-  function gerarMensagemWhatsAppCadastroCliente() {
-    const link = gerarLinkCadastroCliente();
-    return `Oi! Para agilizar seu atendimento, preencha seu cadastro neste link: ${link}`;
-  }
-
-  async function copiarMensagemWhatsAppCadastroCliente() {
-    const mensagem = gerarMensagemWhatsAppCadastroCliente();
-
-    await copiarTexto(
-      mensagem,
-      "Mensagem de WhatsApp copiada com sucesso.",
-      "Não foi possível copiar a mensagem."
-    );
-  }
-
-  function handleFoto(e) {
+  async function handleFoto(e) {
     const arquivo = e.target.files?.[0];
     if (!arquivo) return;
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
+    try {
+      const fotoBase64 = await lerArquivoComoDataURL(arquivo);
+
+      if (!fotoBase64) return;
+
       setForm((prev) => ({
         ...prev,
-        foto: reader.result,
+        foto: fotoBase64,
       }));
-    };
-    reader.readAsDataURL(arquivo);
+    } catch (error) {
+      console.error("Erro ao carregar foto:", error);
+      alert("Não foi possível carregar a foto.");
+    }
   }
 
   async function adicionarPeca() {
@@ -1275,18 +1130,10 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         return;
       }
 
-      await carregarVendasLive(liveAtual);
-      await carregarTodasVendasLive();
-      await carregarSacolinhasLive();
-      await carregarPecas();
-      await carregarLives();
-      await carregarLiveAberta();
+      await recarregarDadosGerais();
+      await recarregarLiveEmVisualizacaoAtual();
 
-      setMostrarSugestoesVenda(false);
-      setVendaId("");
-      setCliente("");
-      setFilaEspera("");
-      setValorDesconto("");
+      resetFormularioVenda();
     } finally {
       setSalvandoVenda(false);
     }
@@ -1369,15 +1216,8 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       ]);
       return;
     }
-
-    await carregarVendasLive(
-      liveEmVisualizacao.id === liveAtual?.id ? liveAtual : liveEmVisualizacao
-    );
-    await carregarTodasVendasLive();
-    await carregarSacolinhasLive();
-    await carregarPecas();
-    await carregarLives();
-    await carregarLiveAberta();
+    await recarregarDadosGerais();
+    await recarregarLiveEmVisualizacaoAtual();
 
     alert(`Venda transferida para ${proximaCliente}.`);
   }
@@ -1388,73 +1228,115 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     );
     if (!confirmar) return;
 
-    const pecaOriginal = mapaPecasPorId[String(id)] || null;
+    const liveIdAlvo =
+      liveEmVisualizacao?.id || liveAtual?.id || null;
 
-    const { data: removidas, error: errorVendaLive } = await supabase
-      .from("vendas_live")
-      .delete()
-      .eq("peca_id", id)
-      .select();
-
-    if (errorVendaLive) {
-      console.error("ERRO AO REMOVER DA LIVE:", errorVendaLive);
-      alert(`Erro ao remover da live: ${errorVendaLive.message}`);
+    if (!liveIdAlvo) {
+      alert("Nenhuma live selecionada para cancelar a venda.");
       return;
     }
 
-    const { error: errorPeca } = await supabase
-      .from("pecas")
-      .update({
-        vendido: false,
-        cliente: null,
-        data_venda: null,
-        valor_venda_final: null,
-      })
-      .eq("id", id);
+    try {
+      const { data: vendaAlvo, error: erroBuscaVenda } = await supabase
+        .from("vendas_live")
+        .select("*")
+        .eq("peca_id", id)
+        .eq("live_id", liveIdAlvo)
+        .order("data_hora", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    if (errorPeca) {
-      console.error("ERRO AO VOLTAR PEÇA:", errorPeca);
+      if (erroBuscaVenda) {
+        console.error("ERRO AO BUSCAR VENDA PARA CANCELAMENTO:", erroBuscaVenda);
+        alert(`Erro ao localizar venda: ${erroBuscaVenda.message}`);
+        return;
+      }
 
-      // tentativa simples de rollback da venda removida
-      if (removidas && removidas.length > 0) {
-        const { error: rollbackError } = await supabase
+      if (!vendaAlvo) {
+        alert("Não encontrei a venda dessa peça na live selecionada.");
+        return;
+      }
+
+      const sacolinhaId = vendaAlvo.sacolinha_id || null;
+
+      const { data: removidas, error: errorVendaLive } = await supabase
+        .from("vendas_live")
+        .delete()
+        .eq("id", vendaAlvo.id)
+        .select();
+
+      if (errorVendaLive) {
+        console.error("ERRO AO REMOVER VENDA DA LIVE:", errorVendaLive);
+        alert(`Erro ao remover da live: ${errorVendaLive.message}`);
+        return;
+      }
+
+      const { error: errorPeca } = await supabase
+        .from("pecas")
+        .update({
+          vendido: false,
+          cliente: null,
+          data_venda: null,
+          valor_venda_final: null,
+        })
+        .eq("id", id);
+
+      if (errorPeca) {
+        console.error("ERRO AO VOLTAR PEÇA:", errorPeca);
+
+        if (removidas && removidas.length > 0) {
+          const { error: rollbackError } = await supabase
+            .from("vendas_live")
+            .insert(removidas);
+
+          if (rollbackError) {
+            console.error("ERRO NO ROLLBACK DA VENDA CANCELADA:", rollbackError);
+          }
+        }
+
+        alert(`Erro ao cancelar venda: ${errorPeca.message}`);
+
+        await Promise.all([
+          carregarPecas(),
+          carregarTodasVendasLive(),
+          carregarSacolinhasLive(),
+        ]);
+
+        return;
+      }
+
+      if (sacolinhaId) {
+        const { data: vendasRestantes, error: erroRestantes } = await supabase
           .from("vendas_live")
-          .insert(removidas);
+          .select("id")
+          .eq("sacolinha_id", sacolinhaId)
+          .limit(1);
 
-        if (rollbackError) {
-          console.error("ERRO NO ROLLBACK DA VENDA CANCELADA:", rollbackError);
+        if (erroRestantes) {
+          console.error("ERRO AO VERIFICAR SACOLINHA RESTANTE:", erroRestantes);
+        } else if (!vendasRestantes || vendasRestantes.length === 0) {
+          const { error: erroExcluirSacolinha } = await supabase
+            .from("sacolinhas_live")
+            .delete()
+            .eq("id", sacolinhaId);
+
+          if (erroExcluirSacolinha) {
+            console.error(
+              "ERRO AO EXCLUIR SACOLINHA VAZIA:",
+              erroExcluirSacolinha
+            );
+          }
         }
       }
 
-      alert(`Erro ao cancelar venda: ${errorPeca.message}`);
-      await Promise.all([
-        carregarPecas(),
-        carregarTodasVendasLive(),
-      ]);
-      return;
+      await recarregarDadosGerais();
+      await recarregarLiveEmVisualizacaoAtual();
+
+      alert("Venda cancelada com sucesso.");
+    } catch (error) {
+      console.error("ERRO GERAL AO CANCELAR VENDA:", error);
+      alert("Erro inesperado ao cancelar venda.");
     }
-
-    if (!removidas || removidas.length === 0) {
-      console.warn("Nenhum registro foi removido da vendas_live para a peça:", id);
-      alert(
-        `A peça voltou para disponível, mas não encontrei registro na vendas_live para o código ${id}.`
-      );
-    }
-
-    await Promise.all([
-      carregarPecas(),
-      carregarTodasVendasLive(),
-    ]);
-
-    if (liveEmVisualizacao) {
-      await carregarVendasLive(
-        liveEmVisualizacao.id === liveAtual?.id ? liveAtual : liveEmVisualizacao
-      );
-    } else {
-      setVendasLive([]);
-    }
-
-    alert("Venda cancelada com sucesso.");
   }
 
   async function togglePagamentoCliente(nomeCliente, statusAtual) {
@@ -1727,6 +1609,26 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     } catch (error) {
       console.error("ERRO AO CANCELAR PEDIDO:", error);
       alert(error.message || "Erro ao cancelar pedido.");
+    }
+  }
+
+  async function recarregarDadosGerais() {
+    await Promise.all([
+      carregarPecas(),
+      carregarTodasVendasLive(),
+      carregarSacolinhasLive(),
+      carregarLives(),
+      carregarLiveAberta(),
+    ]);
+  }
+
+  async function recarregarLiveEmVisualizacaoAtual() {
+    if (liveEmVisualizacao) {
+      await carregarVendasLive(
+        liveEmVisualizacao.id === liveAtual?.id ? liveAtual : liveEmVisualizacao
+      );
+    } else {
+      setVendasLive([]);
     }
   }
 
@@ -2023,10 +1925,8 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         }
       }
 
-      await carregarSacolinhasLive();
-      await carregarTodasVendasLive();
-      await carregarLives();
-      await carregarLiveAberta();
+      await recarregarDadosGerais();
+      await recarregarLiveEmVisualizacaoAtual();
 
       alert("Sacolinhas antigas corrigidas com sucesso.");
     } catch (err) {
@@ -2311,6 +2211,19 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         return dataB - dataA;
       });
   }, [pecas, buscaPeca, filtroEstoque, pecaIdsEnviados]);
+
+  if (modoCadastroPublicoAtivo()) {
+    return (
+      <CadastroPublicoCliente
+        logoKchic={logoKchic}
+        formCliente={formCliente}
+        setFormCliente={setFormCliente}
+        cadastroPublicoConcluido={cadastroPublicoConcluido}
+        salvandoCadastroPublico={salvandoCadastroPublico}
+        salvarCadastroClientePublico={salvarCadastroClientePublico}
+      />
+    );
+  }
 
   return (
     <>
@@ -2933,31 +2846,58 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
             )}
 
             {abaAtiva === "clientes" && (
-              <ClientesSection
+              <VendasSection
                 boxGrande={boxGrande}
                 tituloSecao={tituloSecao}
-                inputCliente={inputCliente}
+                cabecalhoSecao={cabecalhoSecao}
+                linhaResumo={linhaResumo}
+                cardResumo={cardResumo}
+                valorResumo={valorResumo}
+                cardCliente={cardCliente}
+                itemCliente={itemCliente}
                 botao={botao}
                 botaoPequeno={botaoPequeno}
-                cardCliente={cardCliente}
-                clientesFiltradosCadastro={clientesFiltradosCadastro}
-                buscaClienteCadastro={buscaClienteCadastro}
-                setBuscaClienteCadastro={setBuscaClienteCadastro}
-                copiarLinkCadastroCliente={copiarLinkCadastroCliente}
-                copiarMensagemWhatsAppCadastroCliente={copiarMensagemWhatsAppCadastroCliente}
-                gerarLinkCadastroCliente={gerarLinkCadastroCliente}
-                formCliente={formCliente}
-                setFormCliente={setFormCliente}
-                formatarCPF={formatarCPF}
-                formatarTelefone={formatarTelefone}
-                formatarCEP={formatarCEP}
-                buscarCep={buscarCep}
-                salvarCliente={salvarCliente}
-                clienteEditandoId={clienteEditandoId}
-                cancelarEdicaoCliente={cancelarEdicaoCliente}
-                editarCliente={editarCliente}
-                compartilharCliente={compartilharCliente}
-                excluirCliente={excluirCliente}
+                input={input}
+                gridVendas={gridVendas}
+                gridForm={gridForm}
+                previewBox={previewBox}
+                semFoto={semFoto}
+                isMobile={isMobile}
+                scannerAtivo={scannerAtivo}
+                setScannerAtivo={setScannerAtivo}
+                scannerElementId={scannerElementId}
+                vendaId={vendaId}
+                setVendaId={setVendaId}
+                sugestoesPecasVenda={sugestoesPecasVenda}
+                mostrarSugestoesVenda={mostrarSugestoesVenda}
+                setMostrarSugestoesVenda={setMostrarSugestoesVenda}
+                cliente={cliente}
+                setCliente={setCliente}
+                filaEspera={filaEspera}
+                setFilaEspera={setFilaEspera}
+                valorDesconto={valorDesconto}
+                setValorDesconto={setValorDesconto}
+                formatarValorDescontoInput={formatarValorDescontoInput}
+                registrarVenda={registrarVenda}
+                salvandoVenda={salvandoVenda}
+                liveEmVisualizacao={liveEmVisualizacao}
+                vendasLive={vendasLive}
+                buscaCliente={buscaCliente}
+                setBuscaCliente={setBuscaCliente}
+                filtroPagamentoCliente={filtroPagamentoCliente}
+                setFiltroPagamentoCliente={setFiltroPagamentoCliente}
+                totalPecasLive={totalPecasLive}
+                faturamentoLive={faturamentoLive}
+                lucroEstimadoLive={lucroEstimadoLive}
+                clientesFiltrados={clientesFiltrados}
+                clientesExpandidos={clientesExpandidos}
+                toggleExpandirCliente={toggleExpandirCliente}
+                exportarClienteCSV={exportarClienteCSV}
+                gerarComanda={gerarComanda}
+                togglePagamentoClienteLive={togglePagamentoClienteLive}
+                cancelarVenda={cancelarVenda}
+                passarVendaParaFila={passarVendaParaFila}
+                formatarBRL={formatarBRL}
               />
             )}
 

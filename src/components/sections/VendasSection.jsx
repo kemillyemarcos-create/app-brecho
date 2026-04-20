@@ -1,3 +1,5 @@
+import { useState, useMemo, useEffect } from "react";
+
 export default function VendasSection({
     boxGrande,
     tituloSecao,
@@ -50,6 +52,217 @@ export default function VendasSection({
     passarVendaParaFila,
     formatarBRL,
 }) {
+    const [mostrarSugestoesCliente, setMostrarSugestoesCliente] = useState(false);
+    const [indiceSugestaoClienteAtiva, setIndiceSugestaoClienteAtiva] = useState(-1);
+    const [indiceSugestaoPecaAtiva, setIndiceSugestaoPecaAtiva] = useState(-1);
+    const [mostrarSugestoesFila, setMostrarSugestoesFila] = useState(false);
+    const [indiceSugestaoFilaAtiva, setIndiceSugestaoFilaAtiva] = useState(-1);
+
+
+    const sugestoesClientesLive = useMemo(() => {
+        const termo = String(cliente || "").trim().toLowerCase();
+
+        if (termo.length < 1) return [];
+
+        const mapaNomes = new Map();
+
+        (clientesFiltrados || []).forEach((clienteResumo) => {
+            const nomeOriginal = String(clienteResumo?.nome || "").trim();
+            const nomeNormalizado = nomeOriginal.toLowerCase();
+
+            if (!nomeOriginal) return;
+            if (!nomeNormalizado.startsWith(termo)) return;
+
+            if (!mapaNomes.has(nomeNormalizado)) {
+                mapaNomes.set(nomeNormalizado, nomeOriginal);
+            }
+        });
+
+        return [...mapaNomes.values()]
+            .sort((a, b) =>
+                a.localeCompare(b, "pt-BR", {
+                    sensitivity: "base",
+                })
+            )
+            .slice(0, 8);
+    }, [cliente, clientesFiltrados]);
+
+    const sugestoesFilaLive = useMemo(() => {
+        const termo = String(filaEspera || "").trim().toLowerCase();
+
+        if (termo.length < 1) return [];
+
+        const mapaNomes = new Map();
+
+        (clientesFiltrados || []).forEach((clienteResumo) => {
+            const nomeOriginal = String(clienteResumo?.nome || "").trim();
+            const nomeNormalizado = nomeOriginal.toLowerCase();
+
+            if (!nomeOriginal) return;
+            if (!nomeNormalizado.startsWith(termo)) return;
+
+            if (!mapaNomes.has(nomeNormalizado)) {
+                mapaNomes.set(nomeNormalizado, nomeOriginal);
+            }
+        });
+
+        return [...mapaNomes.values()]
+            .sort((a, b) =>
+                a.localeCompare(b, "pt-BR", {
+                    sensitivity: "base",
+                })
+            )
+            .slice(0, 8);
+    }, [filaEspera, clientesFiltrados]);
+
+    useEffect(() => {
+        if (mostrarSugestoesCliente && sugestoesClientesLive.length > 0) {
+            setIndiceSugestaoClienteAtiva(0);
+        } else {
+            setIndiceSugestaoClienteAtiva(-1);
+        }
+    }, [mostrarSugestoesCliente, sugestoesClientesLive]);
+
+    useEffect(() => {
+        if (mostrarSugestoesVenda && sugestoesPecasVenda.length > 0) {
+            setIndiceSugestaoPecaAtiva(0);
+        } else {
+            setIndiceSugestaoPecaAtiva(-1);
+        }
+    }, [mostrarSugestoesVenda, sugestoesPecasVenda]);
+
+    useEffect(() => {
+        if (mostrarSugestoesFila && sugestoesFilaLive.length > 0) {
+            setIndiceSugestaoFilaAtiva(0);
+        } else {
+            setIndiceSugestaoFilaAtiva(-1);
+        }
+    }, [mostrarSugestoesFila, sugestoesFilaLive]);
+
+    function selecionarSugestaoCliente(nomeSugestao) {
+        setCliente(nomeSugestao);
+        setMostrarSugestoesCliente(false);
+        setIndiceSugestaoClienteAtiva(-1);
+    }
+
+    function selecionarSugestaoPeca(peca) {
+        setVendaId(String(peca.id));
+        setMostrarSugestoesVenda(false);
+        setIndiceSugestaoPecaAtiva(-1);
+    }
+
+    function selecionarSugestaoFila(nomeSugestao) {
+        setFilaEspera(nomeSugestao);
+        setMostrarSugestoesFila(false);
+        setIndiceSugestaoFilaAtiva(-1);
+    }
+
+    function handleKeyDownCliente(e) {
+        if (!mostrarSugestoesCliente || sugestoesClientesLive.length === 0) return;
+
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setIndiceSugestaoClienteAtiva((prev) =>
+                prev < sugestoesClientesLive.length - 1 ? prev + 1 : 0
+            );
+            return;
+        }
+
+        if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setIndiceSugestaoClienteAtiva((prev) =>
+                prev > 0 ? prev - 1 : sugestoesClientesLive.length - 1
+            );
+            return;
+        }
+
+        if (e.key === "Enter") {
+            if (indiceSugestaoClienteAtiva >= 0) {
+                e.preventDefault();
+                selecionarSugestaoCliente(
+                    sugestoesClientesLive[indiceSugestaoClienteAtiva]
+                );
+            }
+            return;
+        }
+
+        if (e.key === "Escape") {
+            e.preventDefault();
+            setMostrarSugestoesCliente(false);
+            setIndiceSugestaoClienteAtiva(-1);
+        }
+    }
+
+    function handleKeyDownPeca(e) {
+        if (!mostrarSugestoesVenda || sugestoesPecasVenda.length === 0) return;
+
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setIndiceSugestaoPecaAtiva((prev) =>
+                prev < sugestoesPecasVenda.length - 1 ? prev + 1 : 0
+            );
+            return;
+        }
+
+        if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setIndiceSugestaoPecaAtiva((prev) =>
+                prev > 0 ? prev - 1 : sugestoesPecasVenda.length - 1
+            );
+            return;
+        }
+
+        if (e.key === "Enter") {
+            if (indiceSugestaoPecaAtiva >= 0) {
+                e.preventDefault();
+                selecionarSugestaoPeca(sugestoesPecasVenda[indiceSugestaoPecaAtiva]);
+            }
+            return;
+        }
+
+        if (e.key === "Escape") {
+            e.preventDefault();
+            setMostrarSugestoesVenda(false);
+            setIndiceSugestaoPecaAtiva(-1);
+        }
+    }
+
+    function handleKeyDownFila(e) {
+        if (!mostrarSugestoesFila || sugestoesFilaLive.length === 0) return;
+
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setIndiceSugestaoFilaAtiva((prev) =>
+                prev < sugestoesFilaLive.length - 1 ? prev + 1 : 0
+            );
+            return;
+        }
+
+        if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setIndiceSugestaoFilaAtiva((prev) =>
+                prev > 0 ? prev - 1 : sugestoesFilaLive.length - 1
+            );
+            return;
+        }
+
+        if (e.key === "Enter") {
+            if (indiceSugestaoFilaAtiva >= 0) {
+                e.preventDefault();
+                selecionarSugestaoFila(
+                    sugestoesFilaLive[indiceSugestaoFilaAtiva]
+                );
+            }
+            return;
+        }
+
+        if (e.key === "Escape") {
+            e.preventDefault();
+            setMostrarSugestoesFila(false);
+            setIndiceSugestaoFilaAtiva(-1);
+        }
+    }
+
     return (
         <div style={{ display: "grid", gap: 24 }}>
             <div style={boxGrande}>
@@ -85,6 +298,14 @@ export default function VendasSection({
                                             setMostrarSugestoesVenda(true);
                                         }
                                     }}
+                                    onBlur={() => {
+                                        setTimeout(() => {
+                                            setMostrarSugestoesVenda(false);
+                                            setIndiceSugestaoPecaAtiva(-1);
+                                        }, 150);
+                                    }}
+                                    onKeyDown={handleKeyDownPeca}
+                                    autoComplete="off"
                                 />
 
                                 {mostrarSugestoesVenda && sugestoesPecasVenda.length > 0 && (
@@ -104,32 +325,35 @@ export default function VendasSection({
                                             overflowY: "auto",
                                         }}
                                     >
-                                        {sugestoesPecasVenda.map((peca) => (
-                                            <button
-                                                key={peca.id}
-                                                type="button"
-                                                onClick={() => {
-                                                    setVendaId(String(peca.id));
-                                                    setMostrarSugestoesVenda(false);
-                                                }}
-                                                style={{
-                                                    width: "100%",
-                                                    textAlign: "left",
-                                                    padding: "10px 12px",
-                                                    border: "none",
-                                                    borderBottom: "1px solid #f1f5f9",
-                                                    background: "#fff",
-                                                    cursor: "pointer",
-                                                }}
-                                            >
-                                                <div style={{ fontWeight: "bold" }}>
-                                                    {peca.id} • {peca.nome || "Sem nome"}
-                                                </div>
-                                                <div style={{ fontSize: 13, color: "#64748b" }}>
-                                                    {peca.venda || "Sem valor"} {peca.obs ? `• ${peca.obs}` : ""}
-                                                </div>
-                                            </button>
-                                        ))}
+                                        {sugestoesPecasVenda.map((peca, index) => {
+                                            const ativo = index === indiceSugestaoPecaAtiva;
+
+                                            return (
+                                                <button
+                                                    key={peca.id}
+                                                    type="button"
+                                                    onMouseDown={(e) => e.preventDefault()}
+                                                    onClick={() => selecionarSugestaoPeca(peca)}
+                                                    onMouseEnter={() => setIndiceSugestaoPecaAtiva(index)}
+                                                    style={{
+                                                        width: "100%",
+                                                        textAlign: "left",
+                                                        padding: "10px 12px",
+                                                        border: "none",
+                                                        borderBottom: "1px solid #f1f5f9",
+                                                        background: ativo ? "#e2e8f0" : "#fff",
+                                                        cursor: "pointer",
+                                                    }}
+                                                >
+                                                    <div style={{ fontWeight: "bold" }}>
+                                                        {peca.id} • {peca.nome || "Sem nome"}
+                                                    </div>
+                                                    <div style={{ fontSize: 13, color: "#64748b" }}>
+                                                        {peca.venda || "Sem valor"} {peca.obs ? `• ${peca.obs}` : ""}
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
@@ -142,19 +366,149 @@ export default function VendasSection({
                                 inputMode="numeric"
                             />
 
-                            <input
-                                style={input}
-                                placeholder="Nome da cliente"
-                                value={cliente}
-                                onChange={(e) => setCliente(e.target.value)}
-                            />
+                            <div style={{ position: "relative", width: "100%" }}>
+                                <input
+                                    style={input}
+                                    placeholder="Nome da cliente"
+                                    value={cliente}
+                                    onChange={(e) => {
+                                        const valor = e.target.value;
+                                        setCliente(valor);
+                                        setMostrarSugestoesCliente(valor.trim().length > 0);
+                                    }}
+                                    onFocus={() => {
+                                        if (String(cliente || "").trim().length > 0) {
+                                            setMostrarSugestoesCliente(true);
+                                        }
+                                    }}
+                                    onBlur={() => {
+                                        setTimeout(() => {
+                                            setMostrarSugestoesCliente(false);
+                                            setIndiceSugestaoClienteAtiva(-1);
+                                        }, 150);
+                                    }}
+                                    onKeyDown={handleKeyDownCliente}
+                                    autoComplete="off"
+                                />
 
-                            <input
-                                style={input}
-                                placeholder="Fila (opcional)"
-                                value={filaEspera}
-                                onChange={(e) => setFilaEspera(e.target.value)}
-                            />
+                                {mostrarSugestoesCliente && sugestoesClientesLive.length > 0 && (
+                                    <div
+                                        style={{
+                                            position: "absolute",
+                                            top: "100%",
+                                            left: 0,
+                                            right: 0,
+                                            zIndex: 30,
+                                            background: "#fff",
+                                            border: "1px solid #d1d5db",
+                                            borderRadius: 10,
+                                            marginTop: 4,
+                                            boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+                                            maxHeight: 260,
+                                            overflowY: "auto",
+                                        }}
+                                    >
+                                        {sugestoesClientesLive.map((nomeSugestao, index) => {
+                                            const ativo = index === indiceSugestaoClienteAtiva;
+
+                                            return (
+                                                <button
+                                                    key={nomeSugestao}
+                                                    type="button"
+                                                    onMouseDown={(e) => e.preventDefault()}
+                                                    onClick={() => selecionarSugestaoCliente(nomeSugestao)}
+                                                    onMouseEnter={() => setIndiceSugestaoClienteAtiva(index)}
+                                                    style={{
+                                                        width: "100%",
+                                                        textAlign: "left",
+                                                        padding: "10px 12px",
+                                                        border: "none",
+                                                        borderBottom: "1px solid #f1f5f9",
+                                                        background: ativo ? "#e2e8f0" : "#fff",
+                                                        cursor: "pointer",
+                                                        fontSize: 15,
+                                                        fontWeight: 600,
+                                                    }}
+                                                >
+                                                    {nomeSugestao}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div style={{ position: "relative", width: "100%" }}>
+                                <input
+                                    style={input}
+                                    placeholder="Fila (opcional)"
+                                    value={filaEspera}
+                                    onChange={(e) => {
+                                        const valor = e.target.value;
+                                        setFilaEspera(valor);
+                                        setMostrarSugestoesFila(valor.trim().length > 0);
+                                    }}
+                                    onFocus={() => {
+                                        if (String(filaEspera || "").trim().length > 0) {
+                                            setMostrarSugestoesFila(true);
+                                        }
+                                    }}
+                                    onBlur={() => {
+                                        setTimeout(() => {
+                                            setMostrarSugestoesFila(false);
+                                            setIndiceSugestaoFilaAtiva(-1);
+                                        }, 150);
+                                    }}
+                                    onKeyDown={handleKeyDownFila}
+                                    autoComplete="off"
+                                />
+
+                                {mostrarSugestoesFila && sugestoesFilaLive.length > 0 && (
+                                    <div
+                                        style={{
+                                            position: "absolute",
+                                            top: "100%",
+                                            left: 0,
+                                            right: 0,
+                                            zIndex: 30,
+                                            background: "#fff",
+                                            border: "1px solid #d1d5db",
+                                            borderRadius: 10,
+                                            marginTop: 4,
+                                            boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+                                            maxHeight: 260,
+                                            overflowY: "auto",
+                                        }}
+                                    >
+                                        {sugestoesFilaLive.map((nomeSugestao, index) => {
+                                            const ativo = index === indiceSugestaoFilaAtiva;
+
+                                            return (
+                                                <button
+                                                    key={nomeSugestao}
+                                                    type="button"
+                                                    onMouseDown={(e) => e.preventDefault()}
+                                                    onClick={() => selecionarSugestaoFila(nomeSugestao)}
+                                                    onMouseEnter={() => setIndiceSugestaoFilaAtiva(index)}
+                                                    style={{
+                                                        width: "100%",
+                                                        textAlign: "left",
+                                                        padding: "10px 12px",
+                                                        border: "none",
+                                                        borderBottom: "1px solid #f1f5f9",
+                                                        background: ativo ? "#e2e8f0" : "#fff",
+                                                        cursor: "pointer",
+                                                        fontSize: 15,
+                                                        fontWeight: 600,
+                                                    }}
+                                                >
+                                                    {nomeSugestao}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         <div
