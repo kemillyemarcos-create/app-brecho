@@ -19,20 +19,47 @@ export default function useFinanceiroMemo({
     formatarTelefone,
     converterDataPtBrParaIso,
 }) {
-
     function parseDataFlex(valor) {
         if (!valor) return null;
 
-        if (valor.includes("T")) {
-            return new Date(valor); // ISO
+        const texto = String(valor).trim();
+        if (!texto) return null;
+
+        if (texto.includes("T")) {
+            const dataIso = new Date(texto);
+            return Number.isNaN(dataIso.getTime()) ? null : dataIso;
         }
 
-        if (valor.includes("/")) {
-            const [dia, mes, ano] = valor.split("/");
-            return new Date(`${ano}-${mes}-${dia}`);
+        const match = texto.match(
+            /^(\d{2})\/(\d{2})\/(\d{4})(?:,?\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/
+        );
+
+        if (match) {
+            const [, dia, mes, ano, hora = "00", minuto = "00", segundo = "00"] = match;
+
+            const dataBr = new Date(
+                Number(ano),
+                Number(mes) - 1,
+                Number(dia),
+                Number(hora),
+                Number(minuto),
+                Number(segundo)
+            );
+
+            return Number.isNaN(dataBr.getTime()) ? null : dataBr;
         }
 
-        return new Date(valor);
+        const dataDireta = new Date(texto);
+        return Number.isNaN(dataDireta.getTime()) ? null : dataDireta;
+    }
+
+    function getDataVendaIso(venda) {
+        return (
+            getDataIsoLocal(venda?.data_hora) ||
+            getDataIsoLocal(venda?.criado_em) ||
+            getDataIsoLocal(venda?.data_venda) ||
+            null
+        );
     }
 
     function formatarDataBR(valor) {
@@ -43,10 +70,42 @@ export default function useFinanceiroMemo({
         return `${dia}/${mes}/${ano}`;
     }
 
+    function getValorVendaPeca(peca) {
+        return Number(peca?.valor_venda_final ?? limparMoeda(peca?.venda));
+    }
+
+    function getCustoPeca(peca) {
+        return limparMoeda(peca?.custo || 0);
+    }
+
+    const pecasVendidas = useMemo(
+        () => (pecas || []).filter((p) => !!p?.vendido),
+        [pecas]
+    );
+
+    const pecasVendidasFiltradas = useMemo(
+        () =>
+            pecasVendidas.filter((p) => {
+                if (!p?.data_venda) return false;
+
+                const dataVendaIso =
+                    getDataIsoLocal(p.data_venda) ||
+                    converterDataPtBrParaIso(p.data_venda);
+
+                if (!dataVendaIso) return false;
+
+                if (dataInicialFiltro && dataVendaIso < dataInicialFiltro) return false;
+                if (dataFinalFiltro && dataVendaIso > dataFinalFiltro) return false;
+
+                return true;
+            }),
+        [pecasVendidas, dataInicialFiltro, dataFinalFiltro, converterDataPtBrParaIso]
+    );
+
     const livesFiltradas = useMemo(
         () =>
             (listaLives || []).filter((live) => {
-                const iso = getDataIsoLocal(live.data_live);
+                const iso = getDataIsoLocal(live?.data_live);
                 if (!iso) return true;
 
                 if (dataInicialFiltro && iso < dataInicialFiltro) return false;
@@ -60,27 +119,30 @@ export default function useFinanceiroMemo({
     const resumoClientes = useMemo(() => {
         const mapa = {};
 
-        (pecas || [])
-            .filter((p) => p.vendido && p.cliente)
-            .forEach((p) => {
-                if (!mapa[p.cliente]) {
-                    mapa[p.cliente] = {
-                        nome: p.cliente,
-                        pecas: 0,
-                        total: 0,
-                        itens: [],
-                    };
-                }
+        pecasVendidas.forEach((p) => {
+            const nomeCliente = String(p?.cliente || "").trim();
+            if (!nomeCliente) return;
 
-                mapa[p.cliente].pecas += 1;
-                mapa[p.cliente].total += limparMoeda(p.venda);
-                mapa[p.cliente].itens.push({
-                    codigo: p.id,
-                    nomePeca: p.nome,
-                    valor: limparMoeda(p.venda),
-                    dataVenda: p.data_venda || "",
-                });
+            if (!mapa[nomeCliente]) {
+                mapa[nomeCliente] = {
+                    nome: nomeCliente,
+                    pecas: 0,
+                    total: 0,
+                    itens: [],
+                };
+            }
+
+            const valorVenda = getValorVendaPeca(p);
+
+            mapa[nomeCliente].pecas += 1;
+            mapa[nomeCliente].total += valorVenda;
+            mapa[nomeCliente].itens.push({
+                codigo: p.id,
+                nomePeca: p.nome || "-",
+                valor: valorVenda,
+                dataVenda: p.data_venda || "",
             });
+        });
 
         return Object.values(mapa)
             .map((c) => ({
@@ -88,7 +150,7 @@ export default function useFinanceiroMemo({
                 pago: !!pagamentosClientes[c.nome],
             }))
             .sort((a, b) => b.total - a.total);
-    }, [pecas, pagamentosClientes, limparMoeda]);
+    }, [pecasVendidas, pagamentosClientes]);
 
     const resumoClientesLive = useMemo(
         () =>
@@ -166,12 +228,10 @@ export default function useFinanceiroMemo({
         });
     }, [clientes, buscaClienteCadastro, formatarCPF, formatarTelefone]);
 
-    const pecasVendidasFiltradas = useMemo(
+    const vendasFiltradasPeriodo = useMemo(
         () =>
-            (pecas || []).filter((p) => {
-                if (!p.vendido || !p.data_venda) return false;
-
-                const dataVendaIso = getDataIsoLocal(p.data_venda);
+            (todasVendasLive || []).filter((v) => {
+                const dataVendaIso = getDataVendaIso(v);
                 if (!dataVendaIso) return false;
 
                 if (dataInicialFiltro && dataVendaIso < dataInicialFiltro) return false;
@@ -179,14 +239,14 @@ export default function useFinanceiroMemo({
 
                 return true;
             }),
-        [pecas, dataInicialFiltro, dataFinalFiltro]
+        [todasVendasLive, dataInicialFiltro, dataFinalFiltro]
     );
 
     const resumoFaturamentoPorLive = useMemo(
         () =>
             livesFiltradas
                 .map((live) => {
-                    const vendasDaLive = (todasVendasLive || []).filter(
+                    const vendasDaLive = vendasFiltradasPeriodo.filter(
                         (v) => String(v.live_id) === String(live.id)
                     );
 
@@ -218,25 +278,31 @@ export default function useFinanceiroMemo({
                         ticketMedio,
                     };
                 })
+                .filter((live) => live.quantidade > 0 || (!dataInicialFiltro && !dataFinalFiltro))
                 .sort((a, b) => b.dataTimestamp - a.dataTimestamp),
-        [livesFiltradas, todasVendasLive, mapaPecasPorId, limparMoeda]
+        [
+            livesFiltradas,
+            vendasFiltradasPeriodo,
+            mapaPecasPorId,
+            limparMoeda,
+            dataInicialFiltro,
+            dataFinalFiltro,
+        ]
     );
 
     const totalPecas = (pecas || []).length;
-    const totalVendidas = (pecas || []).filter((p) => p.vendido).length;
-    const totalDisponiveis = (pecas || []).filter((p) => !p.vendido).length;
+    const totalVendidas = pecasVendidas.length;
+    const totalDisponiveis = totalPecas - totalVendidas;
 
-    const faturamento = (pecas || [])
-        .filter((p) => p.vendido)
-        .reduce((acc, p) => acc + Number(p.valor_venda_final ?? limparMoeda(p.venda)), 0);
+    const faturamento = pecasVendidas.reduce(
+        (acc, p) => acc + getValorVendaPeca(p),
+        0
+    );
 
-    const lucroEstimado = (pecas || [])
-        .filter((p) => p.vendido)
-        .reduce(
-            (acc, p) =>
-                acc + (Number(p.valor_venda_final ?? limparMoeda(p.venda)) - limparMoeda(p.custo)),
-            0
-        );
+    const lucroEstimado = pecasVendidas.reduce(
+        (acc, p) => acc + (getValorVendaPeca(p) - getCustoPeca(p)),
+        0
+    );
 
     const totalPecasLive = (vendasLive || []).length;
 
@@ -252,14 +318,12 @@ export default function useFinanceiroMemo({
     }, 0);
 
     const faturamentoFiltrado = pecasVendidasFiltradas.reduce(
-        (acc, p) => acc + Number(p.valor_venda_final ?? limparMoeda(p.venda)),
+        (acc, p) => acc + getValorVendaPeca(p),
         0
     );
 
     const lucroFiltrado = pecasVendidasFiltradas.reduce(
-        (acc, p) =>
-            acc +
-            (Number(p.valor_venda_final ?? limparMoeda(p.venda)) - limparMoeda(p.custo)),
+        (acc, p) => acc + (getValorVendaPeca(p) - getCustoPeca(p)),
         0
     );
 
@@ -273,6 +337,7 @@ export default function useFinanceiroMemo({
         clientesFiltrados,
         clientesFiltradosCadastro,
         pecasVendidasFiltradas,
+        vendasFiltradasPeriodo,
         livesFiltradas,
         resumoFaturamentoPorLive,
         totalPecas,

@@ -26,10 +26,12 @@ export default function ClientesSection({
     clientesExpandidos,
     toggleExpandirCliente,
 }) {
+    const isMobile = typeof window !== "undefined" ? window.innerWidth <= 767 : false;
+
     const cardClienteMinimalista = {
         ...cardCliente,
-        padding: 14,
-        borderRadius: 16,
+        padding: isMobile ? 14 : 15,
+        borderRadius: 18,
         boxShadow: "0 2px 10px rgba(15,23,42,0.05)",
         background: "#fff",
     };
@@ -38,37 +40,40 @@ export default function ClientesSection({
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        gap: 12,
+        gap: 10,
         flexWrap: "wrap",
-        marginBottom: 14,
+        marginBottom: 10,
     };
 
     const nomeClienteStyle = {
-        fontSize: 16,
+        margin: 0,
+        fontSize: isMobile ? 15 : 16,
         fontWeight: 700,
         color: "#243746",
-        margin: 0,
+        lineHeight: 1.2,
+        wordBreak: "break-word",
     };
 
     const infoClienteStyle = {
-        margin: "4px 0",
+        margin: "2px 0",
         color: "#5b6b79",
-        fontSize: 14,
-        lineHeight: 1.45,
+        fontSize: isMobile ? 12.5 : 13.5,
+        lineHeight: 1.35,
+        wordBreak: "break-word",
     };
 
     const acoesCliente = {
-        display: "flex",
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
         gap: 8,
-        flexWrap: "wrap",
-        marginTop: 12,
+        marginTop: 10,
     };
 
     const secaoFormulario = {
         display: "grid",
-        gap: 12,
-        marginBottom: 24,
-        padding: 18,
+        gap: 8,
+        marginBottom: 18,
+        padding: isMobile ? 12 : 14,
         border: "1px solid #e8edf2",
         borderRadius: 18,
         background: "#fcfdff",
@@ -76,13 +81,62 @@ export default function ClientesSection({
 
     const secaoBusca = {
         display: "grid",
-        gap: 10,
-        marginBottom: 18,
+        gap: 8,
+        marginBottom: 14,
     };
 
     const listaClientes = {
         display: "grid",
         gap: 10,
+    };
+
+    const inputCompacto = {
+        ...inputCliente,
+        minHeight: isMobile ? 36 : 38,
+        height: isMobile ? 36 : 38,
+        padding: isMobile ? "7px 12px" : "7px 13px",
+        borderRadius: 12,
+        fontSize: isMobile ? 13 : 14,
+        lineHeight: 1.1,
+        boxShadow: "none",
+    };
+
+    const botaoPrincipal = {
+        ...botao,
+        width: "100%",
+        minHeight: isMobile ? 38 : 40,
+        padding: isMobile ? "8px 12px" : "8px 14px",
+        borderRadius: 12,
+        fontSize: isMobile ? 13 : 14,
+        boxShadow: "none",
+    };
+
+    const botaoSecundario = {
+        ...botaoPequeno,
+        width: "100%",
+        minHeight: isMobile ? 34 : 36,
+        padding: isMobile ? "7px 10px" : "7px 12px",
+        borderRadius: 10,
+        fontSize: isMobile ? 12 : 13,
+        boxShadow: "none",
+    };
+
+    const gridCamposEndereco = {
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.5fr) minmax(100px, 130px)",
+        gap: 8,
+    };
+
+    const gridAcoesFormulario = {
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : clienteEditandoId ? "repeat(2, minmax(0, 1fr))" : "1fr",
+        gap: 8,
+    };
+
+    const gridAcoesCadastro = {
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+        gap: 8,
     };
 
     return (
@@ -91,7 +145,7 @@ export default function ClientesSection({
 
             <div style={secaoFormulario}>
                 <input
-                    style={inputCliente}
+                    style={inputCompacto}
                     placeholder="Nome completo"
                     value={formCliente.nome}
                     onChange={(e) =>
@@ -100,7 +154,7 @@ export default function ClientesSection({
                 />
 
                 <input
-                    style={inputCliente}
+                    style={inputCompacto}
                     placeholder="CPF"
                     value={formCliente.cpf}
                     onChange={(e) =>
@@ -112,7 +166,7 @@ export default function ClientesSection({
                 />
 
                 <input
-                    style={inputCliente}
+                    style={inputCompacto}
                     placeholder="Telefone"
                     value={formCliente.telefone}
                     onChange={(e) =>
@@ -124,7 +178,7 @@ export default function ClientesSection({
                 />
 
                 <input
-                    style={inputCliente}
+                    style={inputCompacto}
                     placeholder="CEP"
                     value={formCliente.cep}
                     onChange={(e) => {
@@ -142,32 +196,34 @@ export default function ClientesSection({
                     }}
                 />
 
-                <input
-                    style={inputCliente}
-                    placeholder="Endereço"
-                    value={formCliente.endereco}
-                    onChange={(e) =>
-                        setFormCliente((prev) => ({
-                            ...prev,
-                            endereco: e.target.value,
-                        }))
-                    }
-                />
+                <div style={gridCamposEndereco}>
+                    <input
+                        style={inputCompacto}
+                        placeholder="Endereço"
+                        value={formCliente.endereco}
+                        onChange={(e) =>
+                            setFormCliente((prev) => ({
+                                ...prev,
+                                endereco: e.target.value,
+                            }))
+                        }
+                    />
+
+                    <input
+                        style={inputCompacto}
+                        placeholder="Número"
+                        value={formCliente.numero}
+                        onChange={(e) =>
+                            setFormCliente((prev) => ({
+                                ...prev,
+                                numero: e.target.value,
+                            }))
+                        }
+                    />
+                </div>
 
                 <input
-                    style={inputCliente}
-                    placeholder="Número"
-                    value={formCliente.numero}
-                    onChange={(e) =>
-                        setFormCliente((prev) => ({
-                            ...prev,
-                            numero: e.target.value,
-                        }))
-                    }
-                />
-
-                <input
-                    style={inputCliente}
+                    style={inputCompacto}
                     placeholder="Complemento"
                     value={formCliente.complemento}
                     onChange={(e) =>
@@ -178,14 +234,17 @@ export default function ClientesSection({
                     }
                 />
 
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <button style={botao} onClick={salvarCliente}>
+                <div style={gridAcoesFormulario}>
+                    <button style={botaoPrincipal} onClick={salvarCliente}>
                         {clienteEditandoId ? "Atualizar cliente" : "Salvar cliente"}
                     </button>
 
                     {clienteEditandoId ? (
                         <button
-                            style={{ ...botaoPequeno, background: "#6b7280", padding: "12px 16px" }}
+                            style={{
+                                ...botaoSecundario,
+                                background: "#6b7280",
+                            }}
                             onClick={cancelarEdicaoCliente}
                         >
                             Cancelar edição
@@ -193,16 +252,22 @@ export default function ClientesSection({
                     ) : null}
                 </div>
 
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <div style={gridAcoesCadastro}>
                     <button
-                        style={{ ...botaoPequeno, background: "#2563eb", padding: "10px 14px" }}
+                        style={{
+                            ...botaoSecundario,
+                            background: "#2563eb",
+                        }}
                         onClick={copiarLinkCadastroCliente}
                     >
                         Copiar link de cadastro
                     </button>
 
                     <button
-                        style={{ ...botaoPequeno, background: "#16a34a", padding: "10px 14px" }}
+                        style={{
+                            ...botaoSecundario,
+                            background: "#16a34a",
+                        }}
                         onClick={copiarMensagemWhatsAppCadastroCliente}
                     >
                         Copiar mensagem WhatsApp
@@ -212,16 +277,16 @@ export default function ClientesSection({
 
             <div style={secaoBusca}>
                 <div style={topoLista}>
-                    <strong style={{ color: "#334155", fontSize: 16 }}>
+                    <strong style={{ color: "#334155", fontSize: isMobile ? 15 : 16 }}>
                         Clientes cadastradas
                     </strong>
-                    <span style={{ color: "#64748b", fontSize: 13 }}>
+                    <span style={{ color: "#64748b", fontSize: isMobile ? 12 : 13 }}>
                         {clientesFiltradosCadastro.length} cliente(s)
                     </span>
                 </div>
 
                 <input
-                    style={inputCliente}
+                    style={inputCompacto}
                     placeholder="Buscar cliente por nome, CPF ou telefone"
                     value={buscaClienteCadastro}
                     onChange={(e) => setBuscaClienteCadastro(e.target.value)}
@@ -253,18 +318,20 @@ export default function ClientesSection({
                                 <div key={cliente.id || cliente.nome} style={cardClienteMinimalista}>
                                     <div
                                         style={{
-                                            display: "flex",
-                                            justifyContent: "space-between",
+                                            display: "grid",
+                                            gridTemplateColumns: isMobile ? "1fr" : "1fr auto",
+                                            gap: 8,
                                             alignItems: "center",
-                                            gap: 12,
                                         }}
                                     >
                                         <p style={nomeClienteStyle}>{cliente.nome || "Sem nome"}</p>
 
                                         <button
                                             style={{
-                                                ...botaoPequeno,
+                                                ...botaoSecundario,
                                                 background: expandido ? "#64748b" : "#8f2745",
+                                                width: isMobile ? "100%" : 120,
+                                                justifySelf: isMobile ? "stretch" : "end",
                                             }}
                                             onClick={() => toggleExpandirCliente(cliente.nome)}
                                         >
@@ -273,7 +340,7 @@ export default function ClientesSection({
                                     </div>
 
                                     {expandido ? (
-                                        <div style={{ marginTop: 12 }}>
+                                        <div style={{ marginTop: 8 }}>
                                             <p style={infoClienteStyle}>
                                                 <strong>CPF:</strong> {cliente.cpf || "-"}
                                             </p>
@@ -295,21 +362,21 @@ export default function ClientesSection({
 
                                             <div style={acoesCliente}>
                                                 <button
-                                                    style={{ ...botaoPequeno, background: "#2563eb" }}
+                                                    style={{ ...botaoSecundario, background: "#2563eb" }}
                                                     onClick={() => editarCliente(cliente)}
                                                 >
                                                     Editar
                                                 </button>
 
                                                 <button
-                                                    style={{ ...botaoPequeno, background: "#16a34a" }}
+                                                    style={{ ...botaoSecundario, background: "#16a34a" }}
                                                     onClick={() => compartilharCliente(cliente)}
                                                 >
                                                     Compartilhar
                                                 </button>
 
                                                 <button
-                                                    style={{ ...botaoPequeno, background: "#dc2626" }}
+                                                    style={{ ...botaoSecundario, background: "#dc2626" }}
                                                     onClick={() => excluirCliente(cliente.id)}
                                                 >
                                                     Excluir

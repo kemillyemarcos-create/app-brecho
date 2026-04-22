@@ -2076,6 +2076,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     pedidosEnvioAgrupados,
     pedidosEnvioEmMontagem,
     pedidosEnvioConcluidos,
+    totalSacolinhasVencidas,
   } = useExpedicaoMemo({
     todasVendasLive,
     sacolinhasLive,
@@ -2279,119 +2280,163 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     }
 
     @media (max-width: 767px) {
-      .layout-app {
-        grid-template-columns: 1fr !important;
-        padding: 8px !important;
-        gap: 8px !important;
-      }
+  .layout-app {
+    grid-template-columns: 1fr !important;
+    padding: 8px !important;
+    gap: 8px !important;
+  }
 
-      .sidebar-app {
-        width: 100% !important;
-        border-radius: 18px !important;
-        padding: 14px !important;
-      }
+  .sidebar-app {
+    width: 100% !important;
+    border-radius: 18px !important;
+    padding: 14px !important;
+  }
 
-      .painel-principal {
-        min-height: auto !important;
-        padding: 14px !important;
-        border-radius: 18px !important;
-      }
+  .painel-principal {
+    min-height: auto !important;
+    padding: 14px !important;
+    border-radius: 18px !important;
+  }
 
-      .area-principal {
-        width: 100% !important;
-      }
+  .area-principal {
+    width: 100% !important;
+  }
 
-      .grid-cadastro,
-      .grid-vendas,
-      .grid-clientes,
-      .linha-resumo {
-        grid-template-columns: 1fr !important;
-      }
+  .grid-cadastro,
+  .grid-vendas,
+  .grid-clientes,
+  .linha-resumo {
+    grid-template-columns: 1fr !important;
+  }
 
-      .menu-lista {
-        display: grid !important;
-        gap: 8px !important;
-      }
+  .menu-lista {
+    display: grid !important;
+    gap: 8px !important;
+  }
 
-      .topo-mobile {
-        display: flex !important;
-        position: sticky !important;
-        top: 8px !important;
-      }
+  .topo-mobile {
+    display: flex !important;
+    position: sticky !important;
+    top: 8px !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 10px 12px !important;
+    border-radius: 16px !important;
+  }
 
-      .topo-mobile strong {
-        font-size: 18px !important;
-      }
+  .topo-mobile strong {
+    font-size: 16px !important;
+    line-height: 1.1 !important;
+  }
 
-      .painel-principal h1,
-      .painel-principal h2 {
-        line-height: 1.1 !important;
-      }
+  .painel-principal h1,
+  .painel-principal h2 {
+    line-height: 1.08 !important;
+    margin-bottom: 10px !important;
+  }
 
-      .painel-principal h3 {
-        line-height: 1.15 !important;
-      }
+  .painel-principal h3 {
+    line-height: 1.12 !important;
+    margin-bottom: 10px !important;
+  }
 
-      .painel-principal h2 {
-        font-size: 32px !important;
-      }
+  .painel-principal h2 {
+    font-size: 28px !important;
+  }
 
-      .painel-principal h3 {
-        font-size: 22px !important;
-      }
+  .painel-principal h3 {
+    font-size: 20px !important;
+  }
 
-      button {
-        font-size: 14px !important;
-      }
+  button {
+    font-size: 14px !important;
+    line-height: 1.15 !important;
+  }
 
-      .painel-principal p,
-      .painel-principal span,
-      .painel-principal div,
-      .painel-principal label,
-      .painel-principal strong,
-      .painel-principal input,
-      .painel-principal button {
-        font-size: 14px !important;
-      }
+  .painel-principal p,
+  .painel-principal span,
+  .painel-principal div,
+  .painel-principal label,
+  .painel-principal strong,
+  .painel-principal input,
+  .painel-principal button {
+    font-size: 14px !important;
+  }
 
-      .painel-principal input {
-        min-height: 46px !important;
-      }
+  .painel-principal p,
+  .painel-principal span,
+  .painel-principal label,
+  .painel-principal div {
+    line-height: 1.35 !important;
+  }
 
-      .painel-principal button,
-      .grid-cadastro button,
-      .grid-vendas button,
-      .grid-clientes button,
-      .linha-resumo button {
-        width: 100%;
-        min-height: 46px !important;
-      }
+  .painel-principal input {
+    min-height: 44px !important;
+    padding: 10px 12px !important;
+    border-radius: 12px !important;
+  }
 
-      input {
-        width: 100% !important;
-      }
-    }
+  .painel-principal button,
+  .grid-cadastro button,
+  .grid-vendas button,
+  .grid-clientes button,
+  .linha-resumo button {
+    width: 100%;
+    min-height: 36px !important;
+    padding: 7px 10px !important;
+    border-radius: 10px !important;
+  }
 
-    .paginas-etiquetas-preview {
-      display: grid;
-      gap: 12px;
-      justify-content: center;
-    }
+  .painel-principal .card-cliente button,
+  .painel-principal .card-peca button {
+    min-height: 24px !important;
+    padding: 3px 7px !important;
+    border-radius: 7px !important;
+    font-size: 10px !important;
+    line-height: 1 !important;
+  }
+  .painel-principal .item-cliente button {
+    min-height: 34px !important;
+    padding: 6px 10px !important;
+  }
 
-    .pagina-etiquetas {
-      width: 210mm;
-      min-height: 297mm;
-      padding: 14mm 4mm 4mm 4mm;
-      box-sizing: border-box;
-      background: #fff;
-      display: grid;
-      grid-template-columns: repeat(5, 37mm);
-      grid-template-rows: repeat(5, 46mm);
-      column-gap: 2mm;
-      row-gap: 2mm;
-      justify-content: start;
-      align-content: start;
-    }
+  input {
+    width: 100% !important;
+  }
+
+  .painel-principal img,
+  .painel-principal canvas {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  .painel-principal > div,
+  .painel-principal section,
+  .painel-principal article {
+    min-width: 0 !important;
+  }
+}
+
+.paginas-etiquetas-preview {
+  display: grid;
+  gap: 12px;
+  justify-content: center;
+}
+
+.pagina-etiquetas {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 14mm 4mm 4mm 4mm;
+  box-sizing: border-box;
+  background: #fff;
+  display: grid;
+  grid-template-columns: repeat(5, 37mm);
+  grid-template-rows: repeat(5, 46mm);
+  column-gap: 2mm;
+  row-gap: 2mm;
+  justify-content: start;
+  align-content: start;
+}
 
     @media print {
       html,
@@ -3254,6 +3299,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 sacolinhasAgrupadas={sacolinhasAgrupadas}
                 sacolinhasAbertas={sacolinhasAbertas}
                 sacolinhasSeparadas={sacolinhasSeparadas}
+                totalSacolinhasVencidas={totalSacolinhasVencidas}
                 pedidosEnvioEmMontagem={pedidosEnvioEmMontagem}
                 pedidosEnvioConcluidos={pedidosEnvioConcluidos}
                 carregandoPedidosEnvio={carregandoPedidosEnvio}
@@ -3458,26 +3504,30 @@ const input = {
 };
 
 const botao = {
-  padding: "13px 18px",
+  padding: "12px 16px",
+  minHeight: 44,
   borderRadius: 14,
   border: "none",
   background: "linear-gradient(135deg, #d96b82 0%, #b83c57 100%)",
   color: "#fff",
-  fontSize: "clamp(14px, 1.8vw, 15px)",
+  fontSize: "clamp(13px, 1.6vw, 15px)",
   cursor: "pointer",
   fontWeight: 800,
   boxShadow: "0 10px 20px rgba(184,60,87,0.28)",
   transition: "all 0.2s ease",
+  width: "100%",
 };
 
 const botaoPequeno = {
-  padding: "7px 11px",
-  borderRadius: 10,
+  padding: "8px 12px",
+  minHeight: 40,
+  borderRadius: 12,
   border: "none",
   color: "#fff",
-  fontSize: "clamp(12px, 1.5vw, 13px)",
+  fontSize: "clamp(12px, 1.4vw, 13px)",
   cursor: "pointer",
   fontWeight: 700,
+  width: "auto",
 };
 
 const gridPecas = {

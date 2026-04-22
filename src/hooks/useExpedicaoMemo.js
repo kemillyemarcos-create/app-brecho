@@ -4,6 +4,9 @@ import {
     sacolinhaJaEstaEmPedidoAtivo,
     pedidoEstaEmMontagem,
     pedidoEstaEnviado,
+    sacolinhaEstaVencida,
+    getStatusVisualSacolinha,
+    getDiasSacolinha,
 } from "../utils/expedicaoRules";
 
 export default function useExpedicaoMemo({
@@ -30,11 +33,18 @@ export default function useExpedicaoMemo({
         return (sacolinhasLive || [])
             .map((sacolinha) => {
                 const itens = getItensDaSacolinha(sacolinha, vendas) || [];
+                const quantidade = Array.isArray(itens) ? itens.length : 0;
+                const vencida = sacolinhaEstaVencida(sacolinha, vendas);
+                const diasDesdeReferencia = getDiasSacolinha(sacolinha, vendas);
+                const statusVisual = getStatusVisualSacolinha(sacolinha, vendas);
 
                 return {
                     ...sacolinha,
                     itens: Array.isArray(itens) ? itens : [],
-                    quantidade: Array.isArray(itens) ? itens.length : 0,
+                    quantidade,
+                    vencida,
+                    diasDesdeReferencia,
+                    statusVisual,
                 };
             })
             .sort((a, b) =>
@@ -45,7 +55,6 @@ export default function useExpedicaoMemo({
                 )
             );
     }, [sacolinhasLive, todasVendasLive]);
-
 
     const sacolinhasAbertas = useMemo(() => {
         return sacolinhasAgrupadas.filter((s) => s.status === "aberta");
@@ -62,6 +71,10 @@ export default function useExpedicaoMemo({
     const sacolinhasEnviadas = useMemo(() => {
         return sacolinhasAgrupadas.filter((s) => s.status === "enviada");
     }, [sacolinhasAgrupadas]);
+
+    const totalSacolinhasVencidas = useMemo(() => {
+        return sacolinhasSeparadas.filter((s) => s.vencida).length;
+    }, [sacolinhasSeparadas]);
 
     const mapaSacolinhasPorId = useMemo(() => {
         return Object.fromEntries(
@@ -119,5 +132,6 @@ export default function useExpedicaoMemo({
         pedidosEnvioAgrupados,
         pedidosEnvioEmMontagem,
         pedidosEnvioConcluidos,
+        totalSacolinhasVencidas,
     };
 }
