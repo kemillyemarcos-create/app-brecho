@@ -39,6 +39,17 @@ import {
 } from "./services/clientes";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Menu,
+  X,
+  Package,
+  Boxes,
+  ShoppingBag,
+  Radio,
+  Users,
+  BarChart3,
+  Truck,
+} from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import PreviewModal from "./components/layout/PreviewModal";
 import EtiquetaPrint from "./components/print/EtiquetaPrint";
@@ -2213,6 +2224,165 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       });
   }, [pecas, buscaPeca, filtroEstoque, pecaIdsEnviados]);
 
+  const MENU_ITEMS = [
+    { id: "cadastro", label: "Cadastro", icon: Package },
+    { id: "pecas", label: "Estoque", icon: Boxes },
+    { id: "vendas", label: "Vendas", icon: ShoppingBag },
+    { id: "lives", label: "Lives", icon: Radio },
+    { id: "clientes", label: "Clientes", icon: Users },
+    { id: "faturamento", label: "Faturamento", icon: BarChart3 },
+    { id: "expedicao", label: "Expedição", icon: Truck },
+  ];
+
+  function getTituloAba(aba) {
+    if (aba === "cadastro") return "Cadastro";
+    if (aba === "pecas") return "Estoque";
+    if (aba === "vendas") return "Vendas";
+    if (aba === "lives") return "Lives";
+    if (aba === "clientes") return "Clientes";
+    if (aba === "faturamento") return "Faturamento";
+    if (aba === "expedicao") return "Expedição";
+    return "Painel";
+  }
+
+  const sidebarNova = {
+    ...sidebar,
+    width: isMobile ? 300 : 286,
+    minWidth: isMobile ? 300 : 286,
+    padding: isMobile ? "18px 16px" : "22px 18px",
+    borderRadius: isMobile ? 24 : 28,
+    background: CORES_APP.fundoPainel,
+    border: `1px solid ${CORES_APP.borda}`,
+    boxShadow: CORES_APP.sombraLeve,
+    display: "flex",
+    flexDirection: "column",
+    gap: 18,
+  };
+
+  const sidebarTopoNovo = {
+    display: "grid",
+    gap: 14,
+  };
+
+  const logoWrapNovo = {
+    width: isMobile ? 132 : 150,
+    height: isMobile ? 132 : 150,
+    borderRadius: 28,
+    background: "#fff7f9",
+    border: `1px solid ${CORES_APP.borda}`,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  };
+
+  const logoImagemNovo = {
+    width: "76%",
+    height: "76%",
+    objectFit: "contain",
+  };
+
+  const marcaBadgeNova = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "fit-content",
+    padding: "10px 16px",
+    borderRadius: 999,
+    background: CORES_APP.rosaClaro,
+    border: `1px solid ${CORES_APP.borda}`,
+    color: CORES_APP.rosaPrincipal,
+    fontWeight: 700,
+    fontSize: 14,
+  };
+
+  const sidebarSubtituloNovo = {
+    margin: 0,
+    color: "rgba(255,255,255,0.78)",
+    fontSize: 14,
+    lineHeight: 1.45,
+    maxWidth: 220,
+  };
+
+  const linhaDivisoriaNova = {
+    width: "100%",
+    height: 1,
+    background: "rgba(255,255,255,0.12)",
+    border: "none",
+    margin: "2px 0 0",
+  };
+
+  const menuListaNovo = {
+    display: "grid",
+    gap: 8,
+  };
+
+  const menuBotaoNovo = {
+    width: "100%",
+    border: "1px solid transparent",
+    background: "transparent",
+    color: "#8D727Bf",
+    padding: "14px 16px",
+    borderRadius: 18,
+    display: "grid",
+    gridTemplateColumns: "20px 1fr",
+    alignItems: "center",
+    gap: 14,
+    textAlign: "left",
+    cursor: "pointer",
+    fontSize: 16,
+    fontWeight:   600,
+    transition: "all 0.18s ease",
+  };
+
+  const menuBotaoAtivoNovo = {
+    ...menuBotaoNovo,
+    background: CORES_APP.rosaClaro,
+    color: CORES_APP.rosaPrincipal,
+    border: `1px solid ${CORES_APP.borda}`,
+    boxShadow: "none",
+  };
+
+  const sidebarRodapeNovo = {
+    marginTop: "auto",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.70)",
+    lineHeight: 1.4,
+    paddingTop: 8,
+  };
+
+  const topoMobileNovo = {
+    position: "sticky",
+    top: 0,
+    zIndex: 1000,
+    marginBottom: 8,
+    background: CORES_APP.fundoPainel,
+    backdropFilter: "blur(8px)",
+    borderRadius: 18,
+    padding: "12px 14px",
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    alignItems: "center",
+    gap: 12,
+    boxShadow: CORES_APP.sombraLeve,
+  };
+
+  const botaoMenuMobileNovo = {
+    background: CORES_APP.rosaPrincipal,
+    color: "#fff",
+    border: "none",
+    borderRadius: 12,
+    width: 44,
+    height: 44,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    flexShrink: 0,
+    boxShadow: "none",
+    padding: 0,
+  };
+
   if (modoCadastroPublicoAtivo()) {
     return (
       <CadastroPublicoCliente
@@ -2553,24 +2723,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       </style>
 
       {isMobile && (
-        <div
-          className="topo-mobile"
-          style={{
-            position: "sticky",
-            top: 0,
-            zIndex: 1000,
-            marginBottom: 8,
-            background: "rgba(255,255,255,0.95)",
-            backdropFilter: "blur(8px)",
-            borderRadius: 18,
-            padding: "12px 14px",
-            display: "grid",
-            gridTemplateColumns: "1fr auto",
-            alignItems: "center",
-            gap: 12,
-            boxShadow: "0 8px 20px rgba(0,0,0,0.10)",
-          }}
-        >
+        <div className="topo-mobile" style={topoMobileNovo}>
           <div
             style={{
               minWidth: 0,
@@ -2581,39 +2734,34 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
               style={{
                 display: "block",
                 fontSize: "clamp(16px, 4vw, 18px)",
-                color: "#8f2745",
+                color: CORES_APP.rosaPrincipal,
                 whiteSpace: "nowrap",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
               }}
             >
-              {abaAtiva === "cadastro" && "Cadastro"}
-              {abaAtiva === "pecas" && "Estoque"}
-              {abaAtiva === "vendas" && "Vendas"}
-              {abaAtiva === "lives" && "Lives"}
-              {abaAtiva === "clientes" && "Clientes"}
-              {abaAtiva === "faturamento" && "Faturamento"}
-              {abaAtiva === "expedicao" && "Expedição"}
+              {getTituloAba(abaAtiva)}
             </strong>
+
+            <span
+              style={{
+                display: "block",
+                marginTop: 2,
+                fontSize: 12,
+                color: CORES_APP.textoSuave,
+              }}
+            >
+              Painel operacional do brechó
+            </span>
           </div>
 
           <button
+            type="button"
             onClick={() => setMenuMobileAberto((prev) => !prev)}
-            style={{
-              background: "#8f2745",
-              color: "#fff",
-              border: "none",
-              borderRadius: 12,
-              padding: "10px 12px",
-              fontSize: "clamp(13px, 3.5vw, 14px)",
-              fontWeight: "bold",
-              cursor: "pointer",
-              width: "auto",
-              minWidth: 96,
-              flexShrink: 0,
-            }}
+            style={botaoMenuMobileNovo}
+            aria-label={menuMobileAberto ? "Fechar menu" : "Abrir menu"}
           >
-            {menuMobileAberto ? "Fechar" : "Menu"}
+            {menuMobileAberto ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
       )}
@@ -2622,108 +2770,55 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         <aside
           className="sidebar-app"
           style={{
-            ...sidebar,
+            ...sidebarNova,
             display: isMobile ? (menuMobileAberto ? "flex" : "none") : "flex",
           }}
         >
-          <div style={sidebarTopo}>
-            <div style={logoWrap}>
-              <img src={logoKchic} alt="K.chic" style={logoImagem} />
+          <div style={sidebarTopoNovo}>
+            <div style={logoWrapNovo}>
+              <img src={logoKchic} alt="K.chic" style={logoImagemNovo} />
             </div>
 
-            <div style={marcaBadge}>Painel de gestão</div>
-            <p style={sidebarSubtitulo}>
+            <div style={marcaBadgeNova}>Painel de gestão</div>
+
+            <p style={sidebarSubtituloNovo}>
               Estoque, vendas, clientes e lives em um só lugar.
             </p>
+
+            <hr style={linhaDivisoriaNova} />
           </div>
 
-          <div className="menu-lista" style={menuLista}>
-            <button
-              style={abaAtiva === "cadastro" ? menuBotaoAtivo : menuBotao}
-              onClick={() => {
-                setAbaAtiva("cadastro");
-                if (isMobile) {
-                  setMenuMobileAberto(false);
-                }
-              }}
-            >
-              Cadastro
-            </button>
+          <div className="menu-lista" style={menuListaNovo}>
+            {MENU_ITEMS.map((item) => {
+              const Icone = item.icon;
+              const ativo = abaAtiva === item.id;
 
-            <button
-              style={abaAtiva === "pecas" ? menuBotaoAtivo : menuBotao}
-              onClick={() => {
-                setAbaAtiva("pecas");
-                if (isMobile) {
-                  setMenuMobileAberto(false);
-                }
-              }}
-            >
-              Estoque
-            </button>
-
-            <button
-              style={abaAtiva === "vendas" ? menuBotaoAtivo : menuBotao}
-              onClick={() => {
-                setAbaAtiva("vendas");
-                if (isMobile) {
-                  setMenuMobileAberto(false);
-                }
-              }}
-            >
-              Vendas
-            </button>
-
-            <button
-              style={abaAtiva === "lives" ? menuBotaoAtivo : menuBotao}
-              onClick={() => {
-                setAbaAtiva("lives");
-                if (isMobile) {
-                  setMenuMobileAberto(false);
-                }
-              }}
-            >
-              Lives
-            </button>
-
-            <button
-              style={abaAtiva === "clientes" ? menuBotaoAtivo : menuBotao}
-              onClick={() => {
-                setAbaAtiva("clientes");
-                if (isMobile) {
-                  setMenuMobileAberto(false);
-                }
-              }}
-            >
-              Clientes
-            </button>
-
-            <button
-              style={abaAtiva === "faturamento" ? menuBotaoAtivo : menuBotao}
-              onClick={() => {
-                setAbaAtiva("faturamento");
-                if (isMobile) {
-                  setMenuMobileAberto(false);
-                }
-              }}
-            >
-              Faturamento
-            </button>
-
-            <button
-              style={abaAtiva === "expedicao" ? menuBotaoAtivo : menuBotao}
-              onClick={() => {
-                setAbaAtiva("expedicao");
-                if (isMobile) {
-                  setMenuMobileAberto(false);
-                }
-              }}
-            >
-              Expedição
-            </button>
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  style={ativo ? menuBotaoAtivoNovo : menuBotaoNovo}
+                  onMouseEnter={(e) => {
+                    if (!ativo) e.currentTarget.style.background = CORES_APP.rosaHover;
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!ativo) e.currentTarget.style.background = "transparent";
+                  }}
+                  onClick={() => {
+                    setAbaAtiva(item.id);
+                    if (isMobile) {
+                      setMenuMobileAberto(false);
+                    }
+                  }}
+                >
+                  <Icone size={20} strokeWidth={2} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
           </div>
 
-          <div style={sidebarRodape}>
+          <div style={sidebarRodapeNovo}>
             {carregando ? "Carregando dados..." : "Dados sincronizados com Supabase"}
           </div>
         </aside>
@@ -3061,7 +3156,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                           gridTemplateColumns: "1.45fr 1fr 1fr auto",
                           fontWeight: "bold",
                           padding: "1px 16px",
-                          color: "#475569",
+                          color: CORES_APP.textoSuave,
                         }}
                       >
                         <div>Live</div>
@@ -3270,7 +3365,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                               </span>
                             </div>
 
-                            <div style={{ color: "#475569", fontSize: 14 }}>
+                            <div style={{ color: CORES_APP.textoSuave, fontSize: 14 }}>
                               <strong>Data:</strong> {live.data ? formatarDataBR(live.data) : "-"}
                             </div>
 
@@ -3364,7 +3459,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           }
 
           button:active {
-            transform: translateY(0);
+            transform: translateY(2px);
           }
 
           img {
@@ -3426,12 +3521,26 @@ const linhaResumo = {
   marginBottom: 24,
 };
 
+const CORES_APP = {
+  fundoApp: "#FFF7F9",
+  fundoPainel: "#FFFFFF",
+  borda: "#F2E3E8",
+  bordaSuave: "#F7E9EE",
+  rosaClaro: "#FAE3E8",
+  rosaHover: "#FDF1F4",
+  rosaPrincipal: "#DF5E78",
+  rosaEscuro: "#B94A62",
+  texto: "#2F2F35",
+  textoSuave: "#8D727B",
+  sombraLeve: "0 10px 30px rgba(223,94,120,0.08)",
+};
+
 const boxGrande = {
-  border: "1px solid rgba(233, 142, 157, 0.18)",
+  border: `1px solid ${CORES_APP.borda}`,
   borderRadius: 22,
   padding: 22,
-  background: "linear-gradient(180deg, #ffffff 0%, #fff7f9 100%)",
-  boxShadow: "0 10px 30px rgba(191,75,101,0.08)",
+  background: CORES_APP.fundoPainel,
+  boxShadow: CORES_APP.sombraLeve,
 };
 
 const tituloSecao = {
@@ -3439,7 +3548,7 @@ const tituloSecao = {
   marginBottom: 16,
   fontSize: "clamp(20px, 2.2vw, 22px)",
   fontWeight: 800,
-  color: "#123044",
+  color: CORES_APP.texto,
   letterSpacing: "-0.3px",
   lineHeight: 1.15,
 };
@@ -3468,10 +3577,10 @@ const gridVendas = {
 };
 
 const previewBox = {
-  border: "1px solid #e5e7eb",
+  border: `1px solid ${CORES_APP.borda}`,
   borderRadius: 18,
   padding: 16,
-  background: "#f8fbfd",
+  background: "#fffafb",
 };
 
 const semFoto = {
@@ -3508,12 +3617,12 @@ const botao = {
   minHeight: 44,
   borderRadius: 14,
   border: "none",
-  background: "linear-gradient(135deg, #d96b82 0%, #b83c57 100%)",
+  background: CORES_APP.rosaPrincipal,
   color: "#fff",
   fontSize: "clamp(13px, 1.6vw, 15px)",
   cursor: "pointer",
   fontWeight: 800,
-  boxShadow: "0 10px 20px rgba(184,60,87,0.28)",
+  boxShadow: "0 8px 18px rgba(223,94,120,0.22)",
   transition: "all 0.2s ease",
   width: "100%",
 };
@@ -3537,11 +3646,11 @@ const gridPecas = {
 };
 
 const cardPeca = {
-  border: "1px solid #dbe4ec",
+  border: `1px solid ${CORES_APP.borda}`,
   borderRadius: 18,
   padding: 16,
   background: "#fff",
-  boxShadow: "0 4px 14px rgba(15,23,42,0.05)",
+  boxShadow: CORES_APP.sombraLeve,
   transition: "all 0.2s ease",
 };
 
@@ -3555,11 +3664,11 @@ const linhaResumoHorizontal = {
 const cardResumo = {
   flex: 1,
   minWidth: 180,
-  border: "1px solid rgba(191,75,101,0.18)",
+  border: `1px solid ${CORES_APP.borda}`,
   borderRadius: 20,
   padding: 18,
-  background: "linear-gradient(135deg, #ffffff 0%, #fff1f4 100%)",
-  boxShadow: "0 10px 22px rgba(191,75,101,0.10)",
+  background: "#fff",
+  boxShadow: CORES_APP.sombraLeve,
 };
 
 const linhaAcoes = {
@@ -3582,32 +3691,32 @@ const valorResumo = {
   marginTop: 10,
   fontSize: "clamp(24px, 4vw, 32px)",
   fontWeight: 800,
-  color: "#9f4156",
+  color: CORES_APP.rosaPrincipal,
   letterSpacing: "-0.5px",
   lineHeight: 1.1,
 };
 
 const textoItem = {
   margin: "4px 0",
-  color: "#475569",
+  color: CORES_APP.textoSuave,
   fontSize: "clamp(13px, 1.7vw, 14px)",
   lineHeight: 1.4,
 };
 
 const cardCliente = {
-  border: "1px solid #dbe4ec",
+  border: `1px solid ${CORES_APP.borda}`,
   borderRadius: 18,
   padding: 16,
   background: "#fff",
-  boxShadow: "0 4px 14px rgba(15,23,42,0.05)",
+  boxShadow: CORES_APP.sombraLeve,
   transition: "all 0.2s ease",
 };
 
 const itemCliente = {
-  border: "1px solid #e5e7eb",
+  border: `1px solid ${CORES_APP.bordaSuave}`,
   borderRadius: 12,
   padding: 12,
-  background: "#f8fafc",
+  background: "#fffafb",
 };
 
 const layoutApp = {
@@ -3616,24 +3725,24 @@ const layoutApp = {
   gridTemplateColumns: "280px 1fr",
   gap: 16,
   padding: 16,
-  background: "linear-gradient(180deg, #052c3b 0%, #08364a 100%)",
+  background: CORES_APP.fundoApp,
   boxSizing: "border-box",
 };
 
 const sidebar = {
-  background: "linear-gradient(180deg, #7c2d3c 0%, #9f4156 100%)",
+  background: CORES_APP.fundoPainel,
   borderRadius: 24,
   padding: 20,
-  color: "#fff",
+  color: CORES_APP.texto,
   display: "flex",
   flexDirection: "column",
   gap: 12,
-  boxShadow: "0 12px 30px rgba(124,45,60,0.28)",
+  boxShadow: CORES_APP.sombraLeve,
 };
 
 const sidebarTopo = {
   paddingBottom: 16,
-  borderBottom: "1px solid rgba(255,255,255,0.12)",
+  borderBottom: `1px solid ${CORES_APP.borda}`,
   marginBottom: 8,
 };
 
@@ -3648,7 +3757,7 @@ const sidebarTitulo = {
 const sidebarSubtitulo = {
   margin: "6px 0 0 0",
   fontSize: "clamp(12px, 1.6vw, 13px)",
-  color: "rgba(255,255,255,0.72)",
+  color: CORES_APP.textoSuave,
   lineHeight: 1.4,
 };
 
@@ -3663,7 +3772,7 @@ const menuBotao = {
   borderRadius: 14,
   border: "1px solid transparent",
   background: "transparent",
-  color: "#fff",
+  color: CORES_APP.textoSuave,
   textAlign: "left",
   fontSize: 15,
   fontWeight: 600,
@@ -3683,7 +3792,7 @@ const sidebarRodape = {
   paddingTop: 16,
   borderTop: "1px solid rgba(255,255,255,0.12)",
   fontSize: 12,
-  color: "rgba(255,255,255,0.65)",
+  color: CORES_APP.textoSuave,
 };
 
 const areaPrincipal = {
@@ -3693,12 +3802,11 @@ const areaPrincipal = {
 };
 
 const painelPrincipal = {
-  background: "rgba(255,255,255,0.90)",
-  backdropFilter: "blur(6px)",
+  background: CORES_APP.fundoPainel,
   borderRadius: 24,
   minHeight: "calc(100vh - 32px)",
   padding: 24,
-  boxShadow: "0 12px 30px rgba(149,79,96,0.14)",
+  boxShadow: CORES_APP.sombraLeve,
   overflow: "hidden",
   width: "100%",
   overflowX: "hidden",
@@ -3718,13 +3826,13 @@ const topoPainelTitulo = {
   margin: 0,
   fontSize: "clamp(26px, 3.5vw, 28px)",
   fontWeight: 800,
-  color: "#7c2d3c",
+  color: CORES_APP.rosaPrincipal,
   letterSpacing: "-0.4px",
   lineHeight: 1.1,
 };
 
 const topoPainelTexto = {
-  color: "#5b6b79",
+  color: CORES_APP.textoSuave,
   marginTop: 6,
   marginBottom: 0,
   fontSize: "clamp(13px, 1.8vw, 14px)",
