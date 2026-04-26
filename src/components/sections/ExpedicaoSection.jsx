@@ -112,7 +112,7 @@ function ListaItensSacolinha({ itens, itemLista, mapaPecasPorId, formatarBRL }) 
                 <strong>Código:</strong> {item.peca_id || "-"}
             </div>
             <div>
-                <strong>Valor:</strong> {formatarBRL(item.valor_venda || 0)}
+                <strong>Valor:</strong> {formatarBRL(item.valor_venda || item.valor || 0)}
             </div>
         </div>
     ));
@@ -338,6 +338,10 @@ export default function ExpedicaoSection({
                                                                 {s.quantidade} peça(s)
                                                             </span>
 
+                                                            <span style={{ fontSize: isMobile ? 13 : 14 }}>
+                                                                {formatarBRL(s.valorTotal || 0)}
+                                                            </span>
+
                                                             {vencida ? (
                                                                 <span style={{ ...badgeBase, background: "#dc2626" }}>
                                                                     VENCIDA
@@ -424,6 +428,10 @@ export default function ExpedicaoSection({
 
                                                             <span style={{ fontSize: isMobile ? 13 : 14 }}>
                                                                 {s.quantidade} peça(s)
+                                                            </span>
+
+                                                            <span style={{ fontSize: isMobile ? 13 : 14 }}>
+                                                                {formatarBRL(s.valorTotal || 0)}
                                                             </span>
 
                                                             <span
@@ -564,6 +572,10 @@ export default function ExpedicaoSection({
                                                         {p.quantidadeCalculada} peça(s)
                                                     </span>
 
+                                                    <span style={{ fontSize: isMobile ? 13 : 14 }}>
+                                                        Total: {formatarBRL(p.valorTotalPedido || 0)}
+                                                    </span>
+
                                                     <span
                                                         style={{
                                                             ...badgeBase,
@@ -628,6 +640,10 @@ export default function ExpedicaoSection({
                                                                 <div>
                                                                     <strong>Peças:</strong> {sacolinha.quantidade || 0}
                                                                 </div>
+                                                                <div>
+                                                                    <strong>Total:</strong>{" "}
+                                                                    {formatarBRL(sacolinha.valorTotal || 0)}
+                                                                </div>
                                                             </div>
                                                         ))
                                                     )}
@@ -672,6 +688,9 @@ export default function ExpedicaoSection({
 
                                                                         <div style={{ fontSize: 12, color: "#555" }}>
                                                                             Código: {item.peca_id || "-"}
+                                                                        </div>
+                                                                        <div style={{ fontSize: 12, color: "#555" }}>
+                                                                            Valor: {formatarBRL(item.valor_venda || item.valor || 0)}
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -751,6 +770,10 @@ export default function ExpedicaoSection({
                                                     </span>
 
                                                     <span style={{ fontSize: isMobile ? 13 : 14 }}>
+                                                        Total: {formatarBRL(p.valorTotalPedido || 0)}
+                                                    </span>
+
+                                                    <span style={{ fontSize: isMobile ? 13 : 14 }}>
                                                         Enviado em: {p.enviado_em || "-"}
                                                     </span>
                                                 </div>
@@ -776,6 +799,10 @@ export default function ExpedicaoSection({
                                                                 </div>
                                                                 <div>
                                                                     <strong>Peças:</strong> {sacolinha.quantidade || 0}
+                                                                </div>
+                                                                <div>
+                                                                    <strong>Total:</strong>{" "}
+                                                                    {formatarBRL(sacolinha.valorTotal || 0)}
                                                                 </div>
                                                             </div>
                                                         ))
@@ -804,6 +831,9 @@ export default function ExpedicaoSection({
                                                                     </div>
                                                                     <div style={{ fontSize: 12, color: "#555" }}>
                                                                         Código: {item.peca_id || "-"}
+                                                                    </div>
+                                                                    <div style={{ fontSize: 12, color: "#555" }}>
+                                                                        Valor: {formatarBRL(item.valor_venda || item.valor || 0)}
                                                                     </div>
                                                                 </div>
                                                             </div>

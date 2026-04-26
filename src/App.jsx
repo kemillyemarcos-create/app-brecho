@@ -216,7 +216,14 @@ function parseDataFlex(valor) {
 function formatarDataHoraBR(valor) {
   const data = parseDataFlex(valor);
   if (!data) return "";
-  return data.toLocaleString("pt-BR");
+
+  return data.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatarDataBR(valor) {
@@ -249,11 +256,12 @@ Status do pagamento: ${clienteResumo.pago ? "Pago" : "Pendente"}
 Total de peças: ${clienteResumo.pecas}
 Valor total: ${formatarBRL(clienteResumo.total)}
 
-${clienteResumo.itens
-      .map(
-        (item, index) =>
-          `${index + 1}. ${item.nomePeca} - ${formatarBRL(item.valor)} - Código: ${item.codigo} - ${item.dataVenda || ""}`
-      )
+${(clienteResumo.itens || [])
+      .map((item, index) => {
+        const dataVendaFormatada = formatarDataHoraBR(item.dataVenda);
+
+        return `${index + 1}. ${item.nomePeca} - ${formatarBRL(item.valor)} - Código: ${item.codigo}${dataVendaFormatada ? ` - ${dataVendaFormatada}` : ""}`;
+      })
       .join("\n")}
 
 PIX para pagamento:
@@ -1471,8 +1479,8 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         p.obs || "",
         p.vendido ? "Vendido" : "Disponivel",
         p.cliente || "",
-        p.data_cadastro || "",
-        p.data_venda || "",
+        formatarDataHoraBR(p.data_cadastro) || "",
+        formatarDataHoraBR(p.data_venda) || "",
       ]),
     ];
 
@@ -1491,7 +1499,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         item.codigo,
         item.nomePeca,
         Number(item.valor || 0).toFixed(2),
-        item.dataVenda || "",
+        formatarDataHoraBR(item.dataVenda) || item.dataVenda || "",
       ]),
     ];
 
@@ -1517,7 +1525,15 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   }
 
   function gerarComanda(clienteResumo) {
-    abrirPreview(PREVIEW_TIPO.COMANDA, clienteResumo);
+    const comandaFormatada = {
+      ...clienteResumo,
+      itens: (clienteResumo.itens || []).map((item) => ({
+        ...item,
+        dataVenda: formatarDataHoraBR(item.dataVenda) || item.dataVenda || "",
+      })),
+    };
+
+    abrirPreview(PREVIEW_TIPO.COMANDA, comandaFormatada);
   }
 
   async function carregarSacolinhasLive() {
@@ -2093,6 +2109,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     sacolinhasLive,
     pedidoEnvioSacolinhas,
     pedidosEnvio,
+    mapaPecasPorId,
   });
 
   const {
@@ -2194,33 +2211,17 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         return true;
       })
       .sort((a, b) => {
-        function toTimestamp(dataStr) {
-          if (!dataStr) return 0;
+        const dataA =
+          parseDataFlex(a?.data_cadastro || a?.criado_em || a?.created_at)?.getTime() || 0;
+        const dataB =
+          parseDataFlex(b?.data_cadastro || b?.criado_em || b?.created_at)?.getTime() || 0;
 
-          const texto = String(dataStr).trim();
+        if (dataB !== dataA) return dataB - dataA;
 
-          const match = texto.match(
-            /^(\d{2})\/(\d{2})\/(\d{4}),?\s*(\d{2}):(\d{2})(?::(\d{2}))?$/
-          );
-
-          if (!match) return 0;
-
-          const [, dia, mes, ano, hora, minuto, segundo = "00"] = match;
-
-          return new Date(
-            Number(ano),
-            Number(mes) - 1,
-            Number(dia),
-            Number(hora),
-            Number(minuto),
-            Number(segundo)
-          ).getTime();
-        }
-
-        const dataA = toTimestamp(a?.data_cadastro);
-        const dataB = toTimestamp(b?.data_cadastro);
-
-        return dataB - dataA;
+        return String(b?.id || "").localeCompare(String(a?.id || ""), "pt-BR", {
+          numeric: true,
+          sensitivity: "base",
+        });
       });
   }, [pecas, buscaPeca, filtroEstoque, pecaIdsEnviados]);
 
@@ -2298,7 +2299,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
   const sidebarSubtituloNovo = {
     margin: 0,
-    color: "rgba(255,255,255,0.78)",
+    color: CORES_APP.textoSuave,
     fontSize: 14,
     lineHeight: 1.45,
     maxWidth: 220,
@@ -2307,7 +2308,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   const linhaDivisoriaNova = {
     width: "100%",
     height: 1,
-    background: "rgba(255,255,255,0.12)",
+    background: CORES_APP.borda,
     border: "none",
     margin: "2px 0 0",
   };
@@ -2321,7 +2322,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     width: "100%",
     border: "1px solid transparent",
     background: "transparent",
-    color: "#8D727Bf",
+    color: CORES_APP.textoSuave,
     padding: "14px 16px",
     borderRadius: 18,
     display: "grid",
@@ -2331,7 +2332,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     textAlign: "left",
     cursor: "pointer",
     fontSize: 16,
-    fontWeight:   600,
+    fontWeight: 600,
     transition: "all 0.18s ease",
   };
 
@@ -2346,7 +2347,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   const sidebarRodapeNovo = {
     marginTop: "auto",
     fontSize: 12,
-    color: "rgba(255,255,255,0.70)",
+    color: CORES_APP.textoSuave,
     lineHeight: 1.4,
     paddingTop: 8,
   };
@@ -3458,7 +3459,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
             opacity: 0.98;
           }
 
-          button:active {
+          button:aactive {
             transform: translateY(2px);
           }
 

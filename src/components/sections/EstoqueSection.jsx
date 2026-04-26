@@ -1,5 +1,67 @@
 import { QRCodeCanvas } from "qrcode.react";
 
+function parseDataFlex(valor) {
+    if (!valor) return null;
+
+    if (valor instanceof Date) {
+        return Number.isNaN(valor.getTime()) ? null : valor;
+    }
+
+    const texto = String(valor).trim();
+    if (!texto) return null;
+
+    if (texto.includes("T")) {
+        const dataIso = new Date(texto);
+        return Number.isNaN(dataIso.getTime()) ? null : dataIso;
+    }
+
+    const matchBr = texto.match(
+        /^(\d{2})\/(\d{2})\/(\d{4})(?:,?\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/
+    );
+
+    if (matchBr) {
+        const [, dia, mes, ano, hora = "00", minuto = "00", segundo = "00"] = matchBr;
+
+        const dataBr = new Date(
+            Number(ano),
+            Number(mes) - 1,
+            Number(dia),
+            Number(hora),
+            Number(minuto),
+            Number(segundo)
+        );
+
+        return Number.isNaN(dataBr.getTime()) ? null : dataBr;
+    }
+
+    const dataDireta = new Date(texto);
+    return Number.isNaN(dataDireta.getTime()) ? null : dataDireta;
+}
+
+function getTimestampCadastro(peca) {
+    const data =
+        parseDataFlex(peca?.data_cadastro) ||
+        parseDataFlex(peca?.criado_em) ||
+        parseDataFlex(peca?.created_at);
+
+    return data ? data.getTime() : 0;
+}
+
+function formatarDataLocal(valor) {
+    const data = parseDataFlex(valor);
+
+    if (!data) return valor || "-";
+
+    return data.toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+}
+
+
 export default function EstoqueSection({
     pecasFiltradas,
     totalPecas,
@@ -34,6 +96,18 @@ export default function EstoqueSection({
     textoItem,
 }) {
     const isMobile = typeof window !== "undefined" ? window.innerWidth <= 767 : false;
+
+    const pecasOrdenadas = [...(pecasFiltradas || [])].sort((a, b) => {
+        const dataB = getTimestampCadastro(b);
+        const dataA = getTimestampCadastro(a);
+
+        if (dataB !== dataA) return dataB - dataA;
+
+        return String(b?.id || "").localeCompare(String(a?.id || ""), "pt-BR", {
+            numeric: true,
+            sensitivity: "base",
+        });
+    });
 
     const botaoFiltroBase = {
         ...botaoPequeno,
@@ -203,7 +277,7 @@ export default function EstoqueSection({
                 </button>
             </div>
 
-            {pecasFiltradas.length === 0 ? (
+            {pecasOrdenadas.length === 0 ? (
                 <p>Nenhuma peça encontrada.</p>
             ) : (
                 <div
@@ -212,16 +286,16 @@ export default function EstoqueSection({
                         gap: isMobile ? 10 : gridPecas.gap,
                     }}
                 >
-                    {pecasFiltradas.map((p, index) => {
+                    {pecasOrdenadas.map((p, index) => {
                         const codigo = String(p?.id || `sem-codigo-${index}`);
                         const nome = p?.nome || "Sem nome";
                         const custo = p?.custo ? p.custo : formatarBRL(0);
                         const venda = p?.venda ? p.venda : formatarBRL(0);
                         const obs = p?.obs || "-";
-                        const cadastro = p?.data_cadastro || "-";
+                        const cadastro = formatarDataLocal(p?.data_cadastro || p?.criado_em || p?.created_at);
                         const clienteNome = p?.cliente || "";
                         const vendido = !!p?.vendido;
-                        const dataVenda = p?.data_venda || "";
+                        const dataVenda = formatarDataLocal(p?.data_venda);
                         const etiquetaSelecionada = etiquetasSelecionadas.includes(codigo);
 
                         return (

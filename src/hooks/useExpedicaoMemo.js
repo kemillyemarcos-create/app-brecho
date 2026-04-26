@@ -9,11 +9,57 @@ import {
     getDiasSacolinha,
 } from "../utils/expedicaoRules";
 
+function limparValor(valor) {
+    if (valor === null || valor === undefined || valor === "") return 0;
+
+    if (typeof valor === "number") {
+        return Number.isNaN(valor) ? 0 : valor;
+    }
+
+    const texto = String(valor)
+        .trim()
+        .replace("R$", "")
+        .replace(/\s/g, "")
+        .replace(/\./g, "")
+        .replace(",", ".");
+
+    const numero = Number(texto);
+
+    return Number.isNaN(numero) ? 0 : numero;
+}
+
+function getValorItemExpedicao(item, mapaPecasPorId = {}) {
+    const valorDireto =
+        limparValor(item?.valor_venda) ||
+        limparValor(item?.valor_venda_final) ||
+        limparValor(item?.valor) ||
+        limparValor(item?.venda) ||
+        limparValor(item?.preco);
+
+    if (valorDireto > 0) return valorDireto;
+
+    const peca =
+        mapaPecasPorId[String(item?.peca_id)] ||
+        mapaPecasPorId[String(item?.id)] ||
+        mapaPecasPorId[String(item?.codigo)] ||
+        null;
+
+    return (
+        limparValor(peca?.valor_venda_final) ||
+        limparValor(peca?.valor_venda) ||
+        limparValor(peca?.venda) ||
+        limparValor(peca?.valor) ||
+        limparValor(peca?.preco) ||
+        0
+    );
+}
+
 export default function useExpedicaoMemo({
     todasVendasLive,
     sacolinhasLive,
     pedidoEnvioSacolinhas,
     pedidosEnvio,
+    mapaPecasPorId = {},
 }) {
     const pecaIdsEnviados = useMemo(() => {
         const sacolinhasEnviadasIds = new Set(
@@ -33,15 +79,22 @@ export default function useExpedicaoMemo({
         return (sacolinhasLive || [])
             .map((sacolinha) => {
                 const itens = getItensDaSacolinha(sacolinha, vendas) || [];
-                const quantidade = Array.isArray(itens) ? itens.length : 0;
+                const itensValidos = Array.isArray(itens) ? itens : [];
+
+                const valorTotal = itensValidos.reduce((acc, item) => {
+                    return acc + getValorItemExpedicao(item, mapaPecasPorId);
+                }, 0);
+
+                const quantidade = itensValidos.length;
                 const vencida = sacolinhaEstaVencida(sacolinha, vendas);
                 const diasDesdeReferencia = getDiasSacolinha(sacolinha, vendas);
                 const statusVisual = getStatusVisualSacolinha(sacolinha, vendas);
 
                 return {
                     ...sacolinha,
-                    itens: Array.isArray(itens) ? itens : [],
+                    itens: itensValidos,
                     quantidade,
+                    valorTotal,
                     vencida,
                     diasDesdeReferencia,
                     statusVisual,
@@ -54,7 +107,7 @@ export default function useExpedicaoMemo({
                     { sensitivity: "base" }
                 )
             );
-    }, [sacolinhasLive, todasVendasLive]);
+    }, [sacolinhasLive, todasVendasLive, mapaPecasPorId]);
 
     const sacolinhasAbertas = useMemo(() => {
         return sacolinhasAgrupadas.filter((s) => s.status === "aberta");
@@ -64,7 +117,11 @@ export default function useExpedicaoMemo({
         return sacolinhasAgrupadas.filter(
             (s) =>
                 s.status === "separada" &&
-                !sacolinhaJaEstaEmPedidoAtivo(s.id, pedidoEnvioSacolinhas, pedidosEnvio)
+                !sacolinhaJaEstaEmPedidoAtivo(
+                    s.id,
+                    pedidoEnvioSacolinhas,
+                    pedidosEnvio
+                )
         );
     }, [sacolinhasAgrupadas, pedidoEnvioSacolinhas, pedidosEnvio]);
 
@@ -92,16 +149,35 @@ export default function useExpedicaoMemo({
                 .map((v) => mapaSacolinhasPorId[String(v.sacolinha_id)])
                 .filter(Boolean);
 
-            const sacolinhasComItens = sacolinhasDoPedido.map((sacolinha) => ({
-                ...sacolinha,
-                quantidade: sacolinha.quantidade || 0,
-                itens: sacolinha.itens || [],
-            }));
+            const sacolinhasComItens = sacolinhasDoPedido.map((sacolinha) => {
+                const itens = sacolinha.itens || [];
+                const quantidade = sacolinha.quantidade || itens.length || 0;
 
-            const itens = sacolinhasComItens.flatMap((sacolinha) => sacolinha.itens || []);
+                const valorTotal =
+                    Number(sacolinha.valorTotal) ||
+                    itens.reduce((acc, item) => {
+                        return acc + getValorItemExpedicao(item, mapaPecasPorId);
+                    }, 0);
+
+                return {
+                    ...sacolinha,
+                    quantidade,
+                    valorTotal,
+                    itens,
+                };
+            });
+
+            const itens = sacolinhasComItens.flatMap(
+                (sacolinha) => sacolinha.itens || []
+            );
 
             const quantidadeTotal = sacolinhasComItens.reduce(
-                (acc, s) => acc + s.quantidade,
+                (acc, s) => acc + (s.quantidade || 0),
+                0
+            );
+
+            const valorTotalPedido = sacolinhasComItens.reduce(
+                (acc, s) => acc + (Number(s.valorTotal) || 0),
                 0
             );
 
@@ -109,10 +185,17 @@ export default function useExpedicaoMemo({
                 ...pedido,
                 sacolinhas: sacolinhasComItens,
                 quantidadeCalculada: quantidadeTotal,
+                valorTotalPedido,
+                valorTotal: valorTotalPedido,
                 itens,
             };
         });
-    }, [pedidosEnvio, pedidoEnvioSacolinhas, mapaSacolinhasPorId]);
+    }, [
+        pedidosEnvio,
+        pedidoEnvioSacolinhas,
+        mapaSacolinhasPorId,
+        mapaPecasPorId,
+    ]);
 
     const pedidosEnvioEmMontagem = useMemo(() => {
         return pedidosEnvioAgrupados.filter((p) => pedidoEstaEmMontagem(p));
