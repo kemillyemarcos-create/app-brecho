@@ -146,13 +146,20 @@ export default function PreviewModal({
                                     borderRadius: 14,
                                     padding: 16,
                                     display: "grid",
-                                    gridTemplateColumns: "repeat(4, 1fr)",
+                                    gridTemplateColumns: "repeat(5, 1fr)",
                                     gap: 12,
                                 }}
                             >
                                 <div>
                                     <div style={{ fontSize: 13, color: "#6b7280" }}>Cliente</div>
                                     <div style={{ fontWeight: "bold" }}>{dadosPreview.nome}</div>
+                                </div>
+
+                                <div>
+                                    <div style={{ fontSize: 13, color: "#6b7280" }}>Live</div>
+                                    <div style={{ fontWeight: "bold" }}>
+                                        {dadosPreview.liveNome || dadosPreview.live || "-"}
+                                    </div>
                                 </div>
 
                                 <div>

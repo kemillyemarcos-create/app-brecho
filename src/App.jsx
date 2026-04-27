@@ -475,12 +475,23 @@ export default function App() {
 
     if (data) {
       setLiveAtual(data);
-      setLiveSelecionada(data);
-    } else {
-      setLiveAtual(null);
-      setLiveSelecionada(null);
-      setVendasLive([]);
+
+      setLiveSelecionada((prev) => {
+        if (prev?.id) return prev;
+        return data;
+      });
+
+      return;
     }
+
+    setLiveAtual(null);
+
+    setLiveSelecionada((prev) => {
+      if (prev?.id) return prev;
+      return null;
+    });
+
+    setVendasLive((prev) => prev || []);
   }
 
   async function carregarTodasVendasLive() {
@@ -1373,7 +1384,15 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       return;
     }
 
+    // 🔥 mantém a live atual travada
+    const liveAtualAberta = liveSelecionada;
+
     await carregarPagamentosClientes();
+
+    // 🔥 re-aplica a live que estava aberta
+    if (liveAtualAberta?.id) {
+      setLiveSelecionada(liveAtualAberta);
+    }
   }
 
   async function iniciarLive() {
@@ -1527,9 +1546,18 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   function gerarComanda(clienteResumo) {
     const comandaFormatada = {
       ...clienteResumo,
+
+      // 🔥 ADICIONA NOME DA LIVE
+      liveNome:
+        liveEmVisualizacao?.nome ||
+        liveSelecionada?.nome ||
+        liveAtual?.nome ||
+        "-",
+
       itens: (clienteResumo.itens || []).map((item) => ({
         ...item,
-        dataVenda: formatarDataHoraBR(item.dataVenda) || item.dataVenda || "",
+        dataVenda:
+          formatarDataHoraBR(item.dataVenda) || item.dataVenda || "",
       })),
     };
 
