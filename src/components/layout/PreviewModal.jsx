@@ -267,6 +267,37 @@ export default function PreviewModal({
                                 <div
                                     key={paginaIndex}
                                     className="pagina-etiquetas"
+                                    style={{
+                                        width: "210mm",
+                                        minHeight: "297mm",
+                                        boxSizing: "border-box",
+
+                                        // sobe um pouco mais
+                                        paddingTop: "2mm",
+
+                                        // mantém margem lateral equilibrada (isso resolve a direita maior)
+                                        paddingLeft: "6mm",
+                                        paddingRight: "6mm",
+
+                                        display: "grid",
+
+                                        // estrutura fixa (não muda ordem)
+                                        gridTemplateColumns: "repeat(5, 37mm)",
+                                        gridAutoRows: "46mm",
+
+                                        // espaçamento real entre etiquetas
+                                        columnGap: "2mm",
+                                        rowGap: "1mm",
+
+                                        // 🔥 ESSENCIAL → centraliza a linha inteira
+                                        justifyContent: "center",
+
+                                        // mantém sempre começando de cima
+                                        alignContent: "start",
+
+                                        pageBreakAfter: "always",
+                                        breakAfter: "page",
+                                    }}
                                 >
                                     {pagina.map((peca) => (
                                         <EtiquetaPrint key={peca.id} peca={peca} />

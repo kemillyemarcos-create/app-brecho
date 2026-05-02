@@ -49,6 +49,7 @@ import {
   Users,
   BarChart3,
   Truck,
+  CreditCard,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import PreviewModal from "./components/layout/PreviewModal";
@@ -57,6 +58,7 @@ import ClientesSection from "./components/sections/ClientesSection";
 import CadastroPublicoCliente from "./components/CadastroPublicoCliente";
 import EstoqueSection from "./components/sections/EstoqueSection";
 import ExpedicaoSection from "./components/sections/ExpedicaoSection";
+import PendenciasSection from "./components/sections/PendenciasSection";
 import VendasSection from "./components/sections/VendasSection";
 import useExpedicaoMemo from "./hooks/useExpedicaoMemo";
 import useFinanceiroMemo from "./hooks/useFinanceiroMemo";
@@ -214,10 +216,18 @@ function parseDataFlex(valor) {
 }
 
 function formatarDataHoraBR(valor) {
+  if (!valor) return "";
+
+  // Se já vier formatado em pt-BR, mantém sem tentar converter de novo.
+  if (typeof valor === "string" && valor.includes("/") && valor.includes(":")) {
+    return valor;
+  }
+
   const data = parseDataFlex(valor);
   if (!data) return "";
 
   return data.toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -248,8 +258,54 @@ function baixarCSV(nomeArquivo, linhas) {
   URL.revokeObjectURL(url);
 }
 
+function getSaudacaoDinamica() {
+  const hora = Number(
+    new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      hour: "2-digit",
+      hour12: false,
+    }).format(new Date())
+  );
+
+  if (hora >= 5 && hora < 12) return "bom dia";
+  if (hora >= 12 && hora < 18) return "boa tarde";
+  return "boa noite";
+}
+
+function formatarDataLiveCurta(valor) {
+  if (!valor) return "";
+
+  const data = parseDataFlex(valor);
+  if (!data) return "";
+
+  return data.toLocaleDateString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+  });
+}
+
+function normalizarTelefoneWhatsApp(valor) {
+  const numeros = String(valor || "").replace(/\D/g, "");
+
+  if (!numeros) return "";
+  if (numeros.startsWith("55")) return numeros;
+
+  return `55${numeros}`;
+}
+
 function montarTextoComanda(clienteResumo) {
-  return `🧾 *Comanda da Cliente*
+  const saudacao = getSaudacaoDinamica();
+  const dataLiveFormatada =
+    formatarDataLiveCurta(clienteResumo?.liveData || clienteResumo?.live_data) ||
+    formatarDataLiveCurta(clienteResumo?.data_live) ||
+    "";
+
+  const complementoLive = dataLiveFormatada ? ` ${dataLiveFormatada}` : "";
+
+  return `Oie! ${saudacao} amiga, segue sua comandinha da live:${complementoLive}
+
+🧾 *Comanda da Cliente*
 
 Cliente: ${clienteResumo.nome}
 Status do pagamento: ${clienteResumo.pago ? "Pago" : "Pendente"}
@@ -340,6 +396,7 @@ export default function App() {
     typeof window !== "undefined" ? window.innerWidth < 768 : false
   );
   const [menuMobileAberto, setMenuMobileAberto] = useState(false);
+  const [mostrarBotaoTopo, setMostrarBotaoTopo] = useState(false);
 
   const scannerRef = useRef(null);
   const scannerElementId = "reader";
@@ -796,6 +853,36 @@ export default function App() {
 
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  useEffect(() => {
+    function handleScroll() {
+      setMostrarBotaoTopo(window.scrollY > 300);
+    }
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  function voltarAoTopo() {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }
+
+  function trocarAba(novaAba) {
+    setAbaAtiva(novaAba);
+
+    if (isMobile) {
+      setMenuMobileAberto(false);
+    }
+
+    setTimeout(() => {
+      voltarAoTopo();
+    }, 0);
+  }
 
   function modoCadastroPublicoAtivo() {
     if (typeof window === "undefined") return false;
@@ -1477,6 +1564,43 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     );
   }
 
+  async function marcarClientePendenteComoPago(clientePendente) {
+    const vendaIds = (clientePendente?.vendaIdsPendentes || [])
+      .map((id) => String(id || "").trim())
+      .filter(Boolean);
+
+    if (vendaIds.length === 0) {
+      alert("Nenhuma venda pendente encontrada para essa cliente.");
+      return;
+    }
+
+    const confirmar = window.confirm(
+      `Marcar ${vendaIds.length} peça(s) de ${clientePendente.nome} como pagas?`
+    );
+
+    if (!confirmar) return;
+
+    const { error } = await supabase
+      .from("vendas_live")
+      .update({ status_pagamento: "pago" })
+      .in("id", vendaIds);
+
+    if (error) {
+      console.error("ERRO AO MARCAR PENDÊNCIAS COMO PAGAS:", error);
+      alert(`Erro ao marcar como pago: ${error.message}`);
+      return;
+    }
+
+    await Promise.all([
+      carregarTodasVendasLive(),
+      carregarSacolinhasLive(),
+    ]);
+
+    if (liveEmVisualizacao?.id) {
+      await carregarVendasLive(liveEmVisualizacao);
+    }
+  }
+
   function exportarRelatorioCSV() {
     const linhas = [
       [
@@ -1547,17 +1671,37 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     const comandaFormatada = {
       ...clienteResumo,
 
-      // 🔥 ADICIONA NOME DA LIVE
+      // 🔥 ADICIONA DADOS DA LIVE PARA A COMANDA E WHATSAPP
       liveNome:
+        clienteResumo?.liveNome ||
         liveEmVisualizacao?.nome ||
         liveSelecionada?.nome ||
         liveAtual?.nome ||
         "-",
 
+      liveData:
+        clienteResumo?.liveData ||
+        liveEmVisualizacao?.data_live ||
+        liveSelecionada?.data_live ||
+        liveAtual?.data_live ||
+        liveEmVisualizacao?.criado_em ||
+        liveSelecionada?.criado_em ||
+        liveAtual?.criado_em ||
+        null,
+
+      clienteTelefone:
+        clienteResumo?.clienteTelefone ||
+        (clientes || []).find(
+          (c) =>
+            String(c?.nome || "").trim().toLowerCase() ===
+            String(clienteResumo?.nome || "").trim().toLowerCase()
+        )?.telefone || "",
+
+      // Mantém a data original em ISO para o Preview formatar corretamente.
+      // Isso evita o erro "Invalid Date" quando a data já foi convertida para pt-BR antes.
       itens: (clienteResumo.itens || []).map((item) => ({
         ...item,
-        dataVenda:
-          formatarDataHoraBR(item.dataVenda) || item.dataVenda || "",
+        dataVenda: item.dataVenda || "",
       })),
     };
 
@@ -1991,12 +2135,24 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   }
 
   function abrirWhatsappComanda(clienteResumo) {
+    const clienteCadastro = (clientes || []).find(
+      (c) =>
+        String(c?.nome || "").trim().toLowerCase() ===
+        String(clienteResumo?.nome || "").trim().toLowerCase()
+    );
+
+    const telefoneCliente = normalizarTelefoneWhatsApp(
+      clienteResumo?.clienteTelefone || clienteCadastro?.telefone || ""
+    );
+
     const textoCodificado = encodeURIComponent(montarTextoComanda(clienteResumo));
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-    const url = isMobile
-      ? `https://wa.me/?text=${textoCodificado}`
-      : `https://web.whatsapp.com/send?text=${textoCodificado}`;
+    const url = telefoneCliente
+      ? `https://wa.me/${telefoneCliente}?text=${textoCodificado}`
+      : isMobile
+        ? `https://wa.me/?text=${textoCodificado}`
+        : `https://web.whatsapp.com/send?text=${textoCodificado}`;
 
     window.open(url, "_blank");
   }
@@ -2259,8 +2415,9 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     { id: "vendas", label: "Vendas", icon: ShoppingBag },
     { id: "lives", label: "Lives", icon: Radio },
     { id: "clientes", label: "Clientes", icon: Users },
-    { id: "faturamento", label: "Faturamento", icon: BarChart3 },
     { id: "expedicao", label: "Expedição", icon: Truck },
+    { id: "pendencias", label: "Pendências", icon: CreditCard },
+    { id: "faturamento", label: "Faturamento", icon: BarChart3 },
   ];
 
   function getTituloAba(aba) {
@@ -2269,8 +2426,9 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     if (aba === "vendas") return "Vendas";
     if (aba === "lives") return "Lives";
     if (aba === "clientes") return "Clientes";
-    if (aba === "faturamento") return "Faturamento";
     if (aba === "expedicao") return "Expedição";
+    if (aba === "pendencias") return "Pendências";
+    if (aba === "faturamento") return "Faturamento";
     return "Painel";
   }
 
@@ -2286,6 +2444,11 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     display: "flex",
     flexDirection: "column",
     gap: 18,
+    position: isMobile ? "relative" : "sticky",
+    top: isMobile ? "auto" : 16,
+    alignSelf: "start",
+    maxHeight: isMobile ? "none" : "calc(100vh - 32px)",
+    overflowY: "auto",
   };
 
   const sidebarTopoNovo = {
@@ -2449,6 +2612,10 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       height: auto;
     }
 
+    .sidebar-app {
+      scrollbar-width: thin;
+    }
+
     .layout-app,
     .sidebar-app,
     .painel-principal,
@@ -2489,6 +2656,9 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     width: 100% !important;
     border-radius: 18px !important;
     padding: 14px !important;
+    position: relative !important;
+    top: auto !important;
+    max-height: none !important;
   }
 
   .painel-principal {
@@ -2833,12 +3003,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                   onMouseLeave={(e) => {
                     if (!ativo) e.currentTarget.style.background = "transparent";
                   }}
-                  onClick={() => {
-                    setAbaAtiva(item.id);
-                    if (isMobile) {
-                      setMenuMobileAberto(false);
-                    }
-                  }}
+                  onClick={() => trocarAba(item.id)}
                 >
                   <Icone size={20} strokeWidth={2} />
                   <span>{item.label}</span>
@@ -2862,8 +3027,9 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                   {abaAtiva === "vendas" && "Registro de Vendas"}
                   {abaAtiva === "lives" && "Controle de Lives"}
                   {abaAtiva === "clientes" && "Cadastro de Clientes"}
-                  {abaAtiva === "faturamento" && "Faturamento"}
                   {abaAtiva === "expedicao" && "Expedição"}
+                  {abaAtiva === "pendencias" && "Pendências de Pagamento"}
+                  {abaAtiva === "faturamento" && "Faturamento"}
                 </h2>
 
                 <p style={topoPainelTexto}>
@@ -3061,6 +3227,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 cancelarVenda={cancelarVenda}
                 passarVendaParaFila={passarVendaParaFila}
                 formatarBRL={formatarBRL}
+                formatarDataHoraBR={formatarDataHoraBR}
               />
             )}
 
@@ -3250,6 +3417,31 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                   )}
                 </div>
               </div>
+            )}
+
+
+            {abaAtiva === "pendencias" && (
+              <PendenciasSection
+                boxGrande={boxGrande}
+                tituloSecao={tituloSecao}
+                linhaResumo={linhaResumo}
+                cardResumo={cardResumo}
+                valorResumo={valorResumo}
+                cardCliente={cardCliente}
+                itemCliente={itemCliente}
+                input={input}
+                botaoPequeno={botaoPequeno}
+                isMobile={isMobile}
+                todasVendasLive={todasVendasLive}
+                mapaPecasPorId={mapaPecasPorId}
+                mapaLivesPorId={mapaLivesPorId}
+                clientes={clientes}
+                liveAtual={liveAtual}
+                formatarBRL={formatarBRL}
+                formatarDataHoraBR={formatarDataHoraBR}
+                gerarComanda={gerarComanda}
+                marcarClientePendenteComoPago={marcarClientePendenteComoPago}
+              />
             )}
 
 
@@ -3471,9 +3663,41 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           copiarTextoComanda={copiarTextoComanda}
           abrirWhatsappComanda={abrirWhatsappComanda}
           formatarBRL={formatarBRL}
+          formatarDataHoraBR={formatarDataHoraBR}
           agruparEtiquetasEmPaginas={agruparEtiquetasEmPaginas}
           EtiquetaPrint={EtiquetaPrint}
         />
+
+        {mostrarBotaoTopo && (
+          <button
+            type="button"
+            onClick={voltarAoTopo}
+            aria-label="Voltar ao início"
+            title="Voltar ao início"
+            style={{
+              position: "fixed",
+              right: isMobile ? 16 : 24,
+              bottom: isMobile ? 18 : 24,
+              zIndex: 9999,
+              width: isMobile ? 48 : 54,
+              height: isMobile ? 48 : 54,
+              borderRadius: "50%",
+              border: "none",
+              background: CORES_APP.rosaPrincipal,
+              color: "#fff",
+              fontSize: isMobile ? 22 : 24,
+              fontWeight: 800,
+              lineHeight: 1,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 10px 28px rgba(15,23,42,0.25)",
+            }}
+          >
+            ↑
+          </button>
+        )}
 
         <style>
           {`

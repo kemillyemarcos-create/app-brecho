@@ -1,3 +1,6 @@
+import { useMemo, useState } from "react";
+import { supabase } from "../../lib/supabase";
+
 function SecaoTitulo({
     titulo,
     quantidade,
@@ -31,6 +34,7 @@ function SecaoTitulo({
 function BotaoExpandir({ expandido, onClick }) {
     return (
         <button
+            type="button"
             onClick={(e) => {
                 e.stopPropagation();
                 onClick();
@@ -114,6 +118,10 @@ function ListaItensSacolinha({ itens, itemLista, mapaPecasPorId, formatarBRL }) 
             <div>
                 <strong>Valor:</strong> {formatarBRL(item.valor_venda || item.valor || 0)}
             </div>
+            <div>
+                <strong>Status:</strong>{" "}
+                {item.status_pagamento === "pago" ? "Pago" : "Pendente"}
+            </div>
         </div>
     ));
 }
@@ -167,6 +175,97 @@ function BlocoInfo({ titulo, children }) {
     );
 }
 
+function getItensDaSacolinhaLocal(sacolinha, vendas = []) {
+    if (!sacolinha?.id) return [];
+
+    return (vendas || []).filter(
+        (v) => String(v.sacolinha_id) === String(sacolinha.id)
+    );
+}
+
+function sacolinhaEstaPagaLocal(sacolinha, vendas = []) {
+    const itens = getItensDaSacolinhaLocal(sacolinha, vendas);
+
+    if (itens.length === 0) return false;
+
+    return itens.every((v) => v.status_pagamento === "pago");
+}
+
+function getStatusSacolinhaLocal(sacolinha, vendas = [], getStatusSacolinha) {
+    if (!sacolinha) return "desconhecido";
+
+    if (sacolinha.status === "enviada") return "enviada";
+
+    if (!sacolinhaEstaPagaLocal(sacolinha, vendas)) return "aguardando_pagamento";
+
+    if (sacolinha.status === "separada") return "pronta_envio";
+
+    if (typeof getStatusSacolinha === "function") {
+        return getStatusSacolinha(sacolinha, vendas);
+    }
+
+    return "em_andamento";
+}
+
+function sacolinhaPodeIrParaExpedicaoLocal(
+    sacolinha,
+    vendas = [],
+    sacolinhaEstaVencida,
+    sacolinhaPodeIrParaExpedicao
+) {
+    if (!sacolinha) return false;
+
+    if (typeof sacolinhaPodeIrParaExpedicao === "function") {
+        const resultadoOriginal = sacolinhaPodeIrParaExpedicao(sacolinha, vendas);
+        if (resultadoOriginal) return true;
+    }
+
+    const vencida =
+        typeof sacolinhaEstaVencida === "function"
+            ? sacolinhaEstaVencida(sacolinha, vendas)
+            : false;
+
+    return (
+        sacolinhaEstaPagaLocal(sacolinha, vendas) &&
+        sacolinha.status === "separada" &&
+        !vencida
+    );
+}
+
+function StatusPagamentoToggle({
+    sacolinha,
+    pago,
+    alterandoPagamentoId,
+    onTogglePagamento,
+    badgeBase,
+}) {
+    const carregando = alterandoPagamentoId === sacolinha.id;
+
+    return (
+        <button
+            type="button"
+            style={{
+                ...badgeBase,
+                border: "none",
+                background: pago ? "#15803d" : "#dc2626",
+                cursor: carregando ? "not-allowed" : "pointer",
+                opacity: carregando ? 0.7 : 1,
+                minWidth: 58,
+                textAlign: "center",
+            }}
+            disabled={carregando}
+            title={pago ? "Clique para marcar como pendente" : "Clique para marcar como pago"}
+            onClick={(e) => {
+                e.stopPropagation();
+                if (carregando) return;
+                onTogglePagamento(sacolinha, pago);
+            }}
+        >
+            {carregando ? "..." : pago ? "Pago" : "Pendente"}
+        </button>
+    );
+}
+
 export default function ExpedicaoSection({
     boxGrande,
     tituloSecao,
@@ -210,6 +309,66 @@ export default function ExpedicaoSection({
     toggleItemConferidoPedido,
 }) {
     const isMobile = typeof window !== "undefined" ? window.innerWidth <= 767 : false;
+    const [alterandoPagamentoId, setAlterandoPagamentoId] = useState(null);
+    const [statusPagamentoLocal, setStatusPagamentoLocal] = useState({});
+
+    const vendasLiveExpedicao = useMemo(() => {
+        return (todasVendasLive || []).map((venda) => {
+            const sacolinhaId = String(venda.sacolinha_id || "");
+
+            if (!sacolinhaId || !statusPagamentoLocal[sacolinhaId]) {
+                return venda;
+            }
+
+            return {
+                ...venda,
+                status_pagamento: statusPagamentoLocal[sacolinhaId],
+            };
+        });
+    }, [todasVendasLive, statusPagamentoLocal]);
+
+    function getSacolinhaComItensAtualizados(sacolinha) {
+        return {
+            ...sacolinha,
+            itens: getItensDaSacolinhaLocal(sacolinha, vendasLiveExpedicao),
+        };
+    }
+
+    async function alternarPagamentoSacolinha(sacolinha, pagoAtual) {
+        if (!sacolinha?.id) return;
+
+        const novoStatus = pagoAtual ? "pendente" : "pago";
+        try {
+            setAlterandoPagamentoId(sacolinha.id);
+
+            const { data, error } = await supabase
+                .from("vendas_live")
+                .update({ status_pagamento: novoStatus })
+                .eq("sacolinha_id", sacolinha.id)
+                .select("id");
+
+            if (error) {
+                console.error("ERRO AO ALTERAR PAGAMENTO DA SACOLINHA:", error);
+                alert(`Erro ao alterar pagamento: ${error.message}`);
+                return;
+            }
+
+            if (!data || data.length === 0) {
+                alert("Nenhuma venda encontrada dentro dessa sacolinha para atualizar.");
+                return;
+            }
+
+            setStatusPagamentoLocal((prev) => ({
+                ...prev,
+                [String(sacolinha.id)]: novoStatus,
+            }));
+        } catch (error) {
+            console.error("ERRO GERAL AO ALTERAR PAGAMENTO DA SACOLINHA:", error);
+            alert("Erro inesperado ao alterar pagamento da sacolinha.");
+        } finally {
+            setAlterandoPagamentoId(null);
+        }
+    }
 
     const blocoPrincipal = {
         border: "1px solid #f2dfe5",
@@ -312,7 +471,15 @@ export default function ExpedicaoSection({
                                 <p>Nenhuma sacolinha aberta.</p>
                             ) : (
                                 sacolinhasAbertas.map((s) => {
-                                    const vencida = sacolinhaEstaVencida(s, todasVendasLive);
+                                    const sacolinhaAtualizada = getSacolinhaComItensAtualizados(s);
+                                    const vencida = sacolinhaEstaVencida(
+                                        sacolinhaAtualizada,
+                                        vendasLiveExpedicao
+                                    );
+                                    const pago = sacolinhaEstaPagaLocal(
+                                        sacolinhaAtualizada,
+                                        vendasLiveExpedicao
+                                    );
 
                                     return (
                                         <CardBase
@@ -342,6 +509,14 @@ export default function ExpedicaoSection({
                                                                 {formatarBRL(s.valorTotal || 0)}
                                                             </span>
 
+                                                            <StatusPagamentoToggle
+                                                                sacolinha={sacolinhaAtualizada}
+                                                                pago={pago}
+                                                                alterandoPagamentoId={alterandoPagamentoId}
+                                                                onTogglePagamento={alternarPagamentoSacolinha}
+                                                                badgeBase={badgeBase}
+                                                            />
+
                                                             {vencida ? (
                                                                 <span style={{ ...badgeBase, background: "#dc2626" }}>
                                                                     VENCIDA
@@ -352,17 +527,20 @@ export default function ExpedicaoSection({
                                                 />
                                             }
                                             acoes={
-                                                <button
-                                                    type="button"
-                                                    style={{ ...botaoExpedicao, background: "#f59e0b" }}
-                                                    onClick={() => marcarSacolinhaComoSeparada(s.id)}
-                                                >
-                                                    Marcar como separada
-                                                </button>
+                                                <>
+
+                                                    <button
+                                                        type="button"
+                                                        style={{ ...botaoExpedicao, background: "#f59e0b" }}
+                                                        onClick={() => marcarSacolinhaComoSeparada(s.id)}
+                                                    >
+                                                        Marcar como separada
+                                                    </button>
+                                                </>
                                             }
                                             conteudoExpandido={
                                                 <ListaItensSacolinha
-                                                    itens={s.itens}
+                                                    itens={sacolinhaAtualizada.itens}
                                                     itemLista={itemLista}
                                                     mapaPecasPorId={mapaPecasPorId}
                                                     formatarBRL={formatarBRL}
@@ -392,12 +570,26 @@ export default function ExpedicaoSection({
                                 <p>Nenhuma sacolinha separada.</p>
                             ) : (
                                 sacolinhasSeparadas.map((s) => {
-                                    const statusSacolinha = getStatusSacolinha(s, todasVendasLive);
-                                    const podeIrParaExpedicao = sacolinhaPodeIrParaExpedicao(
-                                        s,
-                                        todasVendasLive
+                                    const sacolinhaAtualizada = getSacolinhaComItensAtualizados(s);
+                                    const statusSacolinha = getStatusSacolinhaLocal(
+                                        sacolinhaAtualizada,
+                                        vendasLiveExpedicao,
+                                        getStatusSacolinha
                                     );
-                                    const vencida = sacolinhaEstaVencida(s, todasVendasLive);
+                                    const podeIrParaExpedicao = sacolinhaPodeIrParaExpedicaoLocal(
+                                        sacolinhaAtualizada,
+                                        vendasLiveExpedicao,
+                                        sacolinhaEstaVencida,
+                                        sacolinhaPodeIrParaExpedicao
+                                    );
+                                    const vencida = sacolinhaEstaVencida(
+                                        sacolinhaAtualizada,
+                                        vendasLiveExpedicao
+                                    );
+                                    const pago = sacolinhaEstaPagaLocal(
+                                        sacolinhaAtualizada,
+                                        vendasLiveExpedicao
+                                    );
 
                                     return (
                                         <CardBase
@@ -434,30 +626,20 @@ export default function ExpedicaoSection({
                                                                 {formatarBRL(s.valorTotal || 0)}
                                                             </span>
 
-                                                            <span
-                                                                style={{
-                                                                    ...badgeBase,
-                                                                    background:
-                                                                        statusSacolinha === "pronta_envio"
-                                                                            ? "#15803d"
-                                                                            : statusSacolinha === "enviada"
-                                                                            ? "#2563eb"
-                                                                            : statusSacolinha === "aguardando_pagamento"
-                                                                            ? "#dc2626"
-                                                                            : "#b45309",
-                                                                }}
-                                                            >
-                                                                {statusSacolinha === "pronta_envio" && "pago"}
-                                                                {statusSacolinha === "aguardando_pagamento" && "pendente"}
-                                                                {statusSacolinha === "enviada" && "enviado"}
-                                                                {statusSacolinha === "em_andamento" && "em andamento"}
-                                                            </span>
+                                                            <StatusPagamentoToggle
+                                                                sacolinha={sacolinhaAtualizada}
+                                                                pago={pago}
+                                                                alterandoPagamentoId={alterandoPagamentoId}
+                                                                onTogglePagamento={alternarPagamentoSacolinha}
+                                                                badgeBase={badgeBase}
+                                                            />
                                                         </>
                                                     }
                                                 />
                                             }
                                             acoes={
                                                 <>
+
                                                     <button
                                                         type="button"
                                                         style={{
@@ -486,7 +668,7 @@ export default function ExpedicaoSection({
                                                         }}
                                                         onClick={() => {
                                                             if (!podeIrParaExpedicao) return;
-                                                            marcarSacolinhaComoEnviada(s.id, s);
+                                                            marcarSacolinhaComoEnviada(s.id, sacolinhaAtualizada);
                                                         }}
                                                     >
                                                         {podeIrParaExpedicao
@@ -497,7 +679,7 @@ export default function ExpedicaoSection({
                                             }
                                             conteudoExpandido={
                                                 <ListaItensSacolinha
-                                                    itens={s.itens}
+                                                    itens={sacolinhaAtualizada.itens}
                                                     itemLista={itemLista}
                                                     mapaPecasPorId={mapaPecasPorId}
                                                     formatarBRL={formatarBRL}
