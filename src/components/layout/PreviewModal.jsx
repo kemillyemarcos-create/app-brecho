@@ -262,39 +262,27 @@ export default function PreviewModal({
                     )}
 
                     {tipoPreview === PREVIEW_TIPO.ETIQUETAS && Array.isArray(dadosPreview) && (
-                        <div className="paginas-etiquetas-preview" style={{ display: "grid", gap: 0 }}>
-                            {agruparEtiquetasEmPaginas(dadosPreview, 25).map((pagina, paginaIndex) => (
+                        <div
+                            className="paginas-etiquetas-preview"
+                            style={{
+                                display: "grid",
+                                gap: 0,
+                                justifyContent: "center",
+                            }}
+                        >
+                            {agruparEtiquetasEmPaginas(dadosPreview, 1).map((pagina, paginaIndex) => (
                                 <div
                                     key={paginaIndex}
-                                    className="pagina-etiquetas"
+                                    className="pagina-etiquetas pagina-etiqueta-termica-58"
                                     style={{
-                                        width: "210mm",
-                                        minHeight: "297mm",
+                                        width: "58mm",
+                                        minHeight: "46mm",
                                         boxSizing: "border-box",
-
-                                        // sobe um pouco mais
-                                        paddingTop: "2mm",
-
-                                        // mantém margem lateral equilibrada (isso resolve a direita maior)
-                                        paddingLeft: "6mm",
-                                        paddingRight: "6mm",
-
-                                        display: "grid",
-
-                                        // estrutura fixa (não muda ordem)
-                                        gridTemplateColumns: "repeat(5, 37mm)",
-                                        gridAutoRows: "46mm",
-
-                                        // espaçamento real entre etiquetas
-                                        columnGap: "2mm",
-                                        rowGap: "1mm",
-
-                                        // 🔥 ESSENCIAL → centraliza a linha inteira
+                                        padding: "0",
+                                        margin: "0 auto",
+                                        display: "flex",
+                                        alignItems: "flex-start",
                                         justifyContent: "center",
-
-                                        // mantém sempre começando de cima
-                                        alignContent: "start",
-
                                         pageBreakAfter: "always",
                                         breakAfter: "page",
                                     }}

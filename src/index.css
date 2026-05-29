@@ -1,3 +1,47 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* =========================================
+   IMPRESSÃO TÉRMICA 58MM
+========================================= */
+
+@page {
+  size: 58mm 46mm;
+  margin: 0;
+}
+
+@media print {
+
+  html,
+  body {
+    width: 58mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    overflow: hidden !important;
+  }
+
+  .pagina-etiqueta-termica-58 {
+    width: 58mm !important;
+    min-width: 58mm !important;
+    max-width: 58mm !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .etiqueta-termica-58 {
+    width: 58mm !important;
+    min-width: 58mm !important;
+    max-width: 58mm !important;
+
+    height: 46mm !important;
+    min-height: 46mm !important;
+    max-height: 46mm !important;
+
+    transform: none !important;
+    zoom: 1 !important;
+    flex-shrink: 0 !important;
+  }
+}
