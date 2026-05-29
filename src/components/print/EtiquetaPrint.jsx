@@ -28,43 +28,38 @@ export default function EtiquetaPrint({ peca }) {
 
   return (
     <div
-      className="etiqueta etiqueta-termica-58"
+      className="etiqueta"
       style={{
-        width: "58mm",
-        minWidth: "58mm",
-        maxWidth: "58mm",
+        width: "37mm",
         height: "46mm",
-        minHeight: "46mm",
-        maxHeight: "46mm",
-        flexShrink: 0,
-        transform: "none",
-        padding: "1mm 2mm 1mm 2mm",
+        padding: "0.3mm 0.8mm 0.8mm 0.8mm",
         boxSizing: "border-box",
         fontFamily: "Arial, sans-serif",
         textAlign: "center",
         overflow: "hidden",
         display: "grid",
-        gridTemplateRows: "8mm 4mm 4mm 5mm 5.5mm 19.5mm",
+        gridTemplateRows: "8mm 3.4mm 3.6mm 4mm 4.2mm 17mm",
         alignItems: "start",
         justifyItems: "center",
-        rowGap: "0.2mm",
+        rowGap: "0.05mm",
         breakInside: "avoid",
         pageBreakInside: "avoid",
-        background: "#fff",
       }}
     >
       <div
         style={{
           width: "100%",
           fontWeight: "bold",
-          fontSize: "11px",
-          lineHeight: 1.05,
+          fontSize: "9.2px",
+          lineHeight: 1.02,
+          marginTop: "-0.4mm",
           overflow: "hidden",
           display: "-webkit-box",
           WebkitLineClamp: 2,
           WebkitBoxOrient: "vertical",
           wordBreak: "keep-all",
           overflowWrap: "break-word",
+          hyphens: "auto",
         }}
       >
         {peca.nome}
@@ -73,12 +68,15 @@ export default function EtiquetaPrint({ peca }) {
       <div
         style={{
           width: "100%",
-          fontSize: "8px",
+          fontSize: "6.5px",
           lineHeight: 1,
+          marginTop: "-0.2mm",
           overflow: "hidden",
           display: "-webkit-box",
           WebkitLineClamp: 1,
           WebkitBoxOrient: "vertical",
+          wordBreak: "break-word",
+          overflowWrap: "break-word",
           color: "#444",
         }}
       >
@@ -88,12 +86,15 @@ export default function EtiquetaPrint({ peca }) {
       <div
         style={{
           width: "100%",
-          fontSize: "8px",
+          fontSize: "6.5px",
           lineHeight: 1,
+          marginTop: "-0.2mm",
           overflow: "hidden",
           display: "-webkit-box",
           WebkitLineClamp: 1,
           WebkitBoxOrient: "vertical",
+          wordBreak: "break-word",
+          overflowWrap: "break-word",
           color: "#444",
         }}
       >
@@ -103,27 +104,32 @@ export default function EtiquetaPrint({ peca }) {
       <div
         style={{
           width: "100%",
-          fontSize: "10px",
+          fontSize: "8.3px",
           fontWeight: "bold",
           lineHeight: 1,
+          marginTop: "-0.2mm",
           overflow: "hidden",
         }}
       >
         {valorEtiqueta}
       </div>
 
-      <div
-        style={{
-          width: "100%",
-          fontSize: "9px",
-          fontWeight: 700,
-          lineHeight: 1,
-          overflow: "hidden",
-          whiteSpace: "nowrap",
-        }}
-      >
-        Código: {peca.id}
-      </div>
+<div
+  style={{
+    width: "100%",
+    fontSize: "6.3px",
+    lineHeight: 1,
+    marginTop: "-0.2mm",
+    overflow: "hidden",
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+    wordBreak: "break-word",
+    overflowWrap: "break-word",
+  }}
+>
+  Código: <strong>{peca.id}</strong>
+</div>
 
       <div
         style={{
@@ -132,10 +138,10 @@ export default function EtiquetaPrint({ peca }) {
           justifyContent: "center",
           width: "100%",
           height: "100%",
-          marginTop: "-0.8mm",
+          marginTop: "-1.2mm",
         }}
       >
-        <QRCodeCanvas value={String(peca.id || "")} size={76} />
+        <QRCodeCanvas value={String(peca.id || "")} size={63} />
       </div>
     </div>
   );
