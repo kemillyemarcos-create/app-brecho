@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { formatarDataHoraBR } from "../../utils/dateUtils";
 
 function SecaoTitulo({
     titulo,
@@ -956,7 +957,7 @@ export default function ExpedicaoSection({
                                                     </span>
 
                                                     <span style={{ fontSize: isMobile ? 13 : 14 }}>
-                                                        Enviado em: {p.enviado_em || "-"}
+                                                        Enviado em: {formatarDataHoraBR(p.enviado_em) || "-"}
                                                     </span>
                                                 </div>
                                             </div>

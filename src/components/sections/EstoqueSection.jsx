@@ -1,4 +1,5 @@
 import { QRCodeCanvas } from "qrcode.react";
+import { formatarDataHoraBR } from "../../utils/dateUtils";
 
 function parseDataFlex(valor) {
     if (!valor) return null;
@@ -48,17 +49,7 @@ function getTimestampCadastro(peca) {
 }
 
 function formatarDataLocal(valor) {
-    const data = parseDataFlex(valor);
-
-    if (!data) return valor || "-";
-
-    return data.toLocaleString("pt-BR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    });
+    return formatarDataHoraBR(valor) || "-";
 }
 
 
