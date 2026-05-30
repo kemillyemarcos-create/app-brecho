@@ -1,3 +1,5 @@
+import { formatarDataHoraBR } from "../../utils/dateUtils";
+
 export default function PreviewModal({
     previewAberto,
     tipoPreview,
@@ -127,15 +129,19 @@ export default function PreviewModal({
                                 }}
                             >
                                 <div>
-                                    <h1 style={{ margin: 0, fontSize: 28 }}>Comanda da Cliente</h1>
+                                    <h1 style={{ margin: 0, fontSize: 28 }}>
+                                        Comanda da Cliente
+                                    </h1>
                                     <div style={{ color: "#6b7280", marginTop: 6 }}>
                                         Brechó • Resumo da compra
                                     </div>
                                 </div>
 
                                 <div style={{ textAlign: "right" }}>
-                                    <div style={{ fontSize: 13, color: "#6b7280" }}>Data</div>
-                                    <div>{new Date().toLocaleString("pt-BR")}</div>
+                                    <div style={{ fontSize: 13, color: "#6b7280" }}>
+                                        Data
+                                    </div>
+                                    <div>{formatarDataHoraBR(new Date())}</div>
                                 </div>
                             </div>
 
@@ -151,19 +157,27 @@ export default function PreviewModal({
                                 }}
                             >
                                 <div>
-                                    <div style={{ fontSize: 13, color: "#6b7280" }}>Cliente</div>
-                                    <div style={{ fontWeight: "bold" }}>{dadosPreview.nome}</div>
+                                    <div style={{ fontSize: 13, color: "#6b7280" }}>
+                                        Cliente
+                                    </div>
+                                    <div style={{ fontWeight: "bold" }}>
+                                        {dadosPreview.nome}
+                                    </div>
                                 </div>
 
                                 <div>
-                                    <div style={{ fontSize: 13, color: "#6b7280" }}>Live</div>
+                                    <div style={{ fontSize: 13, color: "#6b7280" }}>
+                                        Live
+                                    </div>
                                     <div style={{ fontWeight: "bold" }}>
                                         {dadosPreview.liveNome || dadosPreview.live || "-"}
                                     </div>
                                 </div>
 
                                 <div>
-                                    <div style={{ fontSize: 13, color: "#6b7280" }}>Status</div>
+                                    <div style={{ fontSize: 13, color: "#6b7280" }}>
+                                        Status
+                                    </div>
                                     <div
                                         style={{
                                             color: dadosPreview.pago ? "#15803d" : "#b45309",
@@ -175,12 +189,18 @@ export default function PreviewModal({
                                 </div>
 
                                 <div>
-                                    <div style={{ fontSize: 13, color: "#6b7280" }}>Peças</div>
-                                    <div style={{ fontWeight: "bold" }}>{dadosPreview.pecas}</div>
+                                    <div style={{ fontSize: 13, color: "#6b7280" }}>
+                                        Peças
+                                    </div>
+                                    <div style={{ fontWeight: "bold" }}>
+                                        {dadosPreview.pecas}
+                                    </div>
                                 </div>
 
                                 <div>
-                                    <div style={{ fontSize: 13, color: "#6b7280" }}>Total</div>
+                                    <div style={{ fontSize: 13, color: "#6b7280" }}>
+                                        Total
+                                    </div>
                                     <div style={{ fontWeight: "bold" }}>
                                         {formatarBRL(dadosPreview.total)}
                                     </div>
@@ -208,20 +228,23 @@ export default function PreviewModal({
                                                 background: "#fff",
                                             }}
                                         >
-                                            <div><strong>{i + 1}. Peça:</strong> {item.nomePeca}</div>
-                                            <div><strong>Código:</strong> {item.codigo}</div>
-                                            <div><strong>Valor:</strong> {formatarBRL(item.valor)}</div>
+                                            <div>
+                                                <strong>{i + 1}. Peça:</strong>{" "}
+                                                {item.nomePeca}
+                                            </div>
+
+                                            <div>
+                                                <strong>Código:</strong> {item.codigo}
+                                            </div>
+
+                                            <div>
+                                                <strong>Valor:</strong>{" "}
+                                                {formatarBRL(item.valor)}
+                                            </div>
+
                                             <div>
                                                 <strong>Data:</strong>{" "}
-                                                {item.dataVenda
-                                                    ? new Date(item.dataVenda).toLocaleString("pt-BR", {
-                                                        day: "2-digit",
-                                                        month: "2-digit",
-                                                        year: "numeric",
-                                                        hour: "2-digit",
-                                                        minute: "2-digit",
-                                                    })
-                                                    : "-"}
+                                                {formatarDataHoraBR(item.dataVenda) || "-"}
                                             </div>
                                         </div>
                                     ))}
@@ -241,13 +264,18 @@ export default function PreviewModal({
 
                                 <div>PIX para pagamento:</div>
                                 <div>
-                                    Chave: <strong>CELULAR</strong> – <strong>41988921085</strong>
+                                    Chave: <strong>CELULAR</strong> –{" "}
+                                    <strong>41988921085</strong>
                                 </div>
 
                                 <br />
 
-                                <div>🏦 Banco: <strong>cloudwalk</strong></div>
-                                <div>👩‍💼 Nome: <strong>Kemilly Lima</strong></div>
+                                <div>
+                                    🏦 Banco: <strong>cloudwalk</strong>
+                                </div>
+                                <div>
+                                    👩‍💼 Nome: <strong>Kemilly Lima</strong>
+                                </div>
 
                                 <br />
 
@@ -261,51 +289,37 @@ export default function PreviewModal({
                         </div>
                     )}
 
-                    {tipoPreview === PREVIEW_TIPO.ETIQUETAS && Array.isArray(dadosPreview) && (
-                        <div className="paginas-etiquetas-preview" style={{ display: "grid", gap: 0 }}>
-                            {agruparEtiquetasEmPaginas(dadosPreview, 25).map((pagina, paginaIndex) => (
+                    {tipoPreview === PREVIEW_TIPO.ETIQUETAS &&
+                        Array.isArray(dadosPreview) && (
+                            <div
+                                className="paginas-etiquetas-preview"
+                                style={{
+                                    display: "grid",
+                                    gap: 0,
+                                    justifyContent: "center",
+                                }}
+                            >
                                 <div
-                                    key={paginaIndex}
-                                    className="pagina-etiquetas"
+                                    className="rolo-etiquetas-termica-58"
                                     style={{
-                                        width: "210mm",
-                                        minHeight: "297mm",
-                                        boxSizing: "border-box",
-
-                                        // sobe um pouco mais
-                                        paddingTop: "2mm",
-
-                                        // mantém margem lateral equilibrada (isso resolve a direita maior)
-                                        paddingLeft: "6mm",
-                                        paddingRight: "6mm",
-
+                                        width: "58mm",
+                                        margin: "0 auto",
+                                        padding: 0,
                                         display: "grid",
-
-                                        // estrutura fixa (não muda ordem)
-                                        gridTemplateColumns: "repeat(5, 37mm)",
+                                        gridTemplateColumns: "58mm",
                                         gridAutoRows: "46mm",
-
-                                        // espaçamento real entre etiquetas
-                                        columnGap: "2mm",
-                                        rowGap: "1mm",
-
-                                        // 🔥 ESSENCIAL → centraliza a linha inteira
+                                        gap: 0,
                                         justifyContent: "center",
-
-                                        // mantém sempre começando de cima
                                         alignContent: "start",
-
-                                        pageBreakAfter: "always",
-                                        breakAfter: "page",
+                                        boxSizing: "border-box",
                                     }}
                                 >
-                                    {pagina.map((peca) => (
+                                    {dadosPreview.map((peca) => (
                                         <EtiquetaPrint key={peca.id} peca={peca} />
                                     ))}
                                 </div>
-                            ))}
-                        </div>
-                    )}
+                            </div>
+                        )}
                 </div>
             </div>
         </div>

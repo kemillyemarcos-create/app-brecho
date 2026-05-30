@@ -117,7 +117,7 @@ export default function EtiquetaPrint({ peca }) {
 <div
   style={{
     width: "100%",
-    fontSize: "6.3px",
+    fontSize: "7px",
     lineHeight: 1,
     marginTop: "-0.2mm",
     overflow: "hidden",

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { formatarDataHoraBR } from "../../utils/dateUtils";
 
 export default function VendasSection({
     boxGrande,
@@ -58,10 +59,8 @@ export default function VendasSection({
     const [mostrarSugestoesFila, setMostrarSugestoesFila] = useState(false);
     const [indiceSugestaoFilaAtiva, setIndiceSugestaoFilaAtiva] = useState(-1);
 
-
     const sugestoesClientesLive = useMemo(() => {
         const termo = String(cliente || "").trim().toLowerCase();
-
         if (termo.length < 1) return [];
 
         const mapaNomes = new Map();
@@ -89,7 +88,6 @@ export default function VendasSection({
 
     const sugestoesFilaLive = useMemo(() => {
         const termo = String(filaEspera || "").trim().toLowerCase();
-
         if (termo.length < 1) return [];
 
         const mapaNomes = new Map();
@@ -179,9 +177,7 @@ export default function VendasSection({
         if (e.key === "Enter") {
             if (indiceSugestaoClienteAtiva >= 0) {
                 e.preventDefault();
-                selecionarSugestaoCliente(
-                    sugestoesClientesLive[indiceSugestaoClienteAtiva]
-                );
+                selecionarSugestaoCliente(sugestoesClientesLive[indiceSugestaoClienteAtiva]);
             }
             return;
         }
@@ -249,9 +245,7 @@ export default function VendasSection({
         if (e.key === "Enter") {
             if (indiceSugestaoFilaAtiva >= 0) {
                 e.preventDefault();
-                selecionarSugestaoFila(
-                    sugestoesFilaLive[indiceSugestaoFilaAtiva]
-                );
+                selecionarSugestaoFila(sugestoesFilaLive[indiceSugestaoFilaAtiva]);
             }
             return;
         }
@@ -349,7 +343,8 @@ export default function VendasSection({
                                                         {peca.id} • {peca.nome || "Sem nome"}
                                                     </div>
                                                     <div style={{ fontSize: 13, color: "#64748b" }}>
-                                                        {peca.venda || "Sem valor"} {peca.obs ? `• ${peca.obs}` : ""}
+                                                        {peca.venda || "Sem valor"}{" "}
+                                                        {peca.obs ? `• ${peca.obs}` : ""}
                                                     </div>
                                                 </button>
                                             );
@@ -362,7 +357,9 @@ export default function VendasSection({
                                 style={input}
                                 placeholder="Valor com desconto (opcional)"
                                 value={valorDesconto}
-                                onChange={(e) => setValorDesconto(formatarValorDescontoInput(e.target.value))}
+                                onChange={(e) =>
+                                    setValorDesconto(formatarValorDescontoInput(e.target.value))
+                                }
                                 inputMode="numeric"
                             />
 
@@ -594,7 +591,14 @@ export default function VendasSection({
                             : "Resumo por Clientes"}
                     </h2>
 
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                    <div
+                        style={{
+                            display: "flex",
+                            gap: 10,
+                            flexWrap: "wrap",
+                            alignItems: "center",
+                        }}
+                    >
                         <input
                             style={{ ...input, maxWidth: 320 }}
                             placeholder="Buscar cliente"
@@ -676,17 +680,17 @@ export default function VendasSection({
                                         style={
                                             isMobile
                                                 ? {
-                                                    display: "grid",
-                                                    gap: 12,
-                                                    alignItems: "start",
-                                                }
+                                                      display: "grid",
+                                                      gap: 12,
+                                                      alignItems: "start",
+                                                  }
                                                 : {
-                                                    display: "grid",
-                                                    gridTemplateColumns:
-                                                        "minmax(220px, 1.2fr) minmax(160px, 1fr) 140px 120px",
-                                                    gap: 16,
-                                                    alignItems: "center",
-                                                }
+                                                      display: "grid",
+                                                      gridTemplateColumns:
+                                                          "minmax(220px, 1.2fr) minmax(160px, 1fr) 140px 120px",
+                                                      gap: 16,
+                                                      alignItems: "center",
+                                                  }
                                         }
                                     >
                                         <div
@@ -732,19 +736,19 @@ export default function VendasSection({
                                             style={
                                                 isMobile
                                                     ? {
-                                                        display: "grid",
-                                                        gridTemplateColumns: "1fr",
-                                                        gap: 8,
-                                                    }
+                                                          display: "grid",
+                                                          gridTemplateColumns: "1fr",
+                                                          gap: 8,
+                                                      }
                                                     : {
-                                                        display: "flex",
-                                                        alignItems: "center",
-                                                        justifyContent: "flex-start",
-                                                        gap: 8,
-                                                        flexWrap: "nowrap",
-                                                        whiteSpace: "nowrap",
-                                                        paddingLeft: 8,
-                                                    }
+                                                          display: "flex",
+                                                          alignItems: "center",
+                                                          justifyContent: "flex-start",
+                                                          gap: 8,
+                                                          flexWrap: "nowrap",
+                                                          whiteSpace: "nowrap",
+                                                          paddingLeft: 8,
+                                                      }
                                             }
                                         >
                                             <button
@@ -786,20 +790,20 @@ export default function VendasSection({
                                             style={
                                                 isMobile
                                                     ? {
-                                                        display: "grid",
-                                                        gap: 4,
-                                                        textAlign: "left",
-                                                    }
+                                                          display: "grid",
+                                                          gap: 4,
+                                                          textAlign: "left",
+                                                      }
                                                     : {
-                                                        display: "grid",
-                                                        gridTemplateColumns: "90px 90px",
-                                                        justifyContent: "start",
-                                                        alignItems: "center",
-                                                        columnGap: 12,
-                                                        textAlign: "right",
-                                                        whiteSpace: "nowrap",
-                                                        paddingLeft: 10,
-                                                    }
+                                                          display: "grid",
+                                                          gridTemplateColumns: "90px 90px",
+                                                          justifyContent: "start",
+                                                          alignItems: "center",
+                                                          columnGap: 12,
+                                                          textAlign: "right",
+                                                          whiteSpace: "nowrap",
+                                                          paddingLeft: 10,
+                                                      }
                                             }
                                         >
                                             <span>{c.pecas} peça(s)</span>
@@ -811,13 +815,29 @@ export default function VendasSection({
                                         <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
                                             {c.itens.map((item, index) => (
                                                 <div key={`${item.codigo}-${index}`} style={itemCliente}>
-                                                    <div><strong>Peça:</strong> {item.nomePeca}</div>
-                                                    <div><strong>Código:</strong> {item.codigo}</div>
-                                                    <div><strong>Valor:</strong> {formatarBRL(item.valor)}</div>
-                                                    <div><strong>Vendido em:</strong> {item.dataVenda || "-"}</div>
+                                                    <div>
+                                                        <strong>Peça:</strong> {item.nomePeca}
+                                                    </div>
+
+                                                    <div>
+                                                        <strong>Código:</strong> {item.codigo}
+                                                    </div>
+
+                                                    <div>
+                                                        <strong>Valor:</strong> {formatarBRL(item.valor)}
+                                                    </div>
+
+                                                    <div>
+                                                        <strong>Vendido em:</strong>{" "}
+                                                        {item.dataVenda
+                                                            ? formatarDataHoraBR(item.dataVenda)
+                                                            : "-"}
+                                                    </div>
 
                                                     {item.filaEspera ? (
-                                                        <div><strong>Fila:</strong> {item.filaEspera}</div>
+                                                        <div>
+                                                            <strong>Fila:</strong> {item.filaEspera}
+                                                        </div>
                                                     ) : null}
 
                                                     <div
