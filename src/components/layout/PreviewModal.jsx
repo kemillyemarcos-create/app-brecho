@@ -299,25 +299,42 @@ export default function PreviewModal({
                                     justifyContent: "center",
                                 }}
                             >
-                                <div
-                                    className="rolo-etiquetas-termica-58"
-                                    style={{
-                                        width: "58mm",
-                                        margin: "0 auto",
-                                        padding: 0,
-                                        display: "grid",
-                                        gridTemplateColumns: "58mm",
-                                        gridAutoRows: "46mm",
-                                        gap: 0,
-                                        justifyContent: "center",
-                                        alignContent: "start",
-                                        boxSizing: "border-box",
-                                    }}
-                                >
-                                    {dadosPreview.map((peca) => (
-                                        <EtiquetaPrint key={peca.id} peca={peca} />
-                                    ))}
-                                </div>
+                                {agruparEtiquetasEmPaginas(dadosPreview, 25).map(
+                                    (pagina, paginaIndex) => (
+                                        <div
+                                            key={paginaIndex}
+                                            className="pagina-etiquetas pagina-etiquetas-40x50"
+                                            style={{
+                                                width: "210mm",
+                                                minHeight: "297mm",
+                                                boxSizing: "border-box",
+
+                                                paddingTop: "2mm",
+                                                paddingLeft: "4mm",
+                                                paddingRight: "4mm",
+
+                                                display: "grid",
+                                                gridTemplateColumns: "repeat(5, 40mm)",
+                                                gridAutoRows: "50mm",
+
+                                                columnGap: "0.4mm",
+                                                rowGap: "0.4mm",
+
+                                                justifyContent: "center",
+                                                alignContent: "start",
+                                                justifyItems: "center",
+                                                alignItems: "center",
+
+                                                pageBreakAfter: "always",
+                                                breakAfter: "page",
+                                            }}
+                                        >
+                                            {pagina.map((peca) => (
+                                                <EtiquetaPrint key={peca.id} peca={peca} />
+                                            ))}
+                                        </div>
+                                    )
+                                )}
                             </div>
                         )}
                 </div>

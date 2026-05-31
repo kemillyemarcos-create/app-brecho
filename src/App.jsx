@@ -355,6 +355,7 @@ export default function App() {
   const [liveAtual, setLiveAtual] = useState(null);
   const [liveSelecionada, setLiveSelecionada] = useState(null);
   const [nomeNovaLive, setNomeNovaLive] = useState("");
+  const [abaInternaLive, setAbaInternaLive] = useState("ativa");
 
   const [vendaId, setVendaId] = useState("");
   const [filaEspera, setFilaEspera] = useState("");
@@ -2278,6 +2279,26 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     );
   }, [listaLives]);
 
+  const pecasVendidasLiveCronologicas = useMemo(() => {
+    return [...(vendasLive || [])]
+      .map((venda) => {
+        const peca = mapaPecasPorId[String(venda.peca_id)] || {};
+        const dataVenda = venda.data_hora || venda.criado_em || venda.data_venda || "";
+
+        return {
+          ...venda,
+          nomePeca: venda.nome_peca || peca.nome || venda.peca_id || "-",
+          codigo: venda.peca_id || "-",
+          valor: Number(venda.valor_venda || 0),
+          horario: dataVenda,
+          cliente: venda.cliente_nome || "-",
+          fila: venda.fila_espera_nome || "",
+          timestamp: parseDataFlex(dataVenda)?.getTime() || 0,
+        };
+      })
+      .sort((a, b) => a.timestamp - b.timestamp);
+  }, [vendasLive, mapaPecasPorId]);
+
   const {
     pecaIdsEnviados,
     sacolinhasAgrupadas,
@@ -3267,156 +3288,318 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
               <div style={boxGrande}>
                 <h2 style={tituloSecao}>Controle de Lives</h2>
 
-                {!liveAtual ? (
-                  <div style={{ display: "grid", gap: 10, maxWidth: 400 }}>
-                    <input
-                      style={input}
-                      placeholder="Nome da live (ex: Live 20/03 Noite)"
-                      value={nomeNovaLive}
-                      onChange={(e) => setNomeNovaLive(e.target.value)}
-                    />
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    flexWrap: "wrap",
+                    marginBottom: 16,
+                  }}
+                >
+                  <button
+                    type="button"
+                    style={{
+                      ...botaoPequeno,
+                      background: abaInternaLive === "ativa" ? "#111827" : "#6b7280",
+                      width: isMobile ? "100%" : "auto",
+                    }}
+                    onClick={() => setAbaInternaLive("ativa")}
+                  >
+                    Live ativa
+                  </button>
 
-                    <button style={botao} onClick={iniciarLive}>
-                      Iniciar Live
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ display: "grid", gap: 16 }}>
-                    <div>
-                      <strong>Live ativa: {liveAtual.nome}</strong>
-                      <div>
-                        Iniciada em:{" "}
-                        {liveAtual.hora_inicio ? formatarDataHoraBR(liveAtual.hora_inicio) : "-"}
+                  <button
+                    type="button"
+                    style={{
+                      ...botaoPequeno,
+                      background: abaInternaLive === "vendidas" ? "#111827" : "#6b7280",
+                      width: isMobile ? "100%" : "auto",
+                    }}
+                    onClick={() => setAbaInternaLive("vendidas")}
+                  >
+                    Peças vendidas
+                  </button>
+                </div>
+
+                {abaInternaLive === "ativa" && (
+                  <>
+                    {!liveAtual ? (
+                      <div style={{ display: "grid", gap: 10, maxWidth: 400 }}>
+                        <input
+                          style={input}
+                          placeholder="Nome da live (ex: Live 20/03 Noite)"
+                          value={nomeNovaLive}
+                          onChange={(e) => setNomeNovaLive(e.target.value)}
+                        />
+
+                        <button style={botao} onClick={iniciarLive}>
+                          Iniciar Live
+                        </button>
                       </div>
-                    </div>
-
-                    <button
-                      style={{ ...botao, background: "#b91c1c", maxWidth: isMobile ? "100%" : 220 }}
-                      onClick={encerrarLive}
-                    >
-                      Encerrar Live
-                    </button>
-
-                    <div style={{ marginTop: 10, display: "grid", gap: 12 }}>
-                      <div className="linha-resumo" style={linhaResumo}>
-                        <div style={cardResumo}>
-                          <strong>Peças na live</strong>
-                          <div style={valorResumo}>{vendasLive.length}</div>
+                    ) : (
+                      <div style={{ display: "grid", gap: 16 }}>
+                        <div>
+                          <strong>Live ativa: {liveAtual.nome}</strong>
+                          <div>
+                            Iniciada em:{" "}
+                            {liveAtual.hora_inicio ? formatarDataHoraBR(liveAtual.hora_inicio) : "-"}
+                          </div>
                         </div>
 
-                        <div style={cardResumo}>
-                          <strong>Faturamento</strong>
-                          <div style={valorResumo}>
-                            {formatarBRL(
-                              vendasLive.reduce(
-                                (acc, v) => acc + Number(v.valor_venda || 0),
-                                0
-                              )
+                        <button
+                          style={{ ...botao, background: "#b91c1c", maxWidth: isMobile ? "100%" : 220 }}
+                          onClick={encerrarLive}
+                        >
+                          Encerrar Live
+                        </button>
+
+                        <div style={{ marginTop: 10, display: "grid", gap: 12 }}>
+                          <div className="linha-resumo" style={linhaResumo}>
+                            <div style={cardResumo}>
+                              <strong>Peças na live</strong>
+                              <div style={valorResumo}>{vendasLive.length}</div>
+                            </div>
+
+                            <div style={cardResumo}>
+                              <strong>Faturamento</strong>
+                              <div style={valorResumo}>
+                                {formatarBRL(
+                                  vendasLive.reduce(
+                                    (acc, v) => acc + Number(v.valor_venda || 0),
+                                    0
+                                  )
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={boxGrande}>
+                            <h3 style={{ marginTop: 0 }}>
+                              Clientes da live {liveEmVisualizacao ? `- ${liveEmVisualizacao.nome}` : ""}
+                            </h3>
+
+                            {resumoClientesLive.length === 0 ? (
+                              <p>Nenhuma venda nessa live ainda.</p>
+                            ) : (
+                              <div style={{ display: "grid", gap: 10 }}>
+                                {resumoClientesLive.map((c) => (
+                                  <div key={c.nome} style={cardCliente}>
+                                    <strong>{c.nome}</strong>
+                                    <div>{c.pecas} peça(s)</div>
+                                    <div>{formatarBRL(c.total)}</div>
+                                  </div>
+                                ))}
+                              </div>
                             )}
                           </div>
                         </div>
                       </div>
+                    )}
 
-                      <div style={boxGrande}>
-                        <h3 style={{ marginTop: 0 }}>
-                          Clientes da live {liveEmVisualizacao ? `- ${liveEmVisualizacao.nome}` : ""}
-                        </h3>
+                    <div style={{ marginTop: 20 }}>
+                      <h3 style={{ marginBottom: 12 }}>Histórico de Lives</h3>
 
-                        {resumoClientesLive.length === 0 ? (
-                          <p>Nenhuma venda nessa live ainda.</p>
-                        ) : (
-                          <div style={{ display: "grid", gap: 10 }}>
-                            {resumoClientesLive.map((c) => (
-                              <div key={c.nome} style={cardCliente}>
-                                <strong>{c.nome}</strong>
-                                <div>{c.pecas} peça(s)</div>
-                                <div>{formatarBRL(c.total)}</div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div style={{ marginTop: 20 }}>
-                  <h3 style={{ marginBottom: 12 }}>Histórico de Lives</h3>
-
-                  {listaLives.length === 0 ? (
-                    <p>Nenhuma live cadastrada ainda.</p>
-                  ) : (
-                    <div style={{ display: "grid", gap: 10 }}>
-                      <div
-                        style={{
-                          display: isMobile ? "none" : "grid",
-                          gridTemplateColumns: "1.45fr 1fr 1fr auto",
-                          fontWeight: "bold",
-                          padding: "1px 16px",
-                          color: CORES_APP.textoSuave,
-                        }}
-                      >
-                        <div>Live</div>
-                        <div>Data</div>
-                        <div>Status</div>
-                        <div></div>
-                      </div>
-
-                      {[...listaLives]
-                        .sort((a, b) => {
-                          function toDate(dataStr) {
-                            if (!dataStr) return new Date(0);
-                            const [dia, mes, ano] = dataStr.split("/");
-                            return new Date(`${ano}-${mes}-${dia}`);
-                          }
-
-                          return toDate(b.data_live) - toDate(a.data_live);
-                        })
-                        .map((live) => (
+                      {listaLives.length === 0 ? (
+                        <p>Nenhuma live cadastrada ainda.</p>
+                      ) : (
+                        <div style={{ display: "grid", gap: 10 }}>
                           <div
-                            key={live.id}
                             style={{
-                              ...cardCliente,
-                              display: "grid",
-                              gridTemplateColumns: isMobile ? "1fr" : "1.7fr 1.2fr 1fr auto",
-                              alignItems: "center",
-                              gap: 12,
+                              display: isMobile ? "none" : "grid",
+                              gridTemplateColumns: "1.45fr 1fr 1fr auto",
+                              fontWeight: "bold",
+                              padding: "1px 16px",
+                              color: CORES_APP.textoSuave,
                             }}
                           >
-                            <div>
-                              <strong>{live.nome}</strong>
-                            </div>
+                            <div>Live</div>
+                            <div>Data</div>
+                            <div>Status</div>
+                            <div></div>
+                          </div>
 
-                            <div>
-                              {isMobile ? <strong>Data: </strong> : null}
-                              {live.data_live ? formatarDataBR(live.data_live) : "-"}
-                            </div>
+                          {[...listaLives]
+                            .sort((a, b) => {
+                              function toDate(dataStr) {
+                                if (!dataStr) return new Date(0);
+                                const [dia, mes, ano] = dataStr.split("/");
+                                return new Date(`${ano}-${mes}-${dia}`);
+                              }
 
-                            <div>
-                              {isMobile ? <strong>Status: </strong> : null}
-                              {live.status || "-"}
-                            </div>
-
-                            <div>
-                              <button
+                              return toDate(b.data_live) - toDate(a.data_live);
+                            })
+                            .map((live) => (
+                              <div
+                                key={live.id}
                                 style={{
-                                  ...botaoPequeno,
-                                  background: "#2563eb",
-                                  width: isMobile ? "100%" : "auto",
-                                }}
-                                onClick={async () => {
-                                  await abrirLiveHistorica(live);
-                                  setAbaAtiva("vendas");
+                                  ...cardCliente,
+                                  display: "grid",
+                                  gridTemplateColumns: isMobile ? "1fr" : "1.7fr 1.2fr 1fr auto",
+                                  alignItems: "center",
+                                  gap: 12,
                                 }}
                               >
-                                Abrir
-                              </button>
+                                <div>
+                                  <strong>{live.nome}</strong>
+                                </div>
+
+                                <div>
+                                  {isMobile ? <strong>Data: </strong> : null}
+                                  {live.data_live ? formatarDataBR(live.data_live) : "-"}
+                                </div>
+
+                                <div>
+                                  {isMobile ? <strong>Status: </strong> : null}
+                                  {live.status || "-"}
+                                </div>
+
+                                <div>
+                                  <button
+                                    style={{
+                                      ...botaoPequeno,
+                                      background: "#2563eb",
+                                      width: isMobile ? "100%" : "auto",
+                                    }}
+                                    onClick={async () => {
+                                      await abrirLiveHistorica(live);
+                                      setAbaAtiva("vendas");
+                                    }}
+                                  >
+                                    Abrir
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {abaInternaLive === "vendidas" && (
+                  <div style={{ display: "grid", gap: 14 }}>
+                    <div className="linha-resumo" style={{ ...linhaResumo, marginBottom: 4 }}>
+                      <div style={cardResumo}>
+                        <strong>Peças vendidas</strong>
+                        <div style={valorResumo}>{pecasVendidasLiveCronologicas.length}</div>
+                      </div>
+
+                      <div style={cardResumo}>
+                        <strong>Total vendido</strong>
+                        <div style={valorResumo}>
+                          {formatarBRL(
+                            pecasVendidasLiveCronologicas.reduce(
+                              (acc, venda) => acc + Number(venda.valor || 0),
+                              0
+                            )
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={cardResumo}>
+                        <strong>Live</strong>
+                        <div style={{ ...valorResumo, fontSize: isMobile ? 16 : 18 }}>
+                          {liveEmVisualizacao?.nome || liveAtual?.nome || "-"}
+                        </div>
+                      </div>
+                    </div>
+
+                    {pecasVendidasLiveCronologicas.length === 0 ? (
+                      <div
+                        style={{
+                          border: "1px dashed #cbd5e1",
+                          borderRadius: 16,
+                          padding: 18,
+                          background: "#f8fafc",
+                          color: "#64748b",
+                        }}
+                      >
+                        Nenhuma peça vendida nesta live ainda.
+                      </div>
+                    ) : (
+                      <div style={{ display: "grid", gap: 10 }}>
+                        {pecasVendidasLiveCronologicas.map((venda, index) => (
+                          <div
+                            key={venda.id || `${venda.codigo}-${index}`}
+                            style={{
+                              ...cardCliente,
+                              padding: isMobile ? 12 : 14,
+                              display: "grid",
+                              gap: 8,
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "grid",
+                                gridTemplateColumns: isMobile
+                                  ? "1fr"
+                                  : "60px minmax(220px, 1.4fr) minmax(120px, 0.7fr) minmax(160px, 1fr) minmax(160px, 1fr)",
+                                gap: 10,
+                                alignItems: "center",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontWeight: 800,
+                                  color: "#64748b",
+                                  fontSize: isMobile ? 13 : 14,
+                                }}
+                              >
+                                #{index + 1}
+                              </div>
+
+                              <div style={{ minWidth: 0 }}>
+                                <strong
+                                  style={{
+                                    fontSize: isMobile ? 14 : 16,
+                                    color: "#111827",
+                                    wordBreak: "break-word",
+                                  }}
+                                >
+                                  {venda.nomePeca}
+                                </strong>
+
+                                <div
+                                  style={{
+                                    fontSize: 12,
+                                    color: "#64748b",
+                                    marginTop: 3,
+                                    wordBreak: "break-word",
+                                  }}
+                                >
+                                  Código: <strong>{venda.codigo}</strong>
+                                </div>
+                              </div>
+
+                              <div>
+                                <strong style={{ color: "#15803d" }}>
+                                  {formatarBRL(venda.valor)}
+                                </strong>
+                              </div>
+
+                              <div style={{ fontSize: 13, color: "#475569" }}>
+                                <div>
+                                  <strong>Horário:</strong>
+                                </div>
+                                <div>{formatarDataHoraBR(venda.horario) || "-"}</div>
+                              </div>
+
+                              <div style={{ fontSize: 13, color: "#475569" }}>
+                                <div>
+                                  <strong>Vendido para:</strong> {venda.cliente}
+                                </div>
+
+                                <div>
+                                  <strong>Fila:</strong> {venda.fila || "-"}
+                                </div>
+                              </div>
                             </div>
                           </div>
                         ))}
-                    </div>
-                  )}
-                </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
