@@ -60,6 +60,8 @@ import EstoqueSection from "./components/sections/EstoqueSection";
 import ExpedicaoSection from "./components/sections/ExpedicaoSection";
 import PendenciasSection from "./components/sections/PendenciasSection";
 import VendasSection from "./components/sections/VendasSection";
+import LivesSection from "./components/sections/LivesSection";
+import FaturamentoSection from "./components/sections/FaturamentoSection";
 import useExpedicaoMemo from "./hooks/useExpedicaoMemo";
 import useFinanceiroMemo from "./hooks/useFinanceiroMemo";
 import { lerArquivoComoDataURL } from "./utils/arquivos";
@@ -346,6 +348,9 @@ export default function App() {
   const [pagamentosClientes, setPagamentosClientes] = useState({});
 
   const [form, setForm] = useState(FORM_INICIAL_PECA);
+  const [pecaEditando, setPecaEditando] = useState(null);
+  const [formEdicaoPeca, setFormEdicaoPeca] = useState(FORM_INICIAL_PECA);
+  const [salvandoEdicaoPeca, setSalvandoEdicaoPeca] = useState(false);
   const [formCliente, setFormCliente] = useState(FORM_INICIAL_CLIENTE);
   const [buscaClienteCadastro, setBuscaClienteCadastro] = useState("");
   const [salvandoCadastroPublico, setSalvandoCadastroPublico] = useState(false);
@@ -356,6 +361,7 @@ export default function App() {
   const [liveSelecionada, setLiveSelecionada] = useState(null);
   const [nomeNovaLive, setNomeNovaLive] = useState("");
   const [abaInternaLive, setAbaInternaLive] = useState("ativa");
+  const [clientesLiveExpandido, setClientesLiveExpandido] = useState(false);
 
   const [vendaId, setVendaId] = useState("");
   const [filaEspera, setFilaEspera] = useState("");
@@ -1111,6 +1117,68 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     await carregarPecas();
   }
 
+  function abrirEdicaoPeca(pecaSelecionada) {
+    if (!pecaSelecionada?.id) return;
+
+    setPecaEditando(pecaSelecionada);
+    setFormEdicaoPeca({
+      nome: pecaSelecionada.nome || "",
+      custo: pecaSelecionada.custo || "",
+      venda: pecaSelecionada.venda || "",
+      obs: pecaSelecionada.obs || "",
+      foto: pecaSelecionada.foto || "",
+    });
+  }
+
+  function cancelarEdicaoPeca() {
+    setPecaEditando(null);
+    setFormEdicaoPeca(FORM_INICIAL_PECA);
+    setSalvandoEdicaoPeca(false);
+  }
+
+  async function salvarEdicaoPeca() {
+    if (salvandoEdicaoPeca) return;
+
+    if (!pecaEditando?.id) {
+      alert("Nenhuma peça selecionada para edição.");
+      return;
+    }
+
+    if (!String(formEdicaoPeca.nome || "").trim()) {
+      alert("Preencha o nome da peça.");
+      return;
+    }
+
+    try {
+      setSalvandoEdicaoPeca(true);
+
+      const payload = {
+        nome: String(formEdicaoPeca.nome || "").trim(),
+        custo: formEdicaoPeca.custo || "",
+        venda: formEdicaoPeca.venda || "",
+        obs: String(formEdicaoPeca.obs || "").trim(),
+        foto: formEdicaoPeca.foto || "",
+      };
+
+      const { error } = await supabase
+        .from("pecas")
+        .update(payload)
+        .eq("id", pecaEditando.id);
+
+      if (error) {
+        console.error("ERRO AO EDITAR PEÇA:", error);
+        alert(`Erro ao editar peça: ${error.message}`);
+        return;
+      }
+
+      cancelarEdicaoPeca();
+      await carregarPecas();
+      alert("Peça atualizada com sucesso.");
+    } finally {
+      setSalvandoEdicaoPeca(false);
+    }
+  }
+
   async function limparTudo() {
     const confirmar = window.confirm("Deseja apagar todas as peças e vendas?");
     if (!confirmar) return;
@@ -1277,6 +1345,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
     const clienteAnterior = String(venda.cliente_nome || "").trim();
     const proximaCliente = String(venda.fila_espera_nome || "").trim();
+    const sacolinhaAntigaId = venda.sacolinha_id || null;
 
     if (!proximaCliente) {
       alert("Essa peça não possui cliente na fila.");
@@ -1285,6 +1354,16 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
     const novaData = agoraIso();
 
+    const novaSacolinhaId = await obterOuCriarSacolinha(
+      proximaCliente,
+      liveEmVisualizacao.id
+    );
+
+    if (!novaSacolinhaId) {
+      alert("Não foi possível criar ou localizar a sacolinha da nova cliente.");
+      return;
+    }
+
     const { error: errorVenda } = await supabase
       .from("vendas_live")
       .update({
@@ -1292,6 +1371,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         fila_espera_nome: null,
         status_pagamento: "pendente",
         data_hora: novaData,
+        sacolinha_id: novaSacolinhaId,
       })
       .eq("id", venda.id);
 
@@ -1313,12 +1393,12 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     if (errorPeca) {
       console.error("ERRO AO ATUALIZAR PEÇA PARA FILA:", errorPeca);
 
-      // rollback manual da venda
       const { error: rollbackError } = await supabase
         .from("vendas_live")
         .update({
           cliente_nome: clienteAnterior,
           fila_espera_nome: proximaCliente,
+          sacolinha_id: sacolinhaAntigaId,
         })
         .eq("id", venda.id);
 
@@ -1335,6 +1415,28 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       ]);
       return;
     }
+
+    if (sacolinhaAntigaId) {
+      const { data: vendasRestantes, error: erroRestantes } = await supabase
+        .from("vendas_live")
+        .select("id")
+        .eq("sacolinha_id", sacolinhaAntigaId)
+        .limit(1);
+
+      if (erroRestantes) {
+        console.error("ERRO AO VERIFICAR SACOLINHA ANTIGA:", erroRestantes);
+      } else if (!vendasRestantes || vendasRestantes.length === 0) {
+        const { error: erroExcluirSacolinha } = await supabase
+          .from("sacolinhas_live")
+          .delete()
+          .eq("id", sacolinhaAntigaId);
+
+        if (erroExcluirSacolinha) {
+          console.error("ERRO AO EXCLUIR SACOLINHA ANTIGA VAZIA:", erroExcluirSacolinha);
+        }
+      }
+    }
+
     await recarregarDadosGerais();
     await recarregarLiveEmVisualizacaoAtual();
 
@@ -2296,7 +2398,12 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           timestamp: parseDataFlex(dataVenda)?.getTime() || 0,
         };
       })
-      .sort((a, b) => a.timestamp - b.timestamp);
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .map((venda, index) => ({
+        ...venda,
+        numeroCronologico: index + 1,
+      }))
+      .sort((a, b) => b.timestamp - a.timestamp);
   }, [vendasLive, mapaPecasPorId]);
 
   const {
@@ -3178,6 +3285,14 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 PREVIEW_TIPO={PREVIEW_TIPO}
                 cancelarVenda={cancelarVenda}
                 removerPeca={removerPeca}
+                abrirEdicaoPeca={abrirEdicaoPeca}
+                pecaEditando={pecaEditando}
+                formEdicaoPeca={formEdicaoPeca}
+                setFormEdicaoPeca={setFormEdicaoPeca}
+                salvarEdicaoPeca={salvarEdicaoPeca}
+                cancelarEdicaoPeca={cancelarEdicaoPeca}
+                salvandoEdicaoPeca={salvandoEdicaoPeca}
+                formatarMoeda={formatarMoeda}
 
                 formatarBRL={formatarBRL}
 
@@ -3285,322 +3400,36 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
             )}
 
             {abaAtiva === "lives" && (
-              <div style={boxGrande}>
-                <h2 style={tituloSecao}>Controle de Lives</h2>
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 8,
-                    flexWrap: "wrap",
-                    marginBottom: 16,
-                  }}
-                >
-                  <button
-                    type="button"
-                    style={{
-                      ...botaoPequeno,
-                      background: abaInternaLive === "ativa" ? "#111827" : "#6b7280",
-                      width: isMobile ? "100%" : "auto",
-                    }}
-                    onClick={() => setAbaInternaLive("ativa")}
-                  >
-                    Live ativa
-                  </button>
-
-                  <button
-                    type="button"
-                    style={{
-                      ...botaoPequeno,
-                      background: abaInternaLive === "vendidas" ? "#111827" : "#6b7280",
-                      width: isMobile ? "100%" : "auto",
-                    }}
-                    onClick={() => setAbaInternaLive("vendidas")}
-                  >
-                    Peças vendidas
-                  </button>
-                </div>
-
-                {abaInternaLive === "ativa" && (
-                  <>
-                    {!liveAtual ? (
-                      <div style={{ display: "grid", gap: 10, maxWidth: 400 }}>
-                        <input
-                          style={input}
-                          placeholder="Nome da live (ex: Live 20/03 Noite)"
-                          value={nomeNovaLive}
-                          onChange={(e) => setNomeNovaLive(e.target.value)}
-                        />
-
-                        <button style={botao} onClick={iniciarLive}>
-                          Iniciar Live
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ display: "grid", gap: 16 }}>
-                        <div>
-                          <strong>Live ativa: {liveAtual.nome}</strong>
-                          <div>
-                            Iniciada em:{" "}
-                            {liveAtual.hora_inicio ? formatarDataHoraBR(liveAtual.hora_inicio) : "-"}
-                          </div>
-                        </div>
-
-                        <button
-                          style={{ ...botao, background: "#b91c1c", maxWidth: isMobile ? "100%" : 220 }}
-                          onClick={encerrarLive}
-                        >
-                          Encerrar Live
-                        </button>
-
-                        <div style={{ marginTop: 10, display: "grid", gap: 12 }}>
-                          <div className="linha-resumo" style={linhaResumo}>
-                            <div style={cardResumo}>
-                              <strong>Peças na live</strong>
-                              <div style={valorResumo}>{vendasLive.length}</div>
-                            </div>
-
-                            <div style={cardResumo}>
-                              <strong>Faturamento</strong>
-                              <div style={valorResumo}>
-                                {formatarBRL(
-                                  vendasLive.reduce(
-                                    (acc, v) => acc + Number(v.valor_venda || 0),
-                                    0
-                                  )
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div style={boxGrande}>
-                            <h3 style={{ marginTop: 0 }}>
-                              Clientes da live {liveEmVisualizacao ? `- ${liveEmVisualizacao.nome}` : ""}
-                            </h3>
-
-                            {resumoClientesLive.length === 0 ? (
-                              <p>Nenhuma venda nessa live ainda.</p>
-                            ) : (
-                              <div style={{ display: "grid", gap: 10 }}>
-                                {resumoClientesLive.map((c) => (
-                                  <div key={c.nome} style={cardCliente}>
-                                    <strong>{c.nome}</strong>
-                                    <div>{c.pecas} peça(s)</div>
-                                    <div>{formatarBRL(c.total)}</div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div style={{ marginTop: 20 }}>
-                      <h3 style={{ marginBottom: 12 }}>Histórico de Lives</h3>
-
-                      {listaLives.length === 0 ? (
-                        <p>Nenhuma live cadastrada ainda.</p>
-                      ) : (
-                        <div style={{ display: "grid", gap: 10 }}>
-                          <div
-                            style={{
-                              display: isMobile ? "none" : "grid",
-                              gridTemplateColumns: "1.45fr 1fr 1fr auto",
-                              fontWeight: "bold",
-                              padding: "1px 16px",
-                              color: CORES_APP.textoSuave,
-                            }}
-                          >
-                            <div>Live</div>
-                            <div>Data</div>
-                            <div>Status</div>
-                            <div></div>
-                          </div>
-
-                          {[...listaLives]
-                            .sort((a, b) => {
-                              function toDate(dataStr) {
-                                if (!dataStr) return new Date(0);
-                                const [dia, mes, ano] = dataStr.split("/");
-                                return new Date(`${ano}-${mes}-${dia}`);
-                              }
-
-                              return toDate(b.data_live) - toDate(a.data_live);
-                            })
-                            .map((live) => (
-                              <div
-                                key={live.id}
-                                style={{
-                                  ...cardCliente,
-                                  display: "grid",
-                                  gridTemplateColumns: isMobile ? "1fr" : "1.7fr 1.2fr 1fr auto",
-                                  alignItems: "center",
-                                  gap: 12,
-                                }}
-                              >
-                                <div>
-                                  <strong>{live.nome}</strong>
-                                </div>
-
-                                <div>
-                                  {isMobile ? <strong>Data: </strong> : null}
-                                  {live.data_live ? formatarDataBR(live.data_live) : "-"}
-                                </div>
-
-                                <div>
-                                  {isMobile ? <strong>Status: </strong> : null}
-                                  {live.status || "-"}
-                                </div>
-
-                                <div>
-                                  <button
-                                    style={{
-                                      ...botaoPequeno,
-                                      background: "#2563eb",
-                                      width: isMobile ? "100%" : "auto",
-                                    }}
-                                    onClick={async () => {
-                                      await abrirLiveHistorica(live);
-                                      setAbaAtiva("vendas");
-                                    }}
-                                  >
-                                    Abrir
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-
-                {abaInternaLive === "vendidas" && (
-                  <div style={{ display: "grid", gap: 14 }}>
-                    <div className="linha-resumo" style={{ ...linhaResumo, marginBottom: 4 }}>
-                      <div style={cardResumo}>
-                        <strong>Peças vendidas</strong>
-                        <div style={valorResumo}>{pecasVendidasLiveCronologicas.length}</div>
-                      </div>
-
-                      <div style={cardResumo}>
-                        <strong>Total vendido</strong>
-                        <div style={valorResumo}>
-                          {formatarBRL(
-                            pecasVendidasLiveCronologicas.reduce(
-                              (acc, venda) => acc + Number(venda.valor || 0),
-                              0
-                            )
-                          )}
-                        </div>
-                      </div>
-
-                      <div style={cardResumo}>
-                        <strong>Live</strong>
-                        <div style={{ ...valorResumo, fontSize: isMobile ? 16 : 18 }}>
-                          {liveEmVisualizacao?.nome || liveAtual?.nome || "-"}
-                        </div>
-                      </div>
-                    </div>
-
-                    {pecasVendidasLiveCronologicas.length === 0 ? (
-                      <div
-                        style={{
-                          border: "1px dashed #cbd5e1",
-                          borderRadius: 16,
-                          padding: 18,
-                          background: "#f8fafc",
-                          color: "#64748b",
-                        }}
-                      >
-                        Nenhuma peça vendida nesta live ainda.
-                      </div>
-                    ) : (
-                      <div style={{ display: "grid", gap: 10 }}>
-                        {pecasVendidasLiveCronologicas.map((venda, index) => (
-                          <div
-                            key={venda.id || `${venda.codigo}-${index}`}
-                            style={{
-                              ...cardCliente,
-                              padding: isMobile ? 12 : 14,
-                              display: "grid",
-                              gap: 8,
-                            }}
-                          >
-                            <div
-                              style={{
-                                display: "grid",
-                                gridTemplateColumns: isMobile
-                                  ? "1fr"
-                                  : "60px minmax(220px, 1.4fr) minmax(120px, 0.7fr) minmax(160px, 1fr) minmax(160px, 1fr)",
-                                gap: 10,
-                                alignItems: "center",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  fontWeight: 800,
-                                  color: "#64748b",
-                                  fontSize: isMobile ? 13 : 14,
-                                }}
-                              >
-                                #{index + 1}
-                              </div>
-
-                              <div style={{ minWidth: 0 }}>
-                                <strong
-                                  style={{
-                                    fontSize: isMobile ? 14 : 16,
-                                    color: "#111827",
-                                    wordBreak: "break-word",
-                                  }}
-                                >
-                                  {venda.nomePeca}
-                                </strong>
-
-                                <div
-                                  style={{
-                                    fontSize: 12,
-                                    color: "#64748b",
-                                    marginTop: 3,
-                                    wordBreak: "break-word",
-                                  }}
-                                >
-                                  Código: <strong>{venda.codigo}</strong>
-                                </div>
-                              </div>
-
-                              <div>
-                                <strong style={{ color: "#15803d" }}>
-                                  {formatarBRL(venda.valor)}
-                                </strong>
-                              </div>
-
-                              <div style={{ fontSize: 13, color: "#475569" }}>
-                                <div>
-                                  <strong>Horário:</strong>
-                                </div>
-                                <div>{formatarDataHoraBR(venda.horario) || "-"}</div>
-                              </div>
-
-                              <div style={{ fontSize: 13, color: "#475569" }}>
-                                <div>
-                                  <strong>Vendido para:</strong> {venda.cliente}
-                                </div>
-
-                                <div>
-                                  <strong>Fila:</strong> {venda.fila || "-"}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+              <LivesSection
+                boxGrande={boxGrande}
+                tituloSecao={tituloSecao}
+                input={input}
+                botao={botao}
+                linhaResumo={linhaResumo}
+                cardResumo={cardResumo}
+                valorResumo={valorResumo}
+                cardCliente={cardCliente}
+                isMobile={isMobile}
+                liveAtual={liveAtual}
+                liveEmVisualizacao={liveEmVisualizacao}
+                nomeNovaLive={nomeNovaLive}
+                setNomeNovaLive={setNomeNovaLive}
+                iniciarLive={iniciarLive}
+                encerrarLive={encerrarLive}
+                abaInternaLive={abaInternaLive}
+                setAbaInternaLive={setAbaInternaLive}
+                clientesLiveExpandido={clientesLiveExpandido}
+                setClientesLiveExpandido={setClientesLiveExpandido}
+                resumoClientesLive={resumoClientesLive}
+                listaLives={listaLives}
+                vendasLive={vendasLive}
+                pecasVendidasLiveCronologicas={pecasVendidasLiveCronologicas}
+                abrirLiveHistorica={abrirLiveHistorica}
+                setAbaAtiva={setAbaAtiva}
+                formatarDataHoraBR={formatarDataHoraBR}
+                formatarDataBR={formatarDataBR}
+                formatarBRL={formatarBRL}
+              />
             )}
 
 
@@ -3630,163 +3459,23 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
 
             {abaAtiva === "faturamento" && (
-              <div style={{ display: "grid", gap: 24 }}>
-                <div style={boxGrande}>
-                  <h2 style={tituloSecao}>Faturamento</h2>
-
-                  <div style={{ marginBottom: 12, fontSize: 12, color: "#64748b" }}>
-                    <div>ID live atual: {liveAtual?.id}</div>
-                    <div>ID live em visualização: {liveEmVisualizacao?.id}</div>
-                  </div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 12,
-                      flexWrap: "wrap",
-                      alignItems: "end",
-                      marginBottom: 20,
-                    }}
-                  >
-                    <div style={{ display: "grid", gap: 6 }}>
-                      <label>Data inicial</label>
-                      <input
-                        type="date"
-                        style={input}
-                        value={dataInicialFiltro}
-                        onChange={(e) => setDataInicialFiltro(e.target.value)}
-                      />
-                    </div>
-
-                    <div style={{ display: "grid", gap: 6 }}>
-                      <label>Data final</label>
-                      <input
-                        type="date"
-                        style={input}
-                        value={dataFinalFiltro}
-                        onChange={(e) => setDataFinalFiltro(e.target.value)}
-                      />
-                    </div>
-
-                    <button
-                      style={{ ...botao, background: "#6b7280" }}
-                      onClick={() => {
-                        setDataInicialFiltro("");
-                        setDataFinalFiltro("");
-                      }}
-                    >
-                      Limpar filtro
-                    </button>
-
-                    <button style={botao} onClick={exportarRelatorioCSV}>
-                      Exportar relatório
-                    </button>
-                  </div>
-
-                  <div className="linha-resumo" style={linhaResumo}>
-                    <div style={cardResumo}>
-                      <strong>Faturamento</strong>
-                      <div style={valorResumo}>{formatarBRL(faturamentoFiltrado)}</div>
-                    </div>
-
-                    <div style={cardResumo}>
-                      <strong>Lucro estimado</strong>
-                      <div style={valorResumo}>{formatarBRL(lucroFiltrado)}</div>
-                    </div>
-
-                    <div style={cardResumo}>
-                      <strong>Peças vendidas</strong>
-                      <div style={valorResumo}>{quantidadeVendidaFiltrada}</div>
-                    </div>
-
-                    <div style={cardResumo}>
-                      <strong>Ticket médio</strong>
-                      <div style={valorResumo}>{formatarBRL(ticketMedioFiltrado)}</div>
-                    </div>
-                  </div>
-
-                  <div style={{ marginTop: 24 }}>
-                    <h3 style={{ marginTop: 24, marginBottom: 12 }}>Resumo por Live</h3>
-
-                    {resumoFaturamentoPorLive.length === 0 ? (
-                      <p>Nenhuma live encontrada no período.</p>
-                    ) : (
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: isMobile
-                            ? "1fr"
-                            : "repeat(4, 1fr)",
-                          gap: 16,
-                          alignItems: "start",
-                        }}
-                      >
-                        {resumoFaturamentoPorLive.map((live) => (
-                          <div
-                            key={live.id}
-                            style={{
-                              border: "1px solid #e5e7eb",
-                              borderRadius: 16,
-                              background: "#fff",
-                              padding: 18,
-                              display: "grid",
-                              gap: 8,
-                              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-                              alignContent: "start",
-                            }}
-                          >
-                            <div style={{ fontSize: 12, color: "#64748b" }}>
-                              ID: {live.id}
-                            </div>
-
-                            <div
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "flex-start",
-                                gap: 12,
-                              }}
-                            >
-                              <strong style={{ fontSize: 20 }}>{live.nome}</strong>
-
-                              <span
-                                style={{
-                                  padding: "4px 10px",
-                                  borderRadius: 10,
-                                  background:
-                                    live.status === "aberta"
-                                      ? "#2563eb"
-                                      : live.status === "encerrada"
-                                        ? "#6b7280"
-                                        : "#15803d",
-                                  color: "#fff",
-                                  fontSize: 12,
-                                  fontWeight: "bold",
-                                  textTransform: "capitalize",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {live.status || "-"}
-                              </span>
-                            </div>
-
-                            <div style={{ color: CORES_APP.textoSuave, fontSize: 14 }}>
-                              <strong>Data:</strong> {live.data ? formatarDataBR(live.data) : "-"}
-                            </div>
-
-                            <div style={{ display: "grid", gap: 6, marginTop: 4 }}>
-                              <div><strong>Quantidade de vendas:</strong> {live.quantidade}</div>
-                              <div><strong>Faturamento:</strong> {formatarBRL(live.faturamento)}</div>
-                              <div><strong>Lucro:</strong> {formatarBRL(live.lucro)}</div>
-                              <div><strong>Ticket médio:</strong> {formatarBRL(live.ticketMedio)}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <FaturamentoSection
+                boxGrande={boxGrande}
+                tituloSecao={tituloSecao}
+                input={input}
+                isMobile={isMobile}
+                dataInicialFiltro={dataInicialFiltro}
+                setDataInicialFiltro={setDataInicialFiltro}
+                dataFinalFiltro={dataFinalFiltro}
+                setDataFinalFiltro={setDataFinalFiltro}
+                exportarRelatorioCSV={exportarRelatorioCSV}
+                resumoFaturamentoPorLive={resumoFaturamentoPorLive}
+                faturamentoFiltrado={faturamentoFiltrado}
+                lucroFiltrado={lucroFiltrado}
+                quantidadeVendidaFiltrada={quantidadeVendidaFiltrada}
+                ticketMedioFiltrado={ticketMedioFiltrado}
+                formatarBRL={formatarBRL}
+              />
             )}
 
             {abaAtiva === "expedicao" && (

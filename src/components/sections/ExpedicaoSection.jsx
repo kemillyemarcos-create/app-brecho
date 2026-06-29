@@ -1,180 +1,27 @@
 import { useMemo, useState } from "react";
+import {
+    Archive,
+    BadgeCheck,
+    Boxes,
+    Check,
+    CheckCircle2,
+    ChevronDown,
+    ChevronRight,
+    Clock3,
+    CreditCard,
+    FileCheck2,
+    PackageCheck,
+    PackageOpen,
+    PackagePlus,
+    RotateCcw,
+    Send,
+    ShieldCheck,
+    Truck,
+    Wallet,
+    XCircle,
+} from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { formatarDataHoraBR } from "../../utils/dateUtils";
-
-function SecaoTitulo({
-    titulo,
-    quantidade,
-    aberto,
-    onToggle,
-    linhaSecao,
-    tituloLinha,
-    setaLinha,
-    extra,
-}) {
-    return (
-        <div onClick={onToggle} style={linhaSecao}>
-            <h3 style={tituloLinha}>
-                {titulo} ({quantidade})
-                {extra ? ` • ${extra}` : ""}
-            </h3>
-            <button
-                type="button"
-                style={setaLinha}
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onToggle();
-                }}
-            >
-                {aberto ? "▼" : "▶"}
-            </button>
-        </div>
-    );
-}
-
-function BotaoExpandir({ expandido, onClick }) {
-    return (
-        <button
-            type="button"
-            onClick={(e) => {
-                e.stopPropagation();
-                onClick();
-            }}
-            style={{
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-                fontSize: 18,
-                width: "auto",
-                minWidth: "auto",
-                padding: "4px 6px",
-                flexShrink: 0,
-            }}
-        >
-            {expandido ? "▼" : "▶"}
-        </button>
-    );
-}
-
-function CabecalhoCard({
-    isMobile,
-    nome,
-    liveId,
-    mapaLivesPorId,
-    faixas,
-    onExpandir,
-    expandido,
-}) {
-    return (
-        <div style={{ display: "grid", gap: 10 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <BotaoExpandir expandido={expandido} onClick={onExpandir} />
-
-                <strong
-                    style={{
-                        fontSize: isMobile ? 14 : 15,
-                        lineHeight: 1.2,
-                        wordBreak: "break-word",
-                    }}
-                >
-                    {nome}
-                </strong>
-            </div>
-
-            <div style={{ fontSize: isMobile ? 13 : 14, color: "#555" }}>
-                Live: {mapaLivesPorId[String(liveId)]?.nome || liveId}
-            </div>
-
-            <div
-                style={{
-                    display: "flex",
-                    gap: 8,
-                    alignItems: "center",
-                    flexWrap: "wrap",
-                }}
-            >
-                {faixas}
-            </div>
-        </div>
-    );
-}
-
-function ListaItensSacolinha({ itens, itemLista, mapaPecasPorId, formatarBRL }) {
-    if (!itens || itens.length === 0) {
-        return <div style={itemLista}>Nenhum item encontrado nessa sacolinha.</div>;
-    }
-
-    return itens.map((item, index) => (
-        <div key={item.id || `${item.peca_id}-${index}`} style={itemLista}>
-            <div>
-                <strong>Peça:</strong>{" "}
-                {mapaPecasPorId[String(item.peca_id)]?.nome ||
-                    item.nome_peca ||
-                    item.nome ||
-                    "-"}
-            </div>
-            <div>
-                <strong>Código:</strong> {item.peca_id || "-"}
-            </div>
-            <div>
-                <strong>Valor:</strong> {formatarBRL(item.valor_venda || item.valor || 0)}
-            </div>
-            <div>
-                <strong>Status:</strong>{" "}
-                {item.status_pagamento === "pago" ? "Pago" : "Pendente"}
-            </div>
-        </div>
-    ));
-}
-
-function CardBase({
-    isMobile,
-    cardLista,
-    cabecalho,
-    acoes,
-    expandido,
-    conteudoExpandido,
-}) {
-    return (
-        <div style={cardLista}>
-            <div
-                style={{
-                    display: "grid",
-                    gridTemplateColumns: isMobile ? "1fr" : "1fr auto",
-                    gap: 12,
-                    alignItems: "center",
-                }}
-            >
-                {cabecalho}
-                {acoes ? <div style={{ display: "grid", gap: 10 }}>{acoes}</div> : null}
-            </div>
-
-            {expandido ? (
-                <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-                    {conteudoExpandido}
-                </div>
-            ) : null}
-        </div>
-    );
-}
-
-function BlocoInfo({ titulo, children }) {
-    return (
-        <div
-            style={{
-                background: "#f8fafc",
-                border: "1px solid #e2e8f0",
-                borderRadius: 14,
-                padding: 12,
-                display: "grid",
-                gap: 8,
-            }}
-        >
-            <strong>{titulo}</strong>
-            {children}
-        </div>
-    );
-}
 
 function getItensDaSacolinhaLocal(sacolinha, vendas = []) {
     if (!sacolinha?.id) return [];
@@ -186,19 +33,14 @@ function getItensDaSacolinhaLocal(sacolinha, vendas = []) {
 
 function sacolinhaEstaPagaLocal(sacolinha, vendas = []) {
     const itens = getItensDaSacolinhaLocal(sacolinha, vendas);
-
     if (itens.length === 0) return false;
-
     return itens.every((v) => v.status_pagamento === "pago");
 }
 
 function getStatusSacolinhaLocal(sacolinha, vendas = [], getStatusSacolinha) {
     if (!sacolinha) return "desconhecido";
-
     if (sacolinha.status === "enviada") return "enviada";
-
     if (!sacolinhaEstaPagaLocal(sacolinha, vendas)) return "aguardando_pagamento";
-
     if (sacolinha.status === "separada") return "pronta_envio";
 
     if (typeof getStatusSacolinha === "function") {
@@ -233,46 +75,420 @@ function sacolinhaPodeIrParaExpedicaoLocal(
     );
 }
 
-function StatusPagamentoToggle({
-    sacolinha,
-    pago,
-    alterandoPagamentoId,
-    onTogglePagamento,
-    badgeBase,
-}) {
+function IconButton({ icon: Icon, label, onClick, disabled, tone = "default", isMobile }) {
+    const tons = {
+        default: { bg: "#f8fafc", border: "#e2e8f0", color: "#334155" },
+        primary: { bg: "#eff6ff", border: "#bfdbfe", color: "#1d4ed8" },
+        success: { bg: "#ecfdf5", border: "#bbf7d0", color: "#15803d" },
+        warning: { bg: "#fffbeb", border: "#fde68a", color: "#b45309" },
+        danger: { bg: "#fef2f2", border: "#fecaca", color: "#b91c1c" },
+        muted: { bg: "#f1f5f9", border: "#e2e8f0", color: "#64748b" },
+    };
+
+    const tema = tons[tone] || tons.default;
+
+    return (
+        <button
+            type="button"
+            title={label}
+            aria-label={label}
+            disabled={disabled}
+            onClick={(e) => {
+                e.stopPropagation();
+                if (!disabled && onClick) onClick();
+            }}
+            style={{
+                minWidth: isMobile ? 42 : 46,
+                height: isMobile ? 38 : 42,
+                borderRadius: 14,
+                border: `1px solid ${tema.border}`,
+                background: tema.bg,
+                color: tema.color,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: disabled ? "not-allowed" : "pointer",
+                opacity: disabled ? 0.55 : 1,
+                boxShadow: "0 2px 8px rgba(15,23,42,0.04)",
+            }}
+        >
+            <Icon size={isMobile ? 17 : 18} strokeWidth={2.2} />
+        </button>
+    );
+}
+
+function Badge({ children, tone = "default", icon: Icon }) {
+    const tons = {
+        default: { bg: "#f8fafc", border: "#e2e8f0", color: "#334155" },
+        success: { bg: "#ecfdf5", border: "#bbf7d0", color: "#15803d" },
+        warning: { bg: "#fffbeb", border: "#fde68a", color: "#b45309" },
+        danger: { bg: "#fef2f2", border: "#fecaca", color: "#b91c1c" },
+        primary: { bg: "#eff6ff", border: "#bfdbfe", color: "#1d4ed8" },
+        muted: { bg: "#f1f5f9", border: "#e2e8f0", color: "#64748b" },
+    };
+
+    const tema = tons[tone] || tons.default;
+
+    return (
+        <span
+            style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "5px 9px",
+                borderRadius: 999,
+                border: `1px solid ${tema.border}`,
+                background: tema.bg,
+                color: tema.color,
+                fontSize: 12,
+                fontWeight: 800,
+                lineHeight: 1,
+                whiteSpace: "nowrap",
+            }}
+        >
+            {Icon ? <Icon size={13} strokeWidth={2.4} /> : null}
+            {children}
+        </span>
+    );
+}
+
+function StatusPagamentoToggle({ sacolinha, pago, alterandoPagamentoId, onTogglePagamento }) {
     const carregando = alterandoPagamentoId === sacolinha.id;
 
     return (
         <button
             type="button"
-            style={{
-                ...badgeBase,
-                border: "none",
-                background: pago ? "#15803d" : "#dc2626",
-                cursor: carregando ? "not-allowed" : "pointer",
-                opacity: carregando ? 0.7 : 1,
-                minWidth: 58,
-                textAlign: "center",
-            }}
             disabled={carregando}
             title={pago ? "Clique para marcar como pendente" : "Clique para marcar como pago"}
             onClick={(e) => {
                 e.stopPropagation();
-                if (carregando) return;
-                onTogglePagamento(sacolinha, pago);
+                if (!carregando) onTogglePagamento(sacolinha, pago);
+            }}
+            style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                border: "none",
+                borderRadius: 999,
+                padding: "6px 10px",
+                background: pago ? "#ecfdf5" : "#fef2f2",
+                color: pago ? "#15803d" : "#b91c1c",
+                fontSize: 12,
+                fontWeight: 900,
+                cursor: carregando ? "not-allowed" : "pointer",
+                opacity: carregando ? 0.65 : 1,
+                whiteSpace: "nowrap",
             }}
         >
-            {carregando ? "..." : pago ? "Pago" : "Pendente"}
+            {carregando ? (
+                "..."
+            ) : pago ? (
+                <>
+                    <CheckCircle2 size={13} /> Pago
+                </>
+            ) : (
+                <>
+                    <XCircle size={13} /> Pendente
+                </>
+            )}
         </button>
+    );
+}
+
+function SectionHeader({ titulo, quantidade, aberto, onToggle, extra, icon: Icon, isMobile }) {
+    return (
+        <button
+            type="button"
+            onClick={onToggle}
+            style={{
+                width: "100%",
+                border: "none",
+                background: "transparent",
+                padding: isMobile ? "12px 0" : "16px 0",
+                display: "grid",
+                gridTemplateColumns: "1fr auto",
+                gap: 12,
+                alignItems: "center",
+                cursor: "pointer",
+                textAlign: "left",
+            }}
+        >
+            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                <span
+                    style={{
+                        width: isMobile ? 34 : 38,
+                        height: isMobile ? 34 : 38,
+                        borderRadius: 14,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: "#f8fafc",
+                        border: "1px solid #e2e8f0",
+                        color: "#8f2745",
+                        flexShrink: 0,
+                    }}
+                >
+                    <Icon size={isMobile ? 17 : 19} />
+                </span>
+
+                <div style={{ minWidth: 0 }}>
+                    <h3
+                        style={{
+                            margin: 0,
+                            fontSize: isMobile ? 15 : 18,
+                            color: "#111827",
+                            lineHeight: 1.1,
+                        }}
+                    >
+                        {titulo}
+                    </h3>
+                    <div style={{ marginTop: 4, color: "#64748b", fontSize: isMobile ? 12 : 13 }}>
+                        {quantidade} registro(s){extra ? ` • ${extra}` : ""}
+                    </div>
+                </div>
+            </div>
+
+            <span
+                style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 12,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: aberto ? "#fdf2f8" : "#f8fafc",
+                    color: aberto ? "#8f2745" : "#64748b",
+                    border: "1px solid #e2e8f0",
+                }}
+            >
+                {aberto ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+            </span>
+        </button>
+    );
+}
+
+function EmptyState({ children }) {
+    return (
+        <div
+            style={{
+                padding: 16,
+                border: "1px dashed #cbd5e1",
+                borderRadius: 18,
+                background: "#f8fafc",
+                color: "#64748b",
+                textAlign: "center",
+                fontSize: 14,
+            }}
+        >
+            {children}
+        </div>
+    );
+}
+
+function ExpandButton({ expandido, onClick }) {
+    return (
+        <button
+            type="button"
+            onClick={(e) => {
+                e.stopPropagation();
+                onClick();
+            }}
+            aria-label={expandido ? "Recolher" : "Expandir"}
+            style={{
+                width: 34,
+                height: 34,
+                borderRadius: 12,
+                border: "1px solid #e2e8f0",
+                background: expandido ? "#fdf2f8" : "#f8fafc",
+                color: expandido ? "#8f2745" : "#64748b",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                flexShrink: 0,
+            }}
+        >
+            {expandido ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+        </button>
+    );
+}
+
+function ListaItensSacolinha({ itens, mapaPecasPorId, formatarBRL, isMobile }) {
+    if (!itens || itens.length === 0) {
+        return <EmptyState>Nenhum item encontrado nessa sacolinha.</EmptyState>;
+    }
+
+    return (
+        <div style={{ display: "grid", gap: 8 }}>
+            {itens.map((item, index) => {
+                const peca = mapaPecasPorId[String(item.peca_id)] || {};
+                const nome = peca.nome || item.nome_peca || item.nome || "-";
+                const pago = item.status_pagamento === "pago";
+
+                return (
+                    <div
+                        key={item.id || `${item.peca_id}-${index}`}
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: isMobile ? "1fr" : "1fr auto",
+                            gap: 8,
+                            padding: 12,
+                            border: "1px solid #e5e7eb",
+                            borderRadius: 14,
+                            background: "#fff",
+                        }}
+                    >
+                        <div style={{ minWidth: 0 }}>
+                            <strong style={{ color: "#111827", wordBreak: "break-word" }}>{nome}</strong>
+                            <div style={{ color: "#64748b", fontSize: 12, marginTop: 4 }}>
+                                Código: <strong>{item.peca_id || "-"}</strong>
+                            </div>
+                        </div>
+                        <div
+                            style={{
+                                display: "flex",
+                                gap: 8,
+                                flexWrap: "wrap",
+                                alignItems: "center",
+                                justifyContent: isMobile ? "flex-start" : "flex-end",
+                            }}
+                        >
+                            <Badge tone="primary" icon={Wallet}>
+                                {formatarBRL(item.valor_venda || item.valor || 0)}
+                            </Badge>
+                            <Badge tone={pago ? "success" : "danger"} icon={pago ? CheckCircle2 : XCircle}>
+                                {pago ? "Pago" : "Pendente"}
+                            </Badge>
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+function BlocoInfo({ titulo, icon: Icon, children }) {
+    return (
+        <div
+            style={{
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderRadius: 18,
+                padding: 14,
+                display: "grid",
+                gap: 10,
+            }}
+        >
+            <strong style={{ display: "flex", alignItems: "center", gap: 8, color: "#111827" }}>
+                {Icon ? <Icon size={17} color="#8f2745" /> : null}
+                {titulo}
+            </strong>
+            {children}
+        </div>
+    );
+}
+
+function SacolinhaCard({
+    sacolinha,
+    isMobile,
+    expandido,
+    onExpandir,
+    mapaLivesPorId,
+    mapaPecasPorId,
+    formatarBRL,
+    itens,
+    pago,
+    vencida,
+    statusLabel,
+    statusTone,
+    acoes,
+    alterandoPagamentoId,
+    alternarPagamentoSacolinha,
+}) {
+    return (
+        <div
+            style={{
+                padding: isMobile ? 12 : 16,
+                borderRadius: 20,
+                border: vencida ? "1px solid #fecaca" : "1px solid #e5e7eb",
+                background: vencida ? "#fff7f7" : "#fff",
+                boxShadow: "0 4px 16px rgba(15,23,42,0.05)",
+            }}
+        >
+            <div
+                style={{
+                    display: "grid",
+                    gridTemplateColumns: isMobile ? "1fr" : "1fr auto",
+                    gap: 12,
+                    alignItems: "center",
+                }}
+            >
+                <div style={{ display: "grid", gap: 10, minWidth: 0 }}>
+                    <div style={{ display: "flex", gap: 9, alignItems: "center", minWidth: 0 }}>
+                        <ExpandButton expandido={expandido} onClick={onExpandir} />
+                        <div style={{ minWidth: 0 }}>
+                            <strong
+                                style={{
+                                    display: "block",
+                                    fontSize: isMobile ? 15 : 17,
+                                    color: "#111827",
+                                    lineHeight: 1.15,
+                                    wordBreak: "break-word",
+                                }}
+                            >
+                                {sacolinha.cliente_nome || "Cliente sem nome"}
+                            </strong>
+                            <span style={{ color: "#64748b", fontSize: 12 }}>
+                                Live: {mapaLivesPorId[String(sacolinha.live_id)]?.nome || sacolinha.live_id || "-"}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 7, flexWrap: "wrap", alignItems: "center" }}>
+                        <Badge tone={statusTone}>{statusLabel}</Badge>
+                        <Badge tone="muted" icon={Boxes}>{sacolinha.quantidade || 0} peça(s)</Badge>
+                        <Badge tone="primary" icon={Wallet}>{formatarBRL(sacolinha.valorTotal || 0)}</Badge>
+                        <StatusPagamentoToggle
+                            sacolinha={sacolinha}
+                            pago={pago}
+                            alterandoPagamentoId={alterandoPagamentoId}
+                            onTogglePagamento={alternarPagamentoSacolinha}
+                        />
+                        {vencida ? <Badge tone="danger" icon={Clock3}>Vencida</Badge> : null}
+                    </div>
+                </div>
+
+                {acoes ? (
+                    <div
+                        style={{
+                            display: "flex",
+                            gap: 8,
+                            justifyContent: isMobile ? "flex-start" : "flex-end",
+                            flexWrap: "wrap",
+                        }}
+                    >
+                        {acoes}
+                    </div>
+                ) : null}
+            </div>
+
+            {expandido ? (
+                <div style={{ marginTop: 14 }}>
+                    <ListaItensSacolinha
+                        itens={itens}
+                        mapaPecasPorId={mapaPecasPorId}
+                        formatarBRL={formatarBRL}
+                        isMobile={isMobile}
+                    />
+                </div>
+            ) : null}
+        </div>
     );
 }
 
 export default function ExpedicaoSection({
     boxGrande,
     tituloSecao,
-    cardCliente,
-    itemCliente,
-    botaoPequeno,
     sacolinhasAgrupadas,
     sacolinhasAbertas,
     sacolinhasSeparadas,
@@ -317,9 +533,7 @@ export default function ExpedicaoSection({
         return (todasVendasLive || []).map((venda) => {
             const sacolinhaId = String(venda.sacolinha_id || "");
 
-            if (!sacolinhaId || !statusPagamentoLocal[sacolinhaId]) {
-                return venda;
-            }
+            if (!sacolinhaId || !statusPagamentoLocal[sacolinhaId]) return venda;
 
             return {
                 ...venda,
@@ -339,6 +553,7 @@ export default function ExpedicaoSection({
         if (!sacolinha?.id) return;
 
         const novoStatus = pagoAtual ? "pendente" : "pago";
+
         try {
             setAlterandoPagamentoId(sacolinha.id);
 
@@ -371,180 +586,148 @@ export default function ExpedicaoSection({
         }
     }
 
-    const blocoPrincipal = {
+    const totais = {
+        abertas: sacolinhasAbertas?.length || 0,
+        separadas: sacolinhasSeparadas?.length || 0,
+        montagem: pedidosEnvioEmMontagem?.length || 0,
+        enviadas: pedidosEnvioConcluidos?.length || 0,
+    };
+
+    const resumoCards = [
+        { label: "Abertas", value: totais.abertas, icon: PackageOpen, tone: "warning" },
+        { label: "Separadas", value: totais.separadas, icon: PackageCheck, tone: "primary" },
+        { label: "Pedidos", value: totais.montagem, icon: Truck, tone: "default" },
+        { label: "Enviadas", value: totais.enviadas, icon: CheckCircle2, tone: "success" },
+    ];
+
+    const container = {
+        ...boxGrande,
+        display: "grid",
+        gap: 18,
+    };
+
+    const painel = {
         border: "1px solid #f2dfe5",
         borderRadius: 28,
-        padding: isMobile ? 16 : 24,
-        background: "#fff",
-        boxShadow: "0 6px 20px rgba(15,23,42,0.04)",
+        padding: isMobile ? 14 : 22,
+        background: "linear-gradient(180deg, #ffffff 0%, #fffafa 100%)",
+        boxShadow: "0 8px 24px rgba(15,23,42,0.04)",
     };
 
-    const linhaSecao = {
-        display: "grid",
-        gridTemplateColumns: "1fr auto",
-        alignItems: "center",
-        gap: 12,
-        padding: isMobile ? "10px 0" : "14px 0",
-        cursor: "pointer",
-    };
-
-    const tituloLinha = {
-        margin: 0,
-        fontSize: isMobile ? 14 : 18,
-        fontWeight: 500,
-        color: "#111827",
-        lineHeight: 1.2,
-    };
-
-    const setaLinha = {
-        background: "transparent",
-        border: "none",
-        fontSize: 26,
-        lineHeight: 1,
-        cursor: "pointer",
-        padding: 0,
-        width: "auto",
-        minWidth: "auto",
-        color: "#111827",
-    };
-
-    const cardLista = {
-        ...cardCliente,
-        padding: isMobile ? 12 : 16,
-        borderRadius: 16,
-        background: "#fff",
-        boxShadow: "0 2px 10px rgba(15,23,42,0.05)",
-    };
-
-    const itemLista = {
-        ...itemCliente,
-        padding: isMobile ? 10 : 12,
-        borderRadius: 12,
-    };
-
-    const badgeBase = {
-        padding: "4px 10px",
-        borderRadius: 10,
-        color: "#fff",
-        fontSize: 12,
-        fontWeight: "bold",
-        lineHeight: 1.2,
-        whiteSpace: "nowrap",
-    };
-
-    const blocoInterno = {
-        marginTop: 10,
+    const lista = {
+        marginTop: 8,
         display: "grid",
         gap: 10,
     };
 
-    const botaoExpedicao = {
-        ...botaoPequeno,
-        width: "100%",
-        minHeight: isMobile ? 38 : 40,
-        padding: isMobile ? "8px 12px" : "9px 14px",
-        borderRadius: isMobile ? 12 : 14,
-        fontSize: 13,
-        lineHeight: 1.15,
+    const divisoria = {
+        height: 1,
+        background: "#f1e3e8",
+        margin: isMobile ? "6px 0" : "8px 0",
     };
 
     return (
-        <div style={boxGrande}>
-            <h2 style={tituloSecao}>Expedição</h2>
+        <div style={container}>
+            <div
+                style={{
+                    display: "grid",
+                    gridTemplateColumns: isMobile ? "1fr" : "1fr auto",
+                    gap: 12,
+                    alignItems: "center",
+                }}
+            >
+                <div>
+                    <h2 style={{ ...tituloSecao, marginBottom: 4 }}>Expedição</h2>
+                    <div style={{ color: "#64748b", fontSize: 13 }}>
+                        Organização das sacolinhas, conferência e envio dos pedidos.
+                    </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: isMobile ? "flex-start" : "flex-end" }}>
+                    {totalSacolinhasVencidas > 0 ? (
+                        <Badge tone="danger" icon={Clock3}>{totalSacolinhasVencidas} vencida(s)</Badge>
+                    ) : (
+                        <Badge tone="success" icon={ShieldCheck}>Sem vencidas</Badge>
+                    )}
+                </div>
+            </div>
+
+            <div
+                style={{
+                    display: "grid",
+                    gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))",
+                    gap: 10,
+                }}
+            >
+                {resumoCards.map((card) => (
+                    <div
+                        key={card.label}
+                        style={{
+                            border: "1px solid #e5e7eb",
+                            borderRadius: 20,
+                            background: "#fff",
+                            padding: isMobile ? 12 : 14,
+                            display: "grid",
+                            gap: 8,
+                            boxShadow: "0 3px 12px rgba(15,23,42,0.04)",
+                        }}
+                    >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                            <span style={{ color: "#64748b", fontSize: 12, fontWeight: 800 }}>{card.label}</span>
+                            <span style={{ color: "#8f2745" }}><card.icon size={17} /></span>
+                        </div>
+                        <strong style={{ fontSize: isMobile ? 22 : 26, color: "#111827", lineHeight: 1 }}>{card.value}</strong>
+                    </div>
+                ))}
+            </div>
 
             {sacolinhasAgrupadas.length === 0 ? (
-                <p>Nenhuma sacolinha encontrada.</p>
+                <EmptyState>Nenhuma sacolinha encontrada.</EmptyState>
             ) : (
-                <div style={blocoPrincipal}>
-                    <SecaoTitulo
+                <div style={painel}>
+                    <SectionHeader
                         titulo="Sacolinhas abertas"
                         quantidade={sacolinhasAbertas.length}
                         aberto={mostrarAbertas}
                         onToggle={() => setMostrarAbertas((prev) => !prev)}
-                        linhaSecao={linhaSecao}
-                        tituloLinha={tituloLinha}
-                        setaLinha={setaLinha}
+                        icon={PackageOpen}
+                        isMobile={isMobile}
                     />
 
-                    {mostrarAbertas && (
-                        <div style={blocoInterno}>
+                    {mostrarAbertas ? (
+                        <div style={lista}>
                             {sacolinhasAbertas.length === 0 ? (
-                                <p>Nenhuma sacolinha aberta.</p>
+                                <EmptyState>Nenhuma sacolinha aberta.</EmptyState>
                             ) : (
                                 sacolinhasAbertas.map((s) => {
                                     const sacolinhaAtualizada = getSacolinhaComItensAtualizados(s);
-                                    const vencida = sacolinhaEstaVencida(
-                                        sacolinhaAtualizada,
-                                        vendasLiveExpedicao
-                                    );
-                                    const pago = sacolinhaEstaPagaLocal(
-                                        sacolinhaAtualizada,
-                                        vendasLiveExpedicao
-                                    );
+                                    const vencida = sacolinhaEstaVencida(sacolinhaAtualizada, vendasLiveExpedicao);
+                                    const pago = sacolinhaEstaPagaLocal(sacolinhaAtualizada, vendasLiveExpedicao);
 
                                     return (
-                                        <CardBase
+                                        <SacolinhaCard
                                             key={s.id}
+                                            sacolinha={sacolinhaAtualizada}
                                             isMobile={isMobile}
-                                            cardLista={cardLista}
                                             expandido={!!sacolinhasExpandidas[s.id]}
-                                            cabecalho={
-                                                <CabecalhoCard
-                                                    isMobile={isMobile}
-                                                    nome={s.cliente_nome}
-                                                    liveId={s.live_id}
-                                                    mapaLivesPorId={mapaLivesPorId}
-                                                    expandido={!!sacolinhasExpandidas[s.id]}
-                                                    onExpandir={() => toggleExpandirSacolinha(s.id)}
-                                                    faixas={
-                                                        <>
-                                                            <span style={{ ...badgeBase, background: "#b45309" }}>
-                                                                {s.status}
-                                                            </span>
-
-                                                            <span style={{ fontSize: isMobile ? 13 : 14 }}>
-                                                                {s.quantidade} peça(s)
-                                                            </span>
-
-                                                            <span style={{ fontSize: isMobile ? 13 : 14 }}>
-                                                                {formatarBRL(s.valorTotal || 0)}
-                                                            </span>
-
-                                                            <StatusPagamentoToggle
-                                                                sacolinha={sacolinhaAtualizada}
-                                                                pago={pago}
-                                                                alterandoPagamentoId={alterandoPagamentoId}
-                                                                onTogglePagamento={alternarPagamentoSacolinha}
-                                                                badgeBase={badgeBase}
-                                                            />
-
-                                                            {vencida ? (
-                                                                <span style={{ ...badgeBase, background: "#dc2626" }}>
-                                                                    VENCIDA
-                                                                </span>
-                                                            ) : null}
-                                                        </>
-                                                    }
-                                                />
-                                            }
+                                            onExpandir={() => toggleExpandirSacolinha(s.id)}
+                                            mapaLivesPorId={mapaLivesPorId}
+                                            mapaPecasPorId={mapaPecasPorId}
+                                            formatarBRL={formatarBRL}
+                                            itens={sacolinhaAtualizada.itens}
+                                            pago={pago}
+                                            vencida={vencida}
+                                            statusLabel="Aberta"
+                                            statusTone="warning"
+                                            alterandoPagamentoId={alterandoPagamentoId}
+                                            alternarPagamentoSacolinha={alternarPagamentoSacolinha}
                                             acoes={
-                                                <>
-
-                                                    <button
-                                                        type="button"
-                                                        style={{ ...botaoExpedicao, background: "#f59e0b" }}
-                                                        onClick={() => marcarSacolinhaComoSeparada(s.id)}
-                                                    >
-                                                        Marcar como separada
-                                                    </button>
-                                                </>
-                                            }
-                                            conteudoExpandido={
-                                                <ListaItensSacolinha
-                                                    itens={sacolinhaAtualizada.itens}
-                                                    itemLista={itemLista}
-                                                    mapaPecasPorId={mapaPecasPorId}
-                                                    formatarBRL={formatarBRL}
+                                                <IconButton
+                                                    icon={PackageCheck}
+                                                    label="Marcar como separada"
+                                                    tone="warning"
+                                                    isMobile={isMobile}
+                                                    onClick={() => marcarSacolinhaComoSeparada(s.id)}
                                                 />
                                             }
                                         />
@@ -552,23 +735,24 @@ export default function ExpedicaoSection({
                                 })
                             )}
                         </div>
-                    )}
+                    ) : null}
 
-                    <SecaoTitulo
+                    <div style={divisoria} />
+
+                    <SectionHeader
                         titulo="Separadas"
                         quantidade={sacolinhasSeparadas.length}
-                        extra={`Vencidas (${totalSacolinhasVencidas})`}
+                        extra={`Vencidas ${totalSacolinhasVencidas}`}
                         aberto={mostrarSeparadas}
                         onToggle={() => setMostrarSeparadas((prev) => !prev)}
-                        linhaSecao={linhaSecao}
-                        tituloLinha={tituloLinha}
-                        setaLinha={setaLinha}
+                        icon={PackageCheck}
+                        isMobile={isMobile}
                     />
 
-                    {mostrarSeparadas && (
-                        <div style={blocoInterno}>
+                    {mostrarSeparadas ? (
+                        <div style={lista}>
                             {sacolinhasSeparadas.length === 0 ? (
-                                <p>Nenhuma sacolinha separada.</p>
+                                <EmptyState>Nenhuma sacolinha separada.</EmptyState>
                             ) : (
                                 sacolinhasSeparadas.map((s) => {
                                     const sacolinhaAtualizada = getSacolinhaComItensAtualizados(s);
@@ -583,453 +767,291 @@ export default function ExpedicaoSection({
                                         sacolinhaEstaVencida,
                                         sacolinhaPodeIrParaExpedicao
                                     );
-                                    const vencida = sacolinhaEstaVencida(
-                                        sacolinhaAtualizada,
-                                        vendasLiveExpedicao
-                                    );
-                                    const pago = sacolinhaEstaPagaLocal(
-                                        sacolinhaAtualizada,
-                                        vendasLiveExpedicao
-                                    );
+                                    const vencida = sacolinhaEstaVencida(sacolinhaAtualizada, vendasLiveExpedicao);
+                                    const pago = sacolinhaEstaPagaLocal(sacolinhaAtualizada, vendasLiveExpedicao);
 
                                     return (
-                                        <CardBase
+                                        <SacolinhaCard
                                             key={s.id}
+                                            sacolinha={sacolinhaAtualizada}
                                             isMobile={isMobile}
-                                            cardLista={cardLista}
                                             expandido={!!sacolinhasExpandidas[s.id]}
-                                            cabecalho={
-                                                <CabecalhoCard
-                                                    isMobile={isMobile}
-                                                    nome={s.cliente_nome}
-                                                    liveId={s.live_id}
-                                                    mapaLivesPorId={mapaLivesPorId}
-                                                    expandido={!!sacolinhasExpandidas[s.id]}
-                                                    onExpandir={() => toggleExpandirSacolinha(s.id)}
-                                                    faixas={
-                                                        <>
-                                                            <span
-                                                                style={{
-                                                                    ...badgeBase,
-                                                                    background: vencida ? "#dc2626" : "#f59e0b",
-                                                                    color: "#fff",
-                                                                    fontWeight: 700,
-                                                                }}
-                                                            >
-                                                                {vencida ? "VENCIDA" : "Separada"}
-                                                            </span>
-
-                                                            <span style={{ fontSize: isMobile ? 13 : 14 }}>
-                                                                {s.quantidade} peça(s)
-                                                            </span>
-
-                                                            <span style={{ fontSize: isMobile ? 13 : 14 }}>
-                                                                {formatarBRL(s.valorTotal || 0)}
-                                                            </span>
-
-                                                            <StatusPagamentoToggle
-                                                                sacolinha={sacolinhaAtualizada}
-                                                                pago={pago}
-                                                                alterandoPagamentoId={alterandoPagamentoId}
-                                                                onTogglePagamento={alternarPagamentoSacolinha}
-                                                                badgeBase={badgeBase}
-                                                            />
-                                                        </>
-                                                    }
-                                                />
-                                            }
+                                            onExpandir={() => toggleExpandirSacolinha(s.id)}
+                                            mapaLivesPorId={mapaLivesPorId}
+                                            mapaPecasPorId={mapaPecasPorId}
+                                            formatarBRL={formatarBRL}
+                                            itens={sacolinhaAtualizada.itens}
+                                            pago={pago}
+                                            vencida={vencida}
+                                            statusLabel={vencida ? "Vencida" : statusSacolinha === "pronta_envio" ? "Pronta" : "Separada"}
+                                            statusTone={vencida ? "danger" : "primary"}
+                                            alterandoPagamentoId={alterandoPagamentoId}
+                                            alternarPagamentoSacolinha={alternarPagamentoSacolinha}
                                             acoes={
                                                 <>
-
-                                                    <button
-                                                        type="button"
-                                                        style={{
-                                                            ...botaoExpedicao,
-                                                            background: "#2563eb",
-                                                            opacity: criandoPedidoEnvioCliente === s.cliente_nome ? 0.7 : 1,
-                                                            cursor:
-                                                                criandoPedidoEnvioCliente === s.cliente_nome
-                                                                    ? "not-allowed"
-                                                                    : "pointer",
-                                                        }}
-                                                        onClick={() => criarPedidoDeEnvio(s.cliente_nome)}
+                                                    <IconButton
+                                                        icon={PackagePlus}
+                                                        label={
+                                                            criandoPedidoEnvioCliente === s.cliente_nome
+                                                                ? "Criando pedido"
+                                                                : "Criar pedido de envio"
+                                                        }
+                                                        tone="primary"
+                                                        isMobile={isMobile}
                                                         disabled={criandoPedidoEnvioCliente === s.cliente_nome}
-                                                    >
-                                                        {criandoPedidoEnvioCliente === s.cliente_nome
-                                                            ? "Criando pedido..."
-                                                            : "Criar pedido de envio"}
-                                                    </button>
-
-                                                    <button
-                                                        type="button"
-                                                        style={{
-                                                            ...botaoExpedicao,
-                                                            background: podeIrParaExpedicao ? "#15803d" : "#9ca3af",
-                                                            cursor: podeIrParaExpedicao ? "pointer" : "not-allowed",
-                                                        }}
-                                                        onClick={() => {
-                                                            if (!podeIrParaExpedicao) return;
-                                                            marcarSacolinhaComoEnviada(s.id, sacolinhaAtualizada);
-                                                        }}
-                                                    >
-                                                        {podeIrParaExpedicao
-                                                            ? "Marcar como enviada"
-                                                            : "Aguardando pagamento"}
-                                                    </button>
+                                                        onClick={() => criarPedidoDeEnvio(s.cliente_nome)}
+                                                    />
+                                                    <IconButton
+                                                        icon={Send}
+                                                        label={podeIrParaExpedicao ? "Marcar como enviada" : "Aguardando pagamento"}
+                                                        tone={podeIrParaExpedicao ? "success" : "muted"}
+                                                        isMobile={isMobile}
+                                                        disabled={!podeIrParaExpedicao}
+                                                        onClick={() => marcarSacolinhaComoEnviada(s.id, sacolinhaAtualizada)}
+                                                    />
                                                 </>
-                                            }
-                                            conteudoExpandido={
-                                                <ListaItensSacolinha
-                                                    itens={sacolinhaAtualizada.itens}
-                                                    itemLista={itemLista}
-                                                    mapaPecasPorId={mapaPecasPorId}
-                                                    formatarBRL={formatarBRL}
-                                                />
                                             }
                                         />
                                     );
                                 })
                             )}
                         </div>
-                    )}
+                    ) : null}
 
-                    <SecaoTitulo
-                        titulo="Pedidos de Envio"
+                    <div style={divisoria} />
+
+                    <SectionHeader
+                        titulo="Pedidos de envio"
                         quantidade={pedidosEnvioEmMontagem.length}
                         aberto={mostrarPedidosEnvio}
                         onToggle={() => setMostrarPedidosEnvio((prev) => !prev)}
-                        linhaSecao={linhaSecao}
-                        tituloLinha={tituloLinha}
-                        setaLinha={setaLinha}
+                        icon={Truck}
+                        isMobile={isMobile}
                     />
 
-                    {mostrarPedidosEnvio && (
-                        <div style={blocoInterno}>
+                    {mostrarPedidosEnvio ? (
+                        <div style={lista}>
                             {carregandoPedidosEnvio ? (
-                                <p>Carregando pedidos de envio...</p>
+                                <EmptyState>Carregando pedidos de envio...</EmptyState>
                             ) : pedidosEnvioEmMontagem.length === 0 ? (
-                                <p>Nenhum pedido de envio criado ainda.</p>
+                                <EmptyState>Nenhum pedido de envio criado ainda.</EmptyState>
                             ) : (
-                                pedidosEnvioEmMontagem.map((p) => (
-                                    <CardBase
-                                        key={p.id}
-                                        isMobile={isMobile}
-                                        cardLista={cardLista}
-                                        expandido={!!pedidosEnvioExpandidos[p.id]}
-                                        cabecalho={
-                                            <div style={{ display: "grid", gap: 10 }}>
-                                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                                    <BotaoExpandir
-                                                        expandido={!!pedidosEnvioExpandidos[p.id]}
-                                                        onClick={() => toggleExpandirPedidoEnvio(p.id)}
+                                pedidosEnvioEmMontagem.map((pedido) => {
+                                    const expandido = !!pedidosEnvioExpandidos[pedido.id];
+                                    const conferido = pedidoEstaConferido(pedido, itensConferidosPedido);
+                                    const totalConferido = (itensConferidosPedido[pedido.id] || []).length;
+
+                                    return (
+                                        <div
+                                            key={pedido.id}
+                                            style={{
+                                                padding: isMobile ? 12 : 16,
+                                                borderRadius: 20,
+                                                border: "1px solid #e5e7eb",
+                                                background: "#fff",
+                                                boxShadow: "0 4px 16px rgba(15,23,42,0.05)",
+                                            }}
+                                        >
+                                            <div
+                                                style={{
+                                                    display: "grid",
+                                                    gridTemplateColumns: isMobile ? "1fr" : "1fr auto",
+                                                    gap: 12,
+                                                    alignItems: "center",
+                                                }}
+                                            >
+                                                <div style={{ display: "grid", gap: 10 }}>
+                                                    <div style={{ display: "flex", gap: 9, alignItems: "center" }}>
+                                                        <ExpandButton
+                                                            expandido={expandido}
+                                                            onClick={() => toggleExpandirPedidoEnvio(pedido.id)}
+                                                        />
+                                                        <strong style={{ fontSize: isMobile ? 15 : 17, color: "#111827" }}>
+                                                            {pedido.cliente_nome}
+                                                        </strong>
+                                                    </div>
+
+                                                    <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+                                                        <Badge tone="primary" icon={Truck}>{pedido.status}</Badge>
+                                                        <Badge tone="muted" icon={Archive}>{pedido.sacolinhas?.length || 0} sacolinha(s)</Badge>
+                                                        <Badge tone="muted" icon={Boxes}>{pedido.quantidadeCalculada} peça(s)</Badge>
+                                                        <Badge tone="primary" icon={Wallet}>{formatarBRL(pedido.valorTotalPedido || 0)}</Badge>
+                                                        <Badge tone={conferido ? "success" : "warning"} icon={FileCheck2}>
+                                                            {totalConferido}/{pedido.quantidadeCalculada}
+                                                        </Badge>
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: isMobile ? "flex-start" : "flex-end" }}>
+                                                    <IconButton
+                                                        icon={RotateCcw}
+                                                        label="Voltar para separadas"
+                                                        tone="muted"
+                                                        isMobile={isMobile}
+                                                        onClick={() => cancelarPedidoDeEnvio(pedido.id, pedido.cliente_nome)}
                                                     />
-
-                                                    <strong
-                                                        style={{
-                                                            fontSize: isMobile ? 14 : 15,
-                                                            lineHeight: 1.2,
-                                                            wordBreak: "break-word",
-                                                        }}
-                                                    >
-                                                        {p.cliente_nome}
-                                                    </strong>
-                                                </div>
-
-                                                <div
-                                                    style={{
-                                                        display: "flex",
-                                                        gap: 8,
-                                                        alignItems: "center",
-                                                        flexWrap: "wrap",
-                                                    }}
-                                                >
-                                                    <span style={{ ...badgeBase, background: "#2563eb" }}>
-                                                        {p.status}
-                                                    </span>
-
-                                                    <span style={{ fontSize: isMobile ? 13 : 14 }}>
-                                                        {p.sacolinhas?.length || 0} sacolinha(s)
-                                                    </span>
-
-                                                    <span style={{ fontSize: isMobile ? 13 : 14 }}>
-                                                        {p.quantidadeCalculada} peça(s)
-                                                    </span>
-
-                                                    <span style={{ fontSize: isMobile ? 13 : 14 }}>
-                                                        Total: {formatarBRL(p.valorTotalPedido || 0)}
-                                                    </span>
-
-                                                    <span
-                                                        style={{
-                                                            ...badgeBase,
-                                                            background: pedidoEstaConferido(p, itensConferidosPedido)
-                                                                ? "#15803d"
-                                                                : "#b45309",
-                                                        }}
-                                                    >
-                                                        Conferido: {(itensConferidosPedido[p.id] || []).length} /{" "}
-                                                        {p.quantidadeCalculada}
-                                                    </span>
+                                                    <IconButton
+                                                        icon={Check}
+                                                        label="Marcar pedido como enviado"
+                                                        tone={conferido ? "success" : "muted"}
+                                                        isMobile={isMobile}
+                                                        disabled={!conferido}
+                                                        onClick={() => marcarPedidoComoEnviado(pedido)}
+                                                    />
                                                 </div>
                                             </div>
-                                        }
-                                        acoes={
-                                            <>
-                                                <button
-                                                    type="button"
-                                                    style={{ ...botaoExpedicao, background: "#6b7280" }}
-                                                    onClick={() => cancelarPedidoDeEnvio(p.id, p.cliente_nome)}
-                                                >
-                                                    Voltar para separadas
-                                                </button>
 
-                                                <button
-                                                    type="button"
-                                                    style={{
-                                                        ...botaoExpedicao,
-                                                        background: pedidoEstaConferido(p, itensConferidosPedido)
-                                                            ? "#15803d"
-                                                            : "#9ca3af",
-                                                        cursor: pedidoEstaConferido(p, itensConferidosPedido)
-                                                            ? "pointer"
-                                                            : "not-allowed",
-                                                    }}
-                                                    onClick={() => {
-                                                        if (!pedidoEstaConferido(p, itensConferidosPedido)) return;
-                                                        marcarPedidoComoEnviado(p);
-                                                    }}
-                                                >
-                                                    Marcar pedido como enviado
-                                                </button>
-                                            </>
-                                        }
-                                        conteudoExpandido={
-                                            <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-                                                <BlocoInfo titulo="Sacolinhas incluídas">
-                                                    {!p.sacolinhas || p.sacolinhas.length === 0 ? (
-                                                        <div>Nenhuma sacolinha vinculada.</div>
-                                                    ) : (
-                                                        p.sacolinhas.map((sacolinha) => (
-                                                            <div key={sacolinha.id} style={itemLista}>
-                                                                <div>
-                                                                    <strong>Live:</strong>{" "}
-                                                                    {mapaLivesPorId[String(sacolinha.live_id)]?.nome ||
-                                                                        sacolinha.live_id ||
-                                                                        "-"}
+                                            {expandido ? (
+                                                <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
+                                                    <BlocoInfo titulo="Sacolinhas incluídas" icon={Archive}>
+                                                        {!pedido.sacolinhas || pedido.sacolinhas.length === 0 ? (
+                                                            <EmptyState>Nenhuma sacolinha vinculada.</EmptyState>
+                                                        ) : (
+                                                            pedido.sacolinhas.map((sacolinha) => (
+                                                                <div key={sacolinha.id} style={{ padding: 12, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14 }}>
+                                                                    <div><strong>Live:</strong> {mapaLivesPorId[String(sacolinha.live_id)]?.nome || sacolinha.live_id || "-"}</div>
+                                                                    <div><strong>Sacolinha:</strong> {sacolinha.id}</div>
+                                                                    <div><strong>Peças:</strong> {sacolinha.quantidade || 0}</div>
+                                                                    <div><strong>Total:</strong> {formatarBRL(sacolinha.valorTotal || 0)}</div>
                                                                 </div>
-                                                                <div>
-                                                                    <strong>Sacolinha:</strong> {sacolinha.id}
-                                                                </div>
-                                                                <div>
-                                                                    <strong>Peças:</strong> {sacolinha.quantidade || 0}
-                                                                </div>
-                                                                <div>
-                                                                    <strong>Total:</strong>{" "}
-                                                                    {formatarBRL(sacolinha.valorTotal || 0)}
-                                                                </div>
+                                                            ))
+                                                        )}
+                                                    </BlocoInfo>
+
+                                                    <BlocoInfo titulo="Itens do pedido" icon={FileCheck2}>
+                                                        {!pedido.itens || pedido.itens.length === 0 ? (
+                                                            <EmptyState>Nenhum item encontrado.</EmptyState>
+                                                        ) : (
+                                                            <div style={{ display: "grid", gap: 8 }}>
+                                                                {pedido.itens.map((item, index) => {
+                                                                    const itemKey = item.id || `${item.peca_id}-${index}`;
+                                                                    const checked = itensConferidosPedido[pedido.id]?.includes(itemKey) || false;
+                                                                    const peca = mapaPecasPorId[String(item.peca_id)];
+
+                                                                    return (
+                                                                        <label
+                                                                            key={itemKey}
+                                                                            style={{
+                                                                                display: "grid",
+                                                                                gridTemplateColumns: "auto 1fr",
+                                                                                gap: 10,
+                                                                                padding: 12,
+                                                                                border: checked ? "1px solid #bbf7d0" : "1px solid #e5e7eb",
+                                                                                borderRadius: 14,
+                                                                                background: checked ? "#ecfdf5" : "#fff",
+                                                                                cursor: "pointer",
+                                                                            }}
+                                                                        >
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={checked}
+                                                                                onChange={() => toggleItemConferidoPedido(pedido.id, itemKey)}
+                                                                            />
+                                                                            <div>
+                                                                                <strong>{peca?.nome || item.nome_peca || item.nome || "-"}</strong>
+                                                                                <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>Código: {item.peca_id || "-"}</div>
+                                                                                <div style={{ fontSize: 12, color: "#64748b" }}>Valor: {formatarBRL(item.valor_venda || item.valor || 0)}</div>
+                                                                            </div>
+                                                                        </label>
+                                                                    );
+                                                                })}
                                                             </div>
-                                                        ))
-                                                    )}
-                                                </BlocoInfo>
-
-                                                <BlocoInfo titulo="Itens do pedido">
-                                                    {!p.itens || p.itens.length === 0 ? (
-                                                        <div>Nenhum item encontrado.</div>
-                                                    ) : (
-                                                        p.itens.map((item, index) => {
-                                                            const itemKey = item.id || `${item.peca_id}-${index}`;
-                                                            const checked =
-                                                                itensConferidosPedido[p.id]?.includes(itemKey) || false;
-                                                            const peca = mapaPecasPorId[String(item.peca_id)];
-
-                                                            return (
-                                                                <div
-                                                                    key={itemKey}
-                                                                    style={{
-                                                                        display: "flex",
-                                                                        alignItems: "center",
-                                                                        gap: 10,
-                                                                        padding: 10,
-                                                                        border: "1px solid #e5e7eb",
-                                                                        borderRadius: 12,
-                                                                    }}
-                                                                >
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={checked}
-                                                                        onChange={() =>
-                                                                            toggleItemConferidoPedido(p.id, itemKey)
-                                                                        }
-                                                                    />
-
-                                                                    <div>
-                                                                        <div>
-                                                                            <strong>
-                                                                                {peca?.nome || item.nome_peca || item.nome || "-"}
-                                                                            </strong>
-                                                                        </div>
-
-                                                                        <div style={{ fontSize: 12, color: "#555" }}>
-                                                                            Código: {item.peca_id || "-"}
-                                                                        </div>
-                                                                        <div style={{ fontSize: 12, color: "#555" }}>
-                                                                            Valor: {formatarBRL(item.valor_venda || item.valor || 0)}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        })
-                                                    )}
-                                                </BlocoInfo>
-                                            </div>
-                                        }
-                                    />
-                                ))
+                                                        )}
+                                                    </BlocoInfo>
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    );
+                                })
                             )}
                         </div>
-                    )}
+                    ) : null}
 
-                    <SecaoTitulo
+                    <div style={divisoria} />
+
+                    <SectionHeader
                         titulo="Enviadas"
                         quantidade={pedidosEnvioConcluidos.length}
                         aberto={mostrarEnviadas}
                         onToggle={() => setMostrarEnviadas((prev) => !prev)}
-                        linhaSecao={linhaSecao}
-                        tituloLinha={tituloLinha}
-                        setaLinha={setaLinha}
+                        icon={BadgeCheck}
+                        isMobile={isMobile}
                     />
 
-                    {mostrarEnviadas && (
-                        <div style={blocoInterno}>
+                    {mostrarEnviadas ? (
+                        <div style={lista}>
                             {pedidosEnvioConcluidos.length === 0 ? (
-                                <p>Nenhum pedido enviado ainda.</p>
+                                <EmptyState>Nenhum pedido enviado ainda.</EmptyState>
                             ) : (
-                                pedidosEnvioConcluidos.map((p) => (
-                                    <div key={p.id} style={{ ...cardLista, opacity: 0.9 }}>
+                                pedidosEnvioConcluidos.map((pedido) => {
+                                    const expandido = !!pedidosEnvioExpandidos[pedido.id];
+
+                                    return (
                                         <div
+                                            key={pedido.id}
                                             style={{
-                                                display: "grid",
-                                                gridTemplateColumns: isMobile ? "1fr" : "1fr auto",
-                                                gap: 12,
-                                                alignItems: "center",
+                                                padding: isMobile ? 12 : 16,
+                                                borderRadius: 20,
+                                                border: "1px solid #d1fae5",
+                                                background: "#f7fffb",
+                                                boxShadow: "0 4px 16px rgba(15,23,42,0.04)",
                                             }}
                                         >
                                             <div style={{ display: "grid", gap: 10 }}>
-                                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                                    <BotaoExpandir
-                                                        expandido={!!pedidosEnvioExpandidos[p.id]}
-                                                        onClick={() => toggleExpandirPedidoEnvio(p.id)}
-                                                    />
-
-                                                    <strong
-                                                        style={{
-                                                            fontSize: isMobile ? 14 : 15,
-                                                            lineHeight: 1.2,
-                                                            wordBreak: "break-word",
-                                                        }}
-                                                    >
-                                                        {p.cliente_nome}
-                                                    </strong>
+                                                <div style={{ display: "flex", gap: 9, alignItems: "center" }}>
+                                                    <ExpandButton expandido={expandido} onClick={() => toggleExpandirPedidoEnvio(pedido.id)} />
+                                                    <strong style={{ fontSize: isMobile ? 15 : 17, color: "#111827" }}>{pedido.cliente_nome}</strong>
                                                 </div>
 
-                                                <div
-                                                    style={{
-                                                        display: "flex",
-                                                        gap: 8,
-                                                        alignItems: "center",
-                                                        flexWrap: "wrap",
-                                                    }}
-                                                >
-                                                    <span style={{ ...badgeBase, background: "#15803d" }}>
-                                                        enviado
-                                                    </span>
-
-                                                    <span style={{ fontSize: isMobile ? 13 : 14 }}>
-                                                        {p.sacolinhas?.length || 0} sacolinha(s)
-                                                    </span>
-
-                                                    <span style={{ fontSize: isMobile ? 13 : 14 }}>
-                                                        {p.quantidadeCalculada} peça(s)
-                                                    </span>
-
-                                                    <span style={{ fontSize: isMobile ? 13 : 14 }}>
-                                                        Total: {formatarBRL(p.valorTotalPedido || 0)}
-                                                    </span>
-
-                                                    <span style={{ fontSize: isMobile ? 13 : 14 }}>
-                                                        Enviado em: {formatarDataHoraBR(p.enviado_em) || "-"}
-                                                    </span>
+                                                <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+                                                    <Badge tone="success" icon={CheckCircle2}>Enviado</Badge>
+                                                    <Badge tone="muted" icon={Archive}>{pedido.sacolinhas?.length || 0} sacolinha(s)</Badge>
+                                                    <Badge tone="muted" icon={Boxes}>{pedido.quantidadeCalculada} peça(s)</Badge>
+                                                    <Badge tone="primary" icon={Wallet}>{formatarBRL(pedido.valorTotalPedido || 0)}</Badge>
+                                                    <Badge tone="success" icon={Clock3}>{formatarDataHoraBR(pedido.enviado_em) || "-"}</Badge>
                                                 </div>
                                             </div>
-                                        </div>
 
-                                        {pedidosEnvioExpandidos[p.id] ? (
-                                            <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-                                                <BlocoInfo titulo="Sacolinhas enviadas">
-                                                    {!p.sacolinhas || p.sacolinhas.length === 0 ? (
-                                                        <div>Nenhuma sacolinha vinculada.</div>
-                                                    ) : (
-                                                        p.sacolinhas.map((sacolinha) => (
-                                                            <div key={sacolinha.id} style={itemLista}>
-                                                                <div>
-                                                                    <strong>Live:</strong>{" "}
-                                                                    {mapaLivesPorId[String(sacolinha.live_id)]?.nome ||
-                                                                        sacolinha.live_id ||
-                                                                        "-"}
+                                            {expandido ? (
+                                                <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
+                                                    <BlocoInfo titulo="Sacolinhas enviadas" icon={Archive}>
+                                                        {!pedido.sacolinhas || pedido.sacolinhas.length === 0 ? (
+                                                            <EmptyState>Nenhuma sacolinha vinculada.</EmptyState>
+                                                        ) : (
+                                                            pedido.sacolinhas.map((sacolinha) => (
+                                                                <div key={sacolinha.id} style={{ padding: 12, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14 }}>
+                                                                    <div><strong>Live:</strong> {mapaLivesPorId[String(sacolinha.live_id)]?.nome || sacolinha.live_id || "-"}</div>
+                                                                    <div><strong>Sacolinha:</strong> {sacolinha.id}</div>
+                                                                    <div><strong>Peças:</strong> {sacolinha.quantidade || 0}</div>
+                                                                    <div><strong>Total:</strong> {formatarBRL(sacolinha.valorTotal || 0)}</div>
                                                                 </div>
-                                                                <div>
-                                                                    <strong>Sacolinha:</strong> {sacolinha.id}
-                                                                </div>
-                                                                <div>
-                                                                    <strong>Peças:</strong> {sacolinha.quantidade || 0}
-                                                                </div>
-                                                                <div>
-                                                                    <strong>Total:</strong>{" "}
-                                                                    {formatarBRL(sacolinha.valorTotal || 0)}
-                                                                </div>
-                                                            </div>
-                                                        ))
-                                                    )}
-                                                </BlocoInfo>
+                                                            ))
+                                                        )}
+                                                    </BlocoInfo>
 
-                                                <BlocoInfo titulo="Itens enviados">
-                                                    {!p.itens || p.itens.length === 0 ? (
-                                                        <div>Nenhum item encontrado.</div>
-                                                    ) : (
-                                                        p.itens.map((item, index) => (
-                                                            <div
-                                                                key={item.id || `${item.peca_id}-${index}`}
-                                                                style={{
-                                                                    display: "flex",
-                                                                    alignItems: "center",
-                                                                    gap: 10,
-                                                                    padding: 10,
-                                                                    border: "1px solid #e5e7eb",
-                                                                    borderRadius: 12,
-                                                                }}
-                                                            >
-                                                                <div>
-                                                                    <div>
+                                                    <BlocoInfo titulo="Itens enviados" icon={CheckCircle2}>
+                                                        {!pedido.itens || pedido.itens.length === 0 ? (
+                                                            <EmptyState>Nenhum item encontrado.</EmptyState>
+                                                        ) : (
+                                                            <div style={{ display: "grid", gap: 8 }}>
+                                                                {pedido.itens.map((item, index) => (
+                                                                    <div key={item.id || `${item.peca_id}-${index}`} style={{ padding: 12, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14 }}>
                                                                         <strong>{item.nome_peca || item.nome || "-"}</strong>
+                                                                        <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>Código: {item.peca_id || "-"}</div>
+                                                                        <div style={{ fontSize: 12, color: "#64748b" }}>Valor: {formatarBRL(item.valor_venda || item.valor || 0)}</div>
                                                                     </div>
-                                                                    <div style={{ fontSize: 12, color: "#555" }}>
-                                                                        Código: {item.peca_id || "-"}
-                                                                    </div>
-                                                                    <div style={{ fontSize: 12, color: "#555" }}>
-                                                                        Valor: {formatarBRL(item.valor_venda || item.valor || 0)}
-                                                                    </div>
-                                                                </div>
+                                                                ))}
                                                             </div>
-                                                        ))
-                                                    )}
-                                                </BlocoInfo>
-                                            </div>
-                                        ) : null}
-                                    </div>
-                                ))
+                                                        )}
+                                                    </BlocoInfo>
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    );
+                                })
                             )}
                         </div>
-                    )}
+                    ) : null}
                 </div>
             )}
         </div>

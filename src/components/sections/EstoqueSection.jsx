@@ -1,4 +1,17 @@
 import { QRCodeCanvas } from "qrcode.react";
+import {
+    CheckSquare,
+    ListChecks,
+    PackageCheck,
+    PackageX,
+    Pencil,
+    Printer,
+    RotateCcw,
+    Save,
+    Square,
+    Trash2,
+    X,
+} from "lucide-react";
 import { formatarDataHoraBR } from "../../utils/dateUtils";
 
 function parseDataFlex(valor) {
@@ -52,6 +65,54 @@ function formatarDataLocal(valor) {
     return formatarDataHoraBR(valor) || "-";
 }
 
+function IconButton({
+    icon: Icon,
+    label,
+    title,
+    active = false,
+    danger = false,
+    disabled = false,
+    compact = false,
+    onClick,
+}) {
+    const background = danger ? "#fff1f2" : active ? "#fde7ee" : "#fff";
+    const color = danger ? "#b91c1c" : active ? "#e45c7d" : "#9b7582";
+    const border = danger ? "1px solid #fecdd3" : active ? "1px solid #f7c8d6" : "1px solid #f1dce4";
+
+    return (
+        <button
+            type="button"
+            title={title || label}
+            aria-label={title || label}
+            disabled={disabled}
+            onClick={onClick}
+            style={{
+                minHeight: compact ? 38 : 44,
+                minWidth: compact ? 38 : 44,
+                width: label ? "auto" : compact ? 38 : 44,
+                padding: label ? "8px 12px" : 0,
+                borderRadius: compact ? 12 : 14,
+                border,
+                background,
+                color,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                cursor: disabled ? "not-allowed" : "pointer",
+                opacity: disabled ? 0.55 : 1,
+                fontWeight: 800,
+                fontSize: 13,
+                lineHeight: 1,
+                boxShadow: "0 2px 8px rgba(15, 23, 42, 0.04)",
+                WebkitTapHighlightColor: "transparent",
+            }}
+        >
+            <Icon size={compact ? 17 : 19} strokeWidth={2.3} />
+            {label ? <span>{label}</span> : null}
+        </button>
+    );
+}
 
 export default function EstoqueSection({
     pecasFiltradas,
@@ -71,6 +132,14 @@ export default function EstoqueSection({
     PREVIEW_TIPO,
     cancelarVenda,
     removerPeca,
+    abrirEdicaoPeca,
+    pecaEditando,
+    formEdicaoPeca,
+    setFormEdicaoPeca,
+    salvarEdicaoPeca,
+    cancelarEdicaoPeca,
+    salvandoEdicaoPeca,
+    formatarMoeda,
     formatarBRL,
     boxGrande,
     cabecalhoSecao,
@@ -80,8 +149,6 @@ export default function EstoqueSection({
     valorResumo,
     linhaFiltros,
     input,
-    botao,
-    botaoPequeno,
     gridPecas,
     cardPeca,
     textoItem,
@@ -99,42 +166,6 @@ export default function EstoqueSection({
             sensitivity: "base",
         });
     });
-
-    const botaoFiltroBase = {
-        ...botaoPequeno,
-        width: "auto",
-        minWidth: isMobile ? 82 : 100,
-        minHeight: isMobile ? 34 : 38,
-        padding: isMobile ? "6px 10px" : "7px 13px",
-        borderRadius: 10,
-        fontSize: isMobile ? 11 : 13,
-        lineHeight: 1.05,
-        boxShadow: "none",
-    };
-
-    const botaoAcaoTopo = {
-        ...botao,
-        width: "100%",
-        minHeight: isMobile ? 34 : 44,
-        padding: isMobile ? "7px 10px" : "9px 14px",
-        borderRadius: isMobile ? 12 : 13,
-        fontSize: isMobile ? 11.5 : 14,
-        lineHeight: 1.05,
-        boxShadow: "none",
-    };
-
-    const botaoAcaoCard = {
-        ...botaoPequeno,
-        width: "100%",
-        minHeight: isMobile ? 28 : 40,
-        padding: isMobile ? "4px 8px" : "8px 13px",
-        borderRadius: isMobile ? 8 : 12,
-        fontSize: isMobile ? 10.5 : 13,
-        fontWeight: 600,
-        lineHeight: 1.05,
-        letterSpacing: 0.2,
-        boxShadow: "none",
-    };
 
     const textoCompacto = {
         ...textoItem,
@@ -162,6 +193,16 @@ export default function EstoqueSection({
         padding: isMobile ? "8px 12px" : input.padding,
         fontSize: isMobile ? 13 : undefined,
         borderRadius: isMobile ? 12 : input.borderRadius,
+    };
+
+    const estiloInputModal = {
+        ...input,
+        width: "100%",
+        minHeight: 40,
+        height: 40,
+        padding: "8px 12px",
+        fontSize: 14,
+        borderRadius: 12,
     };
 
     return (
@@ -202,38 +243,26 @@ export default function EstoqueSection({
                         onChange={(e) => setBuscaPeca(e.target.value)}
                     />
 
-                    <button
-                        style={
-                            filtroEstoque === "todas"
-                                ? { ...botaoFiltroBase, background: "#0f172a" }
-                                : { ...botaoFiltroBase, background: "#6b7280" }
-                        }
+                    <IconButton
+                        icon={ListChecks}
+                        label="Todas"
+                        active={filtroEstoque === "todas"}
                         onClick={() => setFiltroEstoque("todas")}
-                    >
-                        Todas
-                    </button>
+                    />
 
-                    <button
-                        style={
-                            filtroEstoque === "disponiveis"
-                                ? { ...botaoFiltroBase, background: "#2563eb" }
-                                : { ...botaoFiltroBase, background: "#6b7280" }
-                        }
+                    <IconButton
+                        icon={PackageCheck}
+                        label="Disponíveis"
+                        active={filtroEstoque === "disponiveis"}
                         onClick={() => setFiltroEstoque("disponiveis")}
-                    >
-                        Disponíveis
-                    </button>
+                    />
 
-                    <button
-                        style={
-                            filtroEstoque === "vendidas"
-                                ? { ...botaoFiltroBase, background: "#15803d" }
-                                : { ...botaoFiltroBase, background: "#6b7280" }
-                        }
+                    <IconButton
+                        icon={PackageX}
+                        label="Vendidas"
+                        active={filtroEstoque === "vendidas"}
                         onClick={() => setFiltroEstoque("vendidas")}
-                    >
-                        Vendidas
-                    </button>
+                    />
                 </div>
             </div>
 
@@ -241,31 +270,30 @@ export default function EstoqueSection({
                 style={{
                     marginBottom: isMobile ? 10 : 14,
                     display: "grid",
-                    gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
+                    gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(3, minmax(0, 1fr))",
                     gap: isMobile ? 8 : 10,
                     alignItems: "stretch",
                 }}
             >
-                <button
-                    style={{ ...botaoAcaoTopo, background: "#0f172a" }}
+                <IconButton
+                    icon={CheckSquare}
+                    label={isMobile ? "Marcar" : "Marcar todas"}
+                    active
                     onClick={marcarTodasEtiquetas}
-                >
-                    Marcar todas
-                </button>
+                />
 
-                <button
-                    style={{ ...botaoAcaoTopo, background: "#6b7280" }}
+                <IconButton
+                    icon={Square}
+                    label={isMobile ? "Limpar" : "Desmarcar todas"}
                     onClick={desmarcarTodasEtiquetas}
-                >
-                    Desmarcar todas
-                </button>
+                />
 
-                <button
-                    style={{ ...botaoAcaoTopo, background: "#2563eb" }}
+                <IconButton
+                    icon={Printer}
+                    label={isMobile ? "Imprimir" : "Imprimir selecionadas"}
+                    active
                     onClick={imprimirEtiquetasSelecionadas}
-                >
-                    Imprimir selecionadas
-                </button>
+                />
             </div>
 
             {pecasOrdenadas.length === 0 ? (
@@ -304,7 +332,7 @@ export default function EstoqueSection({
                                 <div
                                     style={{
                                         display: "grid",
-                                        gridTemplateColumns: isMobile ? "20px 1fr" : "44px 1fr",
+                                        gridTemplateColumns: isMobile ? "28px 1fr" : "44px 1fr",
                                         gap: isMobile ? 8 : 12,
                                         alignItems: "start",
                                     }}
@@ -323,25 +351,22 @@ export default function EstoqueSection({
                                             onClick={() => toggleEtiqueta(codigo)}
                                             aria-label={`Selecionar etiqueta da peça ${nome}`}
                                             style={{
-                                                width: isMobile ? 8 : 28,
-                                                height: isMobile ? 8 : 28,
-                                                borderRadius: isMobile ? 2 : 8,
+                                                width: isMobile ? 24 : 28,
+                                                height: isMobile ? 24 : 28,
+                                                borderRadius: isMobile ? 9 : 8,
                                                 border: etiquetaSelecionada
-                                                    ? "1.5px solid #1d4ed8"
-                                                    : isMobile
-                                                    ? "1px solid #cbd5e1"
-                                                    : "1.5px solid #94a3b8",
-                                                background: etiquetaSelecionada ? "#1d4ed8" : "transparent",
+                                                    ? "1.5px solid #e45c7d"
+                                                    : "1.5px solid #e7cbd5",
+                                                background: etiquetaSelecionada ? "#e45c7d" : "#fff",
                                                 display: "flex",
                                                 alignItems: "center",
                                                 justifyContent: "center",
                                                 fontWeight: 800,
-                                                fontSize: isMobile ? 6 : 12,
+                                                fontSize: isMobile ? 11 : 12,
                                                 cursor: "pointer",
                                                 padding: 0,
                                                 color: "#fff",
-                                                boxShadow: "none",
-                                                marginTop: isMobile ? 2 : 0,
+                                                boxShadow: "0 2px 8px rgba(15, 23, 42, 0.04)",
                                             }}
                                         >
                                             {etiquetaSelecionada ? "✓" : ""}
@@ -382,7 +407,7 @@ export default function EstoqueSection({
                                                 <p style={textoCompacto}>Cadastro: {cadastro}</p>
 
                                                 <p style={textoCompacto}>
-                                                    Status:{" "}
+                                                    Status: {" "}
                                                     <strong style={{ color: vendido ? "#15803d" : "#334155" }}>
                                                         {vendido ? `Vendido para ${clienteNome}` : "Disponível"}
                                                     </strong>
@@ -407,10 +432,7 @@ export default function EstoqueSection({
                                                     marginTop: isMobile ? 2 : 0,
                                                 }}
                                             >
-                                                <QRCodeCanvas
-                                                    value={codigo}
-                                                    size={isMobile ? 54 : 84}
-                                                />
+                                                <QRCodeCanvas value={codigo} size={isMobile ? 54 : 84} />
                                             </div>
                                         </div>
                                     </div>
@@ -418,15 +440,16 @@ export default function EstoqueSection({
 
                                 <div
                                     style={{
-                                        display: "grid",
-                                        gap: isMobile ? 4 : 8,
+                                        display: "flex",
+                                        gap: isMobile ? 8 : 10,
+                                        justifyContent: "flex-end",
+                                        flexWrap: "wrap",
                                     }}
                                 >
-                                    <button
-                                        style={{
-                                            ...botaoAcaoCard,
-                                            background: "#2563eb",
-                                        }}
+                                    <IconButton
+                                        icon={Printer}
+                                        title="Imprimir etiqueta"
+                                        compact
                                         onClick={() =>
                                             abrirPreview(PREVIEW_TIPO.ETIQUETAS, [
                                                 {
@@ -438,37 +461,172 @@ export default function EstoqueSection({
                                                 },
                                             ])
                                         }
-                                    >
-                                        {isMobile ? "Imprimir" : "Imprimir etiqueta"}
-                                    </button>
+                                    />
+
+                                    <IconButton
+                                        icon={Pencil}
+                                        title="Editar peça"
+                                        compact
+                                        active
+                                        onClick={() => abrirEdicaoPeca(p)}
+                                    />
 
                                     {vendido ? (
-                                        <button
-                                            style={{
-                                                ...botaoAcaoCard,
-                                                background: "#b8860b",
-                                            }}
+                                        <IconButton
+                                            icon={RotateCcw}
+                                            title="Cancelar venda"
+                                            compact
                                             onClick={() => cancelarVenda(codigo)}
-                                        >
-                                            {isMobile ? "Cancelar" : "Cancelar venda"}
-                                        </button>
+                                        />
                                     ) : null}
 
-                                    <button
-                                        style={{
-                                            ...botaoAcaoCard,
-                                            background: "#555",
-                                        }}
+                                    <IconButton
+                                        icon={Trash2}
+                                        title="Remover peça"
+                                        compact
+                                        danger
                                         onClick={() => removerPeca(codigo)}
-                                    >
-                                        {isMobile ? "Remover" : "Remover peça"}
-                                    </button>
+                                    />
                                 </div>
                             </div>
                         );
                     })}
                 </div>
             )}
+
+            {pecaEditando ? (
+                <div
+                    style={{
+                        position: "fixed",
+                        inset: 0,
+                        zIndex: 10000,
+                        background: "rgba(15, 23, 42, 0.48)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: 18,
+                    }}
+                >
+                    <div
+                        style={{
+                            width: "min(560px, 96vw)",
+                            maxHeight: "90vh",
+                            overflow: "auto",
+                            background: "#fff",
+                            borderRadius: 22,
+                            padding: isMobile ? 16 : 20,
+                            boxShadow: "0 24px 60px rgba(15, 23, 42, 0.28)",
+                            display: "grid",
+                            gap: 12,
+                        }}
+                    >
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: 12,
+                            }}
+                        >
+                            <div>
+                                <strong style={{ fontSize: 18, color: "#111827" }}>
+                                    Editar peça
+                                </strong>
+                                <div style={{ fontSize: 12, color: "#64748b", marginTop: 3 }}>
+                                    Código: {pecaEditando.id}
+                                </div>
+                            </div>
+
+                            <IconButton
+                                icon={X}
+                                title="Fechar edição"
+                                compact
+                                onClick={cancelarEdicaoPeca}
+                            />
+                        </div>
+
+                        <input
+                            style={estiloInputModal}
+                            placeholder="Nome da peça"
+                            value={formEdicaoPeca.nome}
+                            onChange={(e) =>
+                                setFormEdicaoPeca((prev) => ({ ...prev, nome: e.target.value }))
+                            }
+                        />
+
+                        <input
+                            style={estiloInputModal}
+                            placeholder="Valor de compra"
+                            value={formEdicaoPeca.custo}
+                            onChange={(e) =>
+                                setFormEdicaoPeca((prev) => ({
+                                    ...prev,
+                                    custo: formatarMoeda ? formatarMoeda(e.target.value) : e.target.value,
+                                }))
+                            }
+                        />
+
+                        <input
+                            style={estiloInputModal}
+                            placeholder="Valor de venda"
+                            value={formEdicaoPeca.venda}
+                            onChange={(e) =>
+                                setFormEdicaoPeca((prev) => ({
+                                    ...prev,
+                                    venda: formatarMoeda ? formatarMoeda(e.target.value) : e.target.value,
+                                }))
+                            }
+                        />
+
+                        <textarea
+                            style={{
+                                ...estiloInputModal,
+                                minHeight: 86,
+                                height: 86,
+                                resize: "vertical",
+                                fontFamily: "inherit",
+                            }}
+                            placeholder="Observações"
+                            value={formEdicaoPeca.obs}
+                            onChange={(e) =>
+                                setFormEdicaoPeca((prev) => ({ ...prev, obs: e.target.value }))
+                            }
+                        />
+
+                        <input
+                            style={estiloInputModal}
+                            placeholder="Foto / URL / Base64 (opcional)"
+                            value={formEdicaoPeca.foto || ""}
+                            onChange={(e) =>
+                                setFormEdicaoPeca((prev) => ({ ...prev, foto: e.target.value }))
+                            }
+                        />
+
+                        <div
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                                gap: 10,
+                                marginTop: 4,
+                            }}
+                        >
+                            <IconButton
+                                icon={Save}
+                                label={salvandoEdicaoPeca ? "Salvando..." : "Salvar alterações"}
+                                active
+                                disabled={salvandoEdicaoPeca}
+                                onClick={salvarEdicaoPeca}
+                            />
+
+                            <IconButton
+                                icon={X}
+                                label="Cancelar"
+                                onClick={cancelarEdicaoPeca}
+                            />
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }

@@ -1,4 +1,17 @@
 import { useMemo, useState } from "react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  CreditCard,
+  Package,
+  Radio,
+  Search,
+  Users,
+  Wallet,
+} from "lucide-react";
 
 function normalizarTexto(valor) {
   return String(valor || "")
@@ -12,6 +25,85 @@ function getTimestampVenda(valor) {
   if (!valor) return 0;
   const data = new Date(valor);
   return Number.isNaN(data.getTime()) ? 0 : data.getTime();
+}
+
+function BotaoIcone({
+  icon,
+  label,
+  onClick,
+  active = false,
+  color = "#8f2745",
+  disabled = false,
+  full = false,
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={label}
+      aria-label={label}
+      style={{
+        minHeight: 40,
+        minWidth: full ? "100%" : 40,
+        width: full ? "100%" : "auto",
+        padding: full ? "9px 13px" : "9px 12px",
+        borderRadius: 14,
+        border: active ? `1px solid ${color}` : "1px solid #e2e8f0",
+        background: active ? color : "#fff",
+        color: active ? "#fff" : "#334155",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.7 : 1,
+        fontWeight: 700,
+        fontSize: 13,
+        lineHeight: 1,
+        boxShadow: active
+          ? "0 8px 18px rgba(143,39,69,0.18)"
+          : "0 2px 8px rgba(15,23,42,0.05)",
+      }}
+    >
+      {icon}
+      {full ? <span>{label}</span> : null}
+    </button>
+  );
+}
+
+function ResumoCard({ icon, label, value, accent = "#8f2745", cardResumo, valorResumo }) {
+  return (
+    <div
+      style={{
+        ...cardResumo,
+        display: "grid",
+        gridTemplateColumns: "auto 1fr",
+        gap: 12,
+        alignItems: "center",
+      }}
+    >
+      <div
+        style={{
+          width: 38,
+          height: 38,
+          borderRadius: 14,
+          background: `${accent}14`,
+          color: accent,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {icon}
+      </div>
+
+      <div>
+        <strong>{label}</strong>
+        <div style={valorResumo}>{value}</div>
+      </div>
+    </div>
+  );
 }
 
 export default function PendenciasSection({
@@ -157,31 +249,50 @@ export default function PendenciasSection({
     }));
   }
 
-  const botaoFiltro = (ativo, cor = "#111827") => ({
-    ...botaoPequeno,
-    background: ativo ? cor : "#6b7280",
-    width: isMobile ? "100%" : "auto",
-    minHeight: 36,
-    borderRadius: 12,
+  const inputBusca = {
+    ...input,
+    width: "100%",
+    maxWidth: "100%",
+    minHeight: 42,
+    borderRadius: 14,
     boxShadow: "none",
-  });
+    paddingLeft: 42,
+  };
 
   const cardPendente = {
     ...cardCliente,
-    padding: isMobile ? 14 : 16,
+    padding: isMobile ? 14 : 18,
     display: "grid",
     gap: 12,
+    borderRadius: 20,
+    boxShadow: "0 4px 16px rgba(15,23,42,0.06)",
+    border: "1px solid #eef2f7",
   };
 
   const linhaCard = {
     display: "grid",
     gridTemplateColumns: isMobile
       ? "1fr"
-      : "minmax(220px, 1.3fr) minmax(150px, 0.8fr) minmax(220px, 1fr)",
-    gap: 12,
+      : "minmax(240px, 1.3fr) minmax(150px, 0.8fr) minmax(240px, 1fr) auto",
+    gap: 14,
     alignItems: "center",
     cursor: "pointer",
   };
+
+  const badge = (background, color = "#fff") => ({
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    width: "fit-content",
+    padding: "5px 9px",
+    borderRadius: 999,
+    background,
+    color,
+    fontSize: 12,
+    fontWeight: 800,
+    lineHeight: 1,
+    whiteSpace: "nowrap",
+  });
 
   return (
     <div style={{ display: "grid", gap: 24 }}>
@@ -198,72 +309,129 @@ export default function PendenciasSection({
           <div>
             <h2 style={tituloSecao}>Pendências de Pagamento</h2>
             <p style={{ margin: "-6px 0 0", color: "#64748b", fontSize: 14 }}>
-              Clientes com peças vendidas e pagamento pendente.
+              Controle das clientes com valores em aberto.
             </p>
           </div>
+
+          <span style={badge("#fef3c7", "#92400e")}>
+            <AlertTriangle size={14} />
+            Acompanhar
+          </span>
         </div>
 
-        <div className="linha-resumo" style={{ ...linhaResumo, marginTop: 18 }}>
-          <div style={cardResumo}>
-            <strong>Clientes pendentes</strong>
-            <div style={valorResumo}>{resumo.clientes}</div>
-          </div>
+        <div
+          className="linha-resumo"
+          style={{
+            ...linhaResumo,
+            marginTop: 18,
+          }}
+        >
+          <ResumoCard
+            icon={<Users size={20} />}
+            label="Clientes pendentes"
+            value={resumo.clientes}
+            accent="#8f2745"
+            cardResumo={cardResumo}
+            valorResumo={valorResumo}
+          />
 
-          <div style={cardResumo}>
-            <strong>Peças pendentes</strong>
-            <div style={valorResumo}>{resumo.pecas}</div>
-          </div>
+          <ResumoCard
+            icon={<Package size={20} />}
+            label="Peças pendentes"
+            value={resumo.pecas}
+            accent="#2563eb"
+            cardResumo={cardResumo}
+            valorResumo={valorResumo}
+          />
 
-          <div style={cardResumo}>
-            <strong>Valor em aberto</strong>
-            <div style={valorResumo}>{formatarBRL(resumo.valor)}</div>
-          </div>
+          <ResumoCard
+            icon={<Wallet size={20} />}
+            label="Valor em aberto"
+            value={formatarBRL(resumo.valor)}
+            accent="#b45309"
+            cardResumo={cardResumo}
+            valorResumo={valorResumo}
+          />
         </div>
 
         <div
           style={{
-            display: "flex",
+            display: "grid",
+            gridTemplateColumns: isMobile ? "1fr" : "minmax(280px, 420px) auto auto auto",
             gap: 10,
-            flexWrap: "wrap",
             alignItems: "center",
             marginTop: 18,
           }}
         >
-          <input
-            style={{ ...input, maxWidth: isMobile ? "100%" : 340 }}
-            placeholder="Buscar cliente pendente"
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
+          <div style={{ position: "relative" }}>
+            <Search
+              size={18}
+              style={{
+                position: "absolute",
+                left: 14,
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "#94a3b8",
+                pointerEvents: "none",
+              }}
+            />
+
+            <input
+              style={inputBusca}
+              placeholder="Buscar cliente pendente"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+            />
+          </div>
+
+          <BotaoIcone
+            icon={<Users size={17} />}
+            label="Todas"
+            active={filtro === "todas"}
+            color="#111827"
+            full={isMobile}
+            onClick={() => setFiltro("todas")}
           />
 
-          <button
-            type="button"
-            style={botaoFiltro(filtro === "todas")}
-            onClick={() => setFiltro("todas")}
-          >
-            Todas
-          </button>
-
-          <button
-            type="button"
-            style={botaoFiltro(filtro === "liveAtual", "#2563eb")}
+          <BotaoIcone
+            icon={<Radio size={17} />}
+            label="Live atual"
+            active={filtro === "liveAtual"}
+            color="#2563eb"
+            full={isMobile}
             onClick={() => setFiltro("liveAtual")}
-          >
-            Live atual
-          </button>
+          />
 
-          <button
-            type="button"
-            style={botaoFiltro(filtro === "maisAntigas", "#b45309")}
+          <BotaoIcone
+            icon={<Clock size={17} />}
+            label="+7 dias"
+            active={filtro === "maisAntigas"}
+            color="#b45309"
+            full={isMobile}
             onClick={() => setFiltro("maisAntigas")}
-          >
-            +7 dias
-          </button>
+          />
         </div>
       </div>
 
       <div style={boxGrande}>
-        <h3 style={{ marginTop: 0, marginBottom: 14 }}>Clientes pendentes</h3>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+            marginBottom: 14,
+          }}
+        >
+          <h3 style={{ margin: 0, fontSize: isMobile ? 17 : 20 }}>
+            Clientes pendentes
+          </h3>
+
+          <span style={{ color: "#64748b", fontSize: 13 }}>
+            {pendenciasFiltradas.length} resultado(s)
+          </span>
+        </div>
 
         {pendenciasFiltradas.length === 0 ? (
           <div
@@ -273,6 +441,7 @@ export default function PendenciasSection({
               padding: 22,
               background: "#f8fafc",
               color: "#64748b",
+              textAlign: "center",
             }}
           >
             Nenhuma pendência encontrada para o filtro atual.
@@ -303,42 +472,54 @@ export default function PendenciasSection({
                             toggleExpandirCliente(clienteResumo.nome);
                           }}
                           style={{
-                            background: "transparent",
-                            border: "none",
+                            width: 38,
+                            height: 38,
+                            borderRadius: 13,
+                            border: "1px solid #e2e8f0",
+                            background: expandido ? "#8f2745" : "#fff",
+                            color: expandido ? "#fff" : "#334155",
                             cursor: "pointer",
-                            fontSize: 18,
-                            padding: "4px 6px",
-                            lineHeight: 1,
-                            width: "auto",
-                            minWidth: "auto",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            boxShadow: "0 2px 8px rgba(15,23,42,0.05)",
                           }}
                         >
-                          {expandido ? "▼" : "▶"}
+                          {expandido ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                         </button>
 
-                        <strong
-                          style={{
-                            fontSize: isMobile ? 16 : 18,
-                            color: "#111827",
-                            wordBreak: "break-word",
-                          }}
-                        >
-                          {clienteResumo.nome}
-                        </strong>
+                        <div style={{ minWidth: 0 }}>
+                          <strong
+                            style={{
+                              display: "block",
+                              fontSize: isMobile ? 16 : 18,
+                              color: "#111827",
+                              wordBreak: "break-word",
+                              lineHeight: 1.15,
+                            }}
+                          >
+                            {clienteResumo.nome}
+                          </strong>
+
+                          <span style={{ color: "#64748b", fontSize: 12 }}>
+                            {clienteResumo.pecas} peça(s) em aberto
+                          </span>
+                        </div>
                       </div>
                     </div>
 
                     <div style={{ display: "grid", gap: 4 }}>
-                      <strong style={{ color: "#b45309", fontSize: isMobile ? 18 : 20 }}>
+                      <strong style={{ color: "#b45309", fontSize: isMobile ? 18 : 21 }}>
                         {formatarBRL(clienteResumo.total)}
                       </strong>
 
-                      <span style={{ color: "#64748b", fontSize: 13 }}>
-                        {clienteResumo.pecas} peça(s) pendente(s)
+                      <span style={badge("#fef3c7", "#92400e")}>
+                        <CreditCard size={13} />
+                        Pendente
                       </span>
                     </div>
 
-                    <div style={{ color: "#475569", fontSize: 13, lineHeight: 1.35 }}>
+                    <div style={{ color: "#475569", fontSize: 13, lineHeight: 1.4 }}>
                       <div>
                         <strong>Lives:</strong> {livesTexto || "-"}
                         {clienteResumo.livesLista.length > 3 ? "..." : ""}
@@ -349,6 +530,19 @@ export default function PendenciasSection({
                         {formatarDataHoraBR(clienteResumo.liveData) || "-"}
                       </div>
                     </div>
+
+                    {!isMobile ? (
+                      <BotaoIcone
+                        icon={expandido ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                        label={expandido ? "Minimizar" : "Expandir"}
+                        active={expandido}
+                        color="#8f2745"
+                        onClick={(e) => {
+                          if (e?.stopPropagation) e.stopPropagation();
+                          toggleExpandirCliente(clienteResumo.nome);
+                        }}
+                      />
+                    ) : null}
                   </div>
 
                   {expandido && (
@@ -360,9 +554,11 @@ export default function PendenciasSection({
                             style={{
                               ...itemCliente,
                               padding: isMobile ? 10 : 12,
-                              borderRadius: 12,
+                              borderRadius: 14,
                               display: "grid",
-                              gap: 4,
+                              gap: 5,
+                              background: "#f8fafc",
+                              border: "1px solid #e2e8f0",
                             }}
                           >
                             <div>
@@ -389,19 +585,14 @@ export default function PendenciasSection({
                         ))}
                       </div>
 
-                      <button
-                        type="button"
-                        style={{
-                          ...botaoPequeno,
-                          background: "#15803d",
-                          width: "100%",
-                          minHeight: 40,
-                          borderRadius: 12,
-                        }}
+                      <BotaoIcone
+                        icon={<CheckCircle2 size={18} />}
+                        label="Confirmar pagamento"
+                        active
+                        color="#15803d"
+                        full
                         onClick={() => marcarClientePendenteComoPago(clienteResumo)}
-                      >
-                        Confirmar pagamento
-                      </button>
+                      />
                     </div>
                   )}
                 </div>

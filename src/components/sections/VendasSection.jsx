@@ -1,4 +1,20 @@
 import { useState, useMemo, useEffect } from "react";
+import {
+    Banknote,
+    CheckCircle2,
+    ChevronRight,
+    ClipboardList,
+    FileSpreadsheet,
+    QrCode,
+    ReceiptText,
+    RotateCcw,
+    Save,
+    Search,
+    Send,
+    UserCheck,
+    Users,
+    XCircle,
+} from "lucide-react";
 import { formatarDataHoraBR } from "../../utils/dateUtils";
 
 export default function VendasSection({
@@ -257,6 +273,71 @@ export default function VendasSection({
         }
     }
 
+    const iconeBotao = ({ ativo = false, danger = false, warning = false, success = false, width = "auto" } = {}) => ({
+        minHeight: isMobile ? 36 : 40,
+        width,
+        padding: isMobile ? "7px 10px" : "8px 12px",
+        borderRadius: 12,
+        border: ativo
+            ? "1px solid rgba(221, 83, 116, 0.35)"
+            : danger
+            ? "1px solid rgba(185, 28, 28, 0.22)"
+            : warning
+            ? "1px solid rgba(180, 83, 9, 0.22)"
+            : success
+            ? "1px solid rgba(21, 128, 61, 0.22)"
+            : "1px solid #ead8df",
+        background: ativo
+            ? "#f8dce6"
+            : danger
+            ? "#fff1f2"
+            : warning
+            ? "#fffbeb"
+            : success
+            ? "#ecfdf5"
+            : "#fff",
+        color: danger ? "#b91c1c" : warning ? "#b45309" : success ? "#15803d" : "#8f2745",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 7,
+        cursor: "pointer",
+        fontWeight: 800,
+        fontSize: isMobile ? 11.5 : 13,
+        lineHeight: 1,
+        boxShadow: "0 2px 8px rgba(143,39,69,0.05)",
+        whiteSpace: "nowrap",
+    });
+
+    const botaoCircular = ({ danger = false, warning = false, success = false } = {}) => ({
+        width: isMobile ? 38 : 40,
+        height: isMobile ? 38 : 40,
+        borderRadius: 12,
+        border: danger
+            ? "1px solid rgba(185, 28, 28, 0.22)"
+            : warning
+            ? "1px solid rgba(180, 83, 9, 0.22)"
+            : success
+            ? "1px solid rgba(21, 128, 61, 0.22)"
+            : "1px solid #ead8df",
+        background: danger ? "#fff1f2" : warning ? "#fffbeb" : success ? "#ecfdf5" : "#fff",
+        color: danger ? "#b91c1c" : warning ? "#b45309" : success ? "#15803d" : "#8f2745",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+        boxShadow: "0 2px 8px rgba(143,39,69,0.05)",
+        flexShrink: 0,
+    });
+
+    const filtroButtonStyle = (ativo, tipo = "padrao") =>
+        iconeBotao({
+            ativo,
+            warning: tipo === "pendente" && ativo,
+            success: tipo === "pago" && ativo,
+            width: isMobile ? "100%" : "auto",
+        });
+
     return (
         <div style={{ display: "grid", gap: 24 }}>
             <div style={boxGrande}>
@@ -343,8 +424,7 @@ export default function VendasSection({
                                                         {peca.id} • {peca.nome || "Sem nome"}
                                                     </div>
                                                     <div style={{ fontSize: 13, color: "#64748b" }}>
-                                                        {peca.venda || "Sem valor"}{" "}
-                                                        {peca.obs ? `• ${peca.obs}` : ""}
+                                                        {peca.venda || "Sem valor"} {peca.obs ? `• ${peca.obs}` : ""}
                                                     </div>
                                                 </button>
                                             );
@@ -357,9 +437,7 @@ export default function VendasSection({
                                 style={input}
                                 placeholder="Valor com desconto (opcional)"
                                 value={valorDesconto}
-                                onChange={(e) =>
-                                    setValorDesconto(formatarValorDescontoInput(e.target.value))
-                                }
+                                onChange={(e) => setValorDesconto(formatarValorDescontoInput(e.target.value))}
                                 inputMode="numeric"
                             />
 
@@ -511,28 +589,29 @@ export default function VendasSection({
                         <div
                             style={{
                                 display: "grid",
-                                gridTemplateColumns: isMobile ? "1fr" : "repeat(2, auto)",
-                                gap: 12,
+                                gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+                                gap: 10,
                                 width: "100%",
                             }}
                         >
                             <button
                                 style={{
-                                    ...botao,
+                                    ...iconeBotao({ ativo: true, width: "100%" }),
                                     opacity: salvandoVenda ? 0.7 : 1,
                                     cursor: salvandoVenda ? "not-allowed" : "pointer",
-                                    width: "100%",
                                 }}
                                 onClick={registrarVenda}
                                 disabled={salvandoVenda}
                             >
+                                <Save size={16} />
                                 {salvandoVenda ? "Salvando..." : "Registrar venda"}
                             </button>
 
                             <button
-                                style={{ ...botao, background: "#0f766e", width: "100%" }}
+                                style={iconeBotao({ success: scannerAtivo, width: "100%" })}
                                 onClick={() => setScannerAtivo((prev) => !prev)}
                             >
+                                <QrCode size={16} />
                                 {scannerAtivo ? "Fechar scanner" : "Ler QR Code"}
                             </button>
                         </div>
@@ -593,49 +672,56 @@ export default function VendasSection({
 
                     <div
                         style={{
-                            display: "flex",
-                            gap: 10,
-                            flexWrap: "wrap",
+                            display: "grid",
+                            gridTemplateColumns: isMobile ? "1fr" : "minmax(220px, 320px) auto auto auto",
+                            gap: 8,
                             alignItems: "center",
                         }}
                     >
-                        <input
-                            style={{ ...input, maxWidth: 320 }}
-                            placeholder="Buscar cliente"
-                            value={buscaCliente}
-                            onChange={(e) => setBuscaCliente(e.target.value)}
-                        />
+                        <div style={{ position: "relative" }}>
+                            <Search
+                                size={16}
+                                style={{
+                                    position: "absolute",
+                                    left: 12,
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                    color: "#94a3b8",
+                                    pointerEvents: "none",
+                                }}
+                            />
+                            <input
+                                style={{ ...input, maxWidth: "100%", paddingLeft: 36 }}
+                                placeholder="Buscar cliente"
+                                value={buscaCliente}
+                                onChange={(e) => setBuscaCliente(e.target.value)}
+                            />
+                        </div>
 
                         <button
-                            style={
-                                filtroPagamentoCliente === "todos"
-                                    ? { ...botaoPequeno, background: "#111827" }
-                                    : { ...botaoPequeno, background: "#6b7280" }
-                            }
+                            style={filtroButtonStyle(filtroPagamentoCliente === "todos")}
                             onClick={() => setFiltroPagamentoCliente("todos")}
+                            title="Todos"
                         >
+                            <Users size={16} />
                             Todos
                         </button>
 
                         <button
-                            style={
-                                filtroPagamentoCliente === "pendentes"
-                                    ? { ...botaoPequeno, background: "#b45309" }
-                                    : { ...botaoPequeno, background: "#6b7280" }
-                            }
+                            style={filtroButtonStyle(filtroPagamentoCliente === "pendentes", "pendente")}
                             onClick={() => setFiltroPagamentoCliente("pendentes")}
+                            title="Pendentes"
                         >
+                            <XCircle size={16} />
                             Pendentes
                         </button>
 
                         <button
-                            style={
-                                filtroPagamentoCliente === "pagos"
-                                    ? { ...botaoPequeno, background: "#15803d" }
-                                    : { ...botaoPequeno, background: "#6b7280" }
-                            }
+                            style={filtroButtonStyle(filtroPagamentoCliente === "pagos", "pago")}
                             onClick={() => setFiltroPagamentoCliente("pagos")}
+                            title="Pagos"
                         >
+                            <CheckCircle2 size={16} />
                             Pagos
                         </button>
                     </div>
@@ -674,210 +760,190 @@ export default function VendasSection({
                                         sensitivity: "base",
                                     })
                             )
-                            .map((c) => (
-                                <div key={c.nome} style={cardCliente}>
-                                    <div
-                                        style={
-                                            isMobile
-                                                ? {
-                                                      display: "grid",
-                                                      gap: 12,
-                                                      alignItems: "start",
-                                                  }
-                                                : {
-                                                      display: "grid",
-                                                      gridTemplateColumns:
-                                                          "minmax(220px, 1.2fr) minmax(160px, 1fr) 140px 120px",
-                                                      gap: 16,
-                                                      alignItems: "center",
-                                                  }
-                                        }
-                                    >
-                                        <div
-                                            style={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: 8,
-                                                minWidth: 0,
-                                                overflow: "hidden",
-                                            }}
-                                        >
-                                            <button
-                                                onClick={() => toggleExpandirCliente(c.nome)}
-                                                style={{
-                                                    background: "transparent",
-                                                    border: "none",
-                                                    cursor: "pointer",
-                                                    fontSize: 18,
-                                                    padding: "4px 6px",
-                                                    lineHeight: 1,
-                                                    flexShrink: 0,
-                                                    width: "auto",
-                                                    minWidth: "auto",
-                                                }}
-                                            >
-                                                {clientesExpandidos[c.nome] ? "▼" : "▶"}
-                                            </button>
+                            .map((c) => {
+                                const expandido = !!clientesExpandidos[c.nome];
 
-                                            <strong
+                                return (
+                                    <div key={c.nome} style={{ ...cardCliente, padding: isMobile ? 13 : cardCliente.padding }}>
+                                        <div
+                                            style={
+                                                isMobile
+                                                    ? {
+                                                          display: "grid",
+                                                          gap: 12,
+                                                          alignItems: "start",
+                                                      }
+                                                    : {
+                                                          display: "grid",
+                                                          gridTemplateColumns: "minmax(220px, 1.2fr) auto minmax(180px, auto)",
+                                                          gap: 16,
+                                                          alignItems: "center",
+                                                      }
+                                            }
+                                        >
+                                            <div
                                                 style={{
-                                                    fontSize: 18,
-                                                    whiteSpace: "nowrap",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: 8,
+                                                    minWidth: 0,
                                                     overflow: "hidden",
-                                                    textOverflow: "ellipsis",
                                                 }}
-                                                title={c.nome}
                                             >
-                                                {c.nome}
-                                            </strong>
-                                        </div>
-
-                                        <div
-                                            style={
-                                                isMobile
-                                                    ? {
-                                                          display: "grid",
-                                                          gridTemplateColumns: "1fr",
-                                                          gap: 8,
-                                                      }
-                                                    : {
-                                                          display: "flex",
-                                                          alignItems: "center",
-                                                          justifyContent: "flex-start",
-                                                          gap: 8,
-                                                          flexWrap: "nowrap",
-                                                          whiteSpace: "nowrap",
-                                                          paddingLeft: 8,
-                                                      }
-                                            }
-                                        >
-                                            <button
-                                                style={{
-                                                    ...botaoPequeno,
-                                                    background: "#2563eb",
-                                                    width: isMobile ? "100%" : "auto",
-                                                }}
-                                                onClick={() => exportarClienteCSV(c)}
-                                            >
-                                                CSV
-                                            </button>
-
-                                            <button
-                                                style={{
-                                                    ...botaoPequeno,
-                                                    background: "#111827",
-                                                    width: isMobile ? "100%" : "auto",
-                                                }}
-                                                onClick={() => gerarComanda(c)}
-                                            >
-                                                Comanda
-                                            </button>
-
-                                            <button
-                                                style={{
-                                                    ...botaoPequeno,
-                                                    background: c.pago ? "#15803d" : "#b45309",
-                                                    width: isMobile ? "100%" : "auto",
-                                                }}
-                                                onClick={() => togglePagamentoClienteLive(c.nome, c.pago)}
-                                            >
-                                                {c.pago ? "Pago" : "Pendente"}
-                                            </button>
-                                        </div>
-
-                                        <div
-                                            className="expedicao-info-direita"
-                                            style={
-                                                isMobile
-                                                    ? {
-                                                          display: "grid",
-                                                          gap: 4,
-                                                          textAlign: "left",
-                                                      }
-                                                    : {
-                                                          display: "grid",
-                                                          gridTemplateColumns: "90px 90px",
-                                                          justifyContent: "start",
-                                                          alignItems: "center",
-                                                          columnGap: 12,
-                                                          textAlign: "right",
-                                                          whiteSpace: "nowrap",
-                                                          paddingLeft: 10,
-                                                      }
-                                            }
-                                        >
-                                            <span>{c.pecas} peça(s)</span>
-                                            <strong>{formatarBRL(c.total)}</strong>
-                                        </div>
-                                    </div>
-
-                                    {clientesExpandidos[c.nome] && (
-                                        <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
-                                            {c.itens.map((item, index) => (
-                                                <div key={`${item.codigo}-${index}`} style={itemCliente}>
-                                                    <div>
-                                                        <strong>Peça:</strong> {item.nomePeca}
-                                                    </div>
-
-                                                    <div>
-                                                        <strong>Código:</strong> {item.codigo}
-                                                    </div>
-
-                                                    <div>
-                                                        <strong>Valor:</strong> {formatarBRL(item.valor)}
-                                                    </div>
-
-                                                    <div>
-                                                        <strong>Vendido em:</strong>{" "}
-                                                        {item.dataVenda
-                                                            ? formatarDataHoraBR(item.dataVenda)
-                                                            : "-"}
-                                                    </div>
-
-                                                    {item.filaEspera ? (
-                                                        <div>
-                                                            <strong>Fila:</strong> {item.filaEspera}
-                                                        </div>
-                                                    ) : null}
-
-                                                    <div
+                                                <button
+                                                    onClick={() => toggleExpandirCliente(c.nome)}
+                                                    style={botaoCircular()}
+                                                    title={expandido ? "Minimizar" : "Expandir"}
+                                                >
+                                                    <ChevronRight
+                                                        size={18}
                                                         style={{
-                                                            marginTop: 8,
-                                                            display: "flex",
-                                                            gap: 8,
-                                                            flexWrap: "wrap",
+                                                            transform: expandido ? "rotate(90deg)" : "rotate(0deg)",
+                                                            transition: "transform 0.15s ease",
                                                         }}
+                                                    />
+                                                </button>
+
+                                                <div style={{ minWidth: 0 }}>
+                                                    <strong
+                                                        style={{
+                                                            display: "block",
+                                                            fontSize: isMobile ? 16 : 18,
+                                                            whiteSpace: "nowrap",
+                                                            overflow: "hidden",
+                                                            textOverflow: "ellipsis",
+                                                        }}
+                                                        title={c.nome}
                                                     >
-                                                        <button
-                                                            style={{
-                                                                ...botaoPequeno,
-                                                                background: "#b91c1c",
-                                                                width: isMobile ? "100%" : "auto",
-                                                            }}
-                                                            onClick={() => cancelarVenda(item.codigo)}
-                                                        >
-                                                            Cancelar venda
-                                                        </button>
+                                                        {c.nome}
+                                                    </strong>
+                                                    <span style={{ color: "#64748b", fontSize: 13 }}>
+                                                        {c.pecas} peça(s) • {formatarBRL(c.total)}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                style={{
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: isMobile ? "stretch" : "flex-start",
+                                                    gap: 8,
+                                                    flexWrap: "wrap",
+                                                }}
+                                            >
+                                                <button
+                                                    style={iconeBotao({ width: isMobile ? "100%" : "auto" })}
+                                                    onClick={() => exportarClienteCSV(c)}
+                                                    title="Exportar CSV"
+                                                >
+                                                    <FileSpreadsheet size={16} />
+                                                    CSV
+                                                </button>
+
+                                                <button
+                                                    style={iconeBotao({ ativo: true, width: isMobile ? "100%" : "auto" })}
+                                                    onClick={() => gerarComanda(c)}
+                                                    title="Gerar comanda"
+                                                >
+                                                    <ReceiptText size={16} />
+                                                    Comanda
+                                                </button>
+
+                                                <button
+                                                    style={iconeBotao({
+                                                        success: c.pago,
+                                                        warning: !c.pago,
+                                                        width: isMobile ? "100%" : "auto",
+                                                    })}
+                                                    onClick={() => togglePagamentoClienteLive(c.nome, c.pago)}
+                                                    title={c.pago ? "Marcar como pendente" : "Marcar como pago"}
+                                                >
+                                                    {c.pago ? <CheckCircle2 size={16} /> : <Banknote size={16} />}
+                                                    {c.pago ? "Pago" : "Pendente"}
+                                                </button>
+                                            </div>
+
+                                            {!isMobile && (
+                                                <div
+                                                    className="expedicao-info-direita"
+                                                    style={{
+                                                        display: "grid",
+                                                        gap: 2,
+                                                        justifyContent: "end",
+                                                        textAlign: "right",
+                                                        whiteSpace: "nowrap",
+                                                    }}
+                                                >
+                                                    <span>{c.pecas} peça(s)</span>
+                                                    <strong>{formatarBRL(c.total)}</strong>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {expandido && (
+                                            <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+                                                {c.itens.map((item, index) => (
+                                                    <div key={`${item.codigo}-${index}`} style={itemCliente}>
+                                                        <div>
+                                                            <strong>Peça:</strong> {item.nomePeca}
+                                                        </div>
+
+                                                        <div>
+                                                            <strong>Código:</strong> {item.codigo}
+                                                        </div>
+
+                                                        <div>
+                                                            <strong>Valor:</strong> {formatarBRL(item.valor)}
+                                                        </div>
+
+                                                        <div>
+                                                            <strong>Vendido em:</strong>{" "}
+                                                            {item.dataVenda ? formatarDataHoraBR(item.dataVenda) : "-"}
+                                                        </div>
 
                                                         {item.filaEspera ? (
-                                                            <button
-                                                                style={{
-                                                                    ...botaoPequeno,
-                                                                    background: "#2563eb",
-                                                                    width: isMobile ? "100%" : "auto",
-                                                                }}
-                                                                onClick={() => passarVendaParaFila(item.codigo)}
-                                                            >
-                                                                Passar para fila
-                                                            </button>
+                                                            <div>
+                                                                <strong>Fila:</strong> {item.filaEspera}
+                                                            </div>
                                                         ) : null}
+
+                                                        <div
+                                                            style={{
+                                                                marginTop: 8,
+                                                                display: "flex",
+                                                                gap: 8,
+                                                                flexWrap: "wrap",
+                                                                alignItems: "center",
+                                                            }}
+                                                        >
+                                                            <button
+                                                                style={iconeBotao({ danger: true, width: isMobile ? "100%" : "auto" })}
+                                                                onClick={() => cancelarVenda(item.codigo)}
+                                                                title="Cancelar venda"
+                                                            >
+                                                                <RotateCcw size={16} />
+                                                                Cancelar venda
+                                                            </button>
+
+                                                            {item.filaEspera ? (
+                                                                <button
+                                                                    style={iconeBotao({ ativo: true, width: isMobile ? "100%" : "auto" })}
+                                                                    onClick={() => passarVendaParaFila(item.codigo)}
+                                                                    title="Passar para fila"
+                                                                >
+                                                                    <Send size={16} />
+                                                                    Passar para fila
+                                                                </button>
+                                                            ) : null}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                     </div>
                 )}
             </div>

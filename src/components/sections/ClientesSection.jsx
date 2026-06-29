@@ -1,3 +1,17 @@
+import {
+    ChevronDown,
+    ChevronRight,
+    Copy,
+    Edit3,
+    ExternalLink,
+    Save,
+    Send,
+    Share2,
+    Trash2,
+    UserRound,
+    X,
+} from "lucide-react";
+
 export default function ClientesSection({
     boxGrande,
     tituloSecao,
@@ -30,10 +44,11 @@ export default function ClientesSection({
 
     const cardClienteMinimalista = {
         ...cardCliente,
-        padding: isMobile ? 14 : 15,
-        borderRadius: 18,
+        padding: isMobile ? 14 : 16,
+        borderRadius: 20,
         boxShadow: "0 2px 10px rgba(15,23,42,0.05)",
         background: "#fff",
+        border: "1px solid #eef2f7",
     };
 
     const topoLista = {
@@ -48,7 +63,7 @@ export default function ClientesSection({
     const nomeClienteStyle = {
         margin: 0,
         fontSize: isMobile ? 15 : 16,
-        fontWeight: 700,
+        fontWeight: 800,
         color: "#243746",
         lineHeight: 1.2,
         wordBreak: "break-word",
@@ -62,20 +77,13 @@ export default function ClientesSection({
         wordBreak: "break-word",
     };
 
-    const acoesCliente = {
-        display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
-        gap: 8,
-        marginTop: 10,
-    };
-
     const secaoFormulario = {
         display: "grid",
         gap: 8,
         marginBottom: 18,
         padding: isMobile ? 12 : 14,
         border: "1px solid #e8edf2",
-        borderRadius: 18,
+        borderRadius: 20,
         background: "#fcfdff",
     };
 
@@ -109,6 +117,10 @@ export default function ClientesSection({
         borderRadius: 12,
         fontSize: isMobile ? 13 : 14,
         boxShadow: "none",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
     };
 
     const botaoSecundario = {
@@ -119,6 +131,54 @@ export default function ClientesSection({
         borderRadius: 10,
         fontSize: isMobile ? 12 : 13,
         boxShadow: "none",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 7,
+    };
+
+    const botaoIcone = {
+        width: isMobile ? 38 : 42,
+        height: isMobile ? 38 : 42,
+        borderRadius: 14,
+        border: "1px solid #e2e8f0",
+        background: "#f8fafc",
+        color: "#243746",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+        boxShadow: "0 2px 6px rgba(15,23,42,0.05)",
+        padding: 0,
+        flexShrink: 0,
+    };
+
+    const botaoIconePrimario = {
+        ...botaoIcone,
+        background: "#8f2745",
+        border: "1px solid #8f2745",
+        color: "#fff",
+    };
+
+    const botaoIconeAzul = {
+        ...botaoIcone,
+        background: "#2563eb",
+        border: "1px solid #2563eb",
+        color: "#fff",
+    };
+
+    const botaoIconeVerde = {
+        ...botaoIcone,
+        background: "#16a34a",
+        border: "1px solid #16a34a",
+        color: "#fff",
+    };
+
+    const botaoIconeVermelho = {
+        ...botaoIcone,
+        background: "#dc2626",
+        border: "1px solid #dc2626",
+        color: "#fff",
     };
 
     const gridCamposEndereco = {
@@ -141,7 +201,36 @@ export default function ClientesSection({
 
     return (
         <div style={boxGrande}>
-            <h2 style={tituloSecao}>Cadastro de Clientes</h2>
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    flexWrap: "wrap",
+                    marginBottom: 12,
+                }}
+            >
+                <h2 style={{ ...tituloSecao, margin: 0 }}>Cadastro de Clientes</h2>
+
+                <div
+                    style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "8px 12px",
+                        borderRadius: 999,
+                        background: "#f8fafc",
+                        border: "1px solid #e2e8f0",
+                        color: "#475569",
+                        fontSize: isMobile ? 12 : 13,
+                        fontWeight: 700,
+                    }}
+                >
+                    <UserRound size={16} />
+                    {clientesFiltradosCadastro.length} cliente(s)
+                </div>
+            </div>
 
             <div style={secaoFormulario}>
                 <input
@@ -236,6 +325,7 @@ export default function ClientesSection({
 
                 <div style={gridAcoesFormulario}>
                     <button style={botaoPrincipal} onClick={salvarCliente}>
+                        <Save size={16} />
                         {clienteEditandoId ? "Atualizar cliente" : "Salvar cliente"}
                     </button>
 
@@ -247,6 +337,7 @@ export default function ClientesSection({
                             }}
                             onClick={cancelarEdicaoCliente}
                         >
+                            <X size={15} />
                             Cancelar edição
                         </button>
                     ) : null}
@@ -260,6 +351,7 @@ export default function ClientesSection({
                         }}
                         onClick={copiarLinkCadastroCliente}
                     >
+                        <Copy size={15} />
                         Copiar link de cadastro
                     </button>
 
@@ -270,6 +362,7 @@ export default function ClientesSection({
                         }}
                         onClick={copiarMensagemWhatsAppCadastroCliente}
                     >
+                        <Send size={15} />
                         Copiar mensagem WhatsApp
                     </button>
                 </div>
@@ -281,7 +374,7 @@ export default function ClientesSection({
                         Clientes cadastradas
                     </strong>
                     <span style={{ color: "#64748b", fontSize: isMobile ? 12 : 13 }}>
-                        {clientesFiltradosCadastro.length} cliente(s)
+                        Busca e gerenciamento
                     </span>
                 </div>
 
@@ -319,28 +412,93 @@ export default function ClientesSection({
                                     <div
                                         style={{
                                             display: "grid",
-                                            gridTemplateColumns: isMobile ? "1fr" : "1fr auto",
-                                            gap: 8,
+                                            gridTemplateColumns: "auto 1fr auto",
+                                            gap: 10,
                                             alignItems: "center",
                                         }}
                                     >
-                                        <p style={nomeClienteStyle}>{cliente.nome || "Sem nome"}</p>
-
                                         <button
-                                            style={{
-                                                ...botaoSecundario,
-                                                background: expandido ? "#64748b" : "#8f2745",
-                                                width: isMobile ? "100%" : 120,
-                                                justifySelf: isMobile ? "stretch" : "end",
-                                            }}
+                                            type="button"
+                                            style={expandido ? botaoIconePrimario : botaoIcone}
                                             onClick={() => toggleExpandirCliente(cliente.nome)}
+                                            aria-label={expandido ? "Minimizar cliente" : "Expandir cliente"}
+                                            title={expandido ? "Minimizar" : "Expandir"}
                                         >
-                                            {expandido ? "Minimizar" : "Expandir"}
+                                            {expandido ? (
+                                                <ChevronDown size={18} />
+                                            ) : (
+                                                <ChevronRight size={18} />
+                                            )}
                                         </button>
+
+                                        <div style={{ minWidth: 0 }}>
+                                            <p style={nomeClienteStyle}>{cliente.nome || "Sem nome"}</p>
+
+                                            {!expandido ? (
+                                                <p
+                                                    style={{
+                                                        ...infoClienteStyle,
+                                                        marginTop: 3,
+                                                        whiteSpace: "nowrap",
+                                                        overflow: "hidden",
+                                                        textOverflow: "ellipsis",
+                                                    }}
+                                                >
+                                                    {cliente.telefone || cliente.cpf || "Sem telefone/CPF"}
+                                                </p>
+                                            ) : null}
+                                        </div>
+
+                                        <div
+                                            style={{
+                                                display: "inline-flex",
+                                                gap: 6,
+                                                justifyContent: "flex-end",
+                                                alignItems: "center",
+                                            }}
+                                        >
+                                            <button
+                                                type="button"
+                                                style={botaoIconeAzul}
+                                                onClick={() => editarCliente(cliente)}
+                                                aria-label={`Editar ${cliente.nome}`}
+                                                title="Editar"
+                                            >
+                                                <Edit3 size={17} />
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                style={botaoIconeVerde}
+                                                onClick={() => compartilharCliente(cliente)}
+                                                aria-label={`Compartilhar ${cliente.nome}`}
+                                                title="Compartilhar"
+                                            >
+                                                <Share2 size={17} />
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                style={botaoIconeVermelho}
+                                                onClick={() => excluirCliente(cliente.id)}
+                                                aria-label={`Excluir ${cliente.nome}`}
+                                                title="Excluir"
+                                            >
+                                                <Trash2 size={17} />
+                                            </button>
+                                        </div>
                                     </div>
 
                                     {expandido ? (
-                                        <div style={{ marginTop: 8 }}>
+                                        <div
+                                            style={{
+                                                marginTop: 10,
+                                                paddingTop: 10,
+                                                borderTop: "1px solid #eef2f7",
+                                                display: "grid",
+                                                gap: 3,
+                                            }}
+                                        >
                                             <p style={infoClienteStyle}>
                                                 <strong>CPF:</strong> {cliente.cpf || "-"}
                                             </p>
@@ -359,29 +517,6 @@ export default function ClientesSection({
                                             <p style={infoClienteStyle}>
                                                 <strong>Complemento:</strong> {cliente.complemento || "-"}
                                             </p>
-
-                                            <div style={acoesCliente}>
-                                                <button
-                                                    style={{ ...botaoSecundario, background: "#2563eb" }}
-                                                    onClick={() => editarCliente(cliente)}
-                                                >
-                                                    Editar
-                                                </button>
-
-                                                <button
-                                                    style={{ ...botaoSecundario, background: "#16a34a" }}
-                                                    onClick={() => compartilharCliente(cliente)}
-                                                >
-                                                    Compartilhar
-                                                </button>
-
-                                                <button
-                                                    style={{ ...botaoSecundario, background: "#dc2626" }}
-                                                    onClick={() => excluirCliente(cliente.id)}
-                                                >
-                                                    Excluir
-                                                </button>
-                                            </div>
                                         </div>
                                     ) : null}
                                 </div>
