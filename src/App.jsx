@@ -62,6 +62,7 @@ import PendenciasSection from "./components/sections/PendenciasSection";
 import VendasSection from "./components/sections/VendasSection";
 import LivesSection from "./components/sections/LivesSection";
 import FaturamentoSection from "./components/sections/FaturamentoSection";
+import PortalCliente from "./components/portalcliente/PortalCliente";
 import useExpedicaoMemo from "./hooks/useExpedicaoMemo";
 import useFinanceiroMemo from "./hooks/useFinanceiroMemo";
 import { lerArquivoComoDataURL } from "./utils/arquivos";
@@ -150,6 +151,17 @@ function gerarCodigo(prefixo = "KC", custo = "") {
   const valorCusto = limparMoeda(custo);
   const custoInteiro = Math.floor(valorCusto || 0);
   return `${prefixo}-${custoInteiro}${Date.now()}`;
+}
+
+function gerarPortalToken() {
+  const caracteres = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let token = "KC";
+
+  for (let i = 0; i < 6; i += 1) {
+    token += caracteres[Math.floor(Math.random() * caracteres.length)];
+  }
+
+  return token;
 }
 
 function agruparEtiquetasEmPaginas(lista, porPagina = 25) {
@@ -337,6 +349,17 @@ Chave: CELULAR – 41988921085
 }
 
 export default function App() {
+  const paramsPortal = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search)
+    : new URLSearchParams();
+
+  const portalClienteAtivo =
+    paramsPortal.has("portal") || paramsPortal.get("portal") === "cliente";
+
+  if (portalClienteAtivo) {
+    return <PortalCliente />;
+  }
+
   const [abaAtiva, setAbaAtiva] = useState("cadastro");
   const [carregando, setCarregando] = useState(true);
 
@@ -424,6 +447,7 @@ export default function App() {
       if (erroBusca) throw erroBusca;
 
       if (existente) {
+        await garantirPortalTokenSacolinha(existente);
         return existente.id;
       }
 
@@ -438,6 +462,7 @@ export default function App() {
             live_id: liveId,
             status: "aberta",
             criado_em: agoraIso(),
+            portal_token: gerarPortalToken(),
           },
         ]);
 
@@ -450,6 +475,118 @@ export default function App() {
       return null;
     }
   };
+
+  async function garantirPortalTokenSacolinha(sacolinha) {
+    if (!sacolinha?.id) return "";
+
+    if (sacolinha.portal_token) {
+      return sacolinha.portal_token;
+    }
+
+    for (let tentativa = 0; tentativa < 5; tentativa += 1) {
+      const novoToken = gerarPortalToken();
+
+      const { data, error } = await supabase
+        .from("sacolinhas_live")
+        .update({ portal_token: novoToken })
+        .eq("id", sacolinha.id)
+        .select("portal_token")
+        .maybeSingle();
+
+      if (!error && data?.portal_token) {
+        return data.portal_token;
+      }
+
+      console.error("Erro ao gerar token do portal:", error);
+    }
+
+    return "";
+  }
+
+  function gerarUrlPortalCliente(portalToken) {
+    const origem = typeof window !== "undefined" ? window.location.origin : "";
+    return `${origem}/?portal=cliente&t=${encodeURIComponent(portalToken)}`;
+  }
+
+  function montarMensagemPortalCliente({ clienteNome, liveNome, portalToken }) {
+    const link = gerarUrlPortalCliente(portalToken);
+
+    return `🤎 Oie!
+
+Sua sacolinha da K.Chic já está disponível para consulta.
+
+📺 Live: ${liveNome || "-"}
+
+Acompanhe suas peças por aqui:
+${link}
+
+⚠️ Essa é uma prévia da sua sacolinha. Os itens e valores passam por conferência antes do fechamento final.
+
+Qualquer dúvida, é só nos chamar! 💕`;
+  }
+
+  async function copiarMensagemPortalCliente(clienteResumo) {
+    if (!clienteResumo?.nome) {
+      alert("Cliente não encontrada para gerar o link do portal.");
+      return;
+    }
+
+    if (!liveEmVisualizacao?.id) {
+      alert("Nenhuma live selecionada para gerar o link do portal.");
+      return;
+    }
+
+    try {
+      const nomeCliente = String(clienteResumo.nome || "").trim();
+
+      let sacolinha = (sacolinhasLive || []).find(
+        (item) =>
+          String(item?.cliente_nome || "").trim().toLowerCase() ===
+            nomeCliente.toLowerCase() &&
+          String(item?.live_id || "") === String(liveEmVisualizacao.id)
+      );
+
+      if (!sacolinha) {
+        const { data, error } = await supabase
+          .from("sacolinhas_live")
+          .select("*")
+          .eq("cliente_nome", nomeCliente)
+          .eq("live_id", liveEmVisualizacao.id)
+          .order("criado_em", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (error) throw error;
+        sacolinha = data;
+      }
+
+      if (!sacolinha) {
+        alert("Não encontrei a sacolinha dessa cliente nesta live.");
+        return;
+      }
+
+      const portalToken = await garantirPortalTokenSacolinha(sacolinha);
+
+      if (!portalToken) {
+        alert("Não foi possível gerar o token do portal desta sacolinha.");
+        return;
+      }
+
+      const texto = montarMensagemPortalCliente({
+        clienteNome: nomeCliente,
+        liveNome: liveEmVisualizacao.nome,
+        portalToken,
+      });
+
+      await navigator.clipboard.writeText(texto);
+      await carregarSacolinhasLive();
+
+      alert("Mensagem do portal copiada com sucesso.");
+    } catch (error) {
+      console.error("ERRO AO COPIAR MENSAGEM DO PORTAL:", error);
+      alert("Não foi possível copiar a mensagem do portal.");
+    }
+  }
 
   async function carregarPagamentosClientes() {
     const { data, error } = await supabase.from("clientes_pagamento").select("*");
@@ -2201,6 +2338,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
               cliente_nome: grupo.cliente_nome,
               status: "aberta",
               criado_em: agoraIso(),
+              portal_token: gerarPortalToken(),
             },
           ]);
 
@@ -3360,6 +3498,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 toggleExpandirCliente={toggleExpandirCliente}
                 exportarClienteCSV={exportarClienteCSV}
                 gerarComanda={gerarComanda}
+                copiarMensagemPortalCliente={copiarMensagemPortalCliente}
                 togglePagamentoClienteLive={togglePagamentoClienteLive}
                 cancelarVenda={cancelarVenda}
                 passarVendaParaFila={passarVendaParaFila}

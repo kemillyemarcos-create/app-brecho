@@ -5,6 +5,7 @@ import {
     ChevronRight,
     ClipboardList,
     FileSpreadsheet,
+    Link2,
     QrCode,
     ReceiptText,
     RotateCcw,
@@ -64,6 +65,7 @@ export default function VendasSection({
     toggleExpandirCliente,
     exportarClienteCSV,
     gerarComanda,
+    copiarMensagemPortalCliente,
     togglePagamentoClienteLive,
     cancelarVenda,
     passarVendaParaFila,
@@ -848,6 +850,15 @@ export default function VendasSection({
                                                 >
                                                     <ReceiptText size={16} />
                                                     Comanda
+                                                </button>
+
+                                                <button
+                                                    style={iconeBotao({ width: isMobile ? "100%" : "auto" })}
+                                                    onClick={() => copiarMensagemPortalCliente?.(c)}
+                                                    title="Copiar mensagem do portal da cliente"
+                                                >
+                                                    <Link2 size={16} />
+                                                    Portal
                                                 </button>
 
                                                 <button
