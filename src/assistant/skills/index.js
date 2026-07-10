@@ -1,4 +1,4 @@
-import consultarVendasHoje from "./consultarVendasHoje";
+import consultarVendasHoje from "./vendas/consultarVendasHoje";
 
 const skills = [
   consultarVendasHoje,

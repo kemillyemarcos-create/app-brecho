@@ -1,5 +1,5 @@
 import IntentPatterns from "./IntentPatterns";
-import { normalizarTexto } from "../SkillRegistry";
+import { normalizarTexto } from "../utils/TextUtils";
 
 class IntentMatcher {
   constructor() {
@@ -18,7 +18,11 @@ class IntentMatcher {
       for (const pattern of intent.patterns) {
         const termo = normalizarTexto(pattern);
 
-        if (texto.includes(termo)) {
+        if (!termo) continue;
+
+        if (texto === termo) {
+          pontuacao += 100;
+        } else if (texto.includes(termo)) {
           pontuacao += termo.split(" ").length;
         }
       }

@@ -8,7 +8,7 @@ import {
   PackageSearch,
   Truck,
 } from "lucide-react";
-import assistantEngine from "../../assistant/AssistantEngine";
+import assistantEngine from "../../assistant/engine/AssistantEngine";
 import "./assistant.css";
 
 const sugestoes = [
@@ -53,26 +53,49 @@ export default function AssistenteVirtual() {
 
   async function enviarPergunta(textoManual = "") {
     const texto = String(textoManual || pergunta || "").trim();
+
     if (!texto || carregando) return;
 
     setPergunta("");
     setCarregando(true);
 
-    setMensagens((prev) => [...prev, { tipo: "usuario", texto }]);
-
-    const resultado = await assistantEngine.executar(texto);
-
     setMensagens((prev) => [
       ...prev,
       {
-        tipo: "assistente",
-        texto: resultado?.resposta || "Não consegui responder agora.",
-        ok: resultado?.ok,
-        skill: resultado?.skill,
+        tipo: "usuario",
+        texto,
       },
     ]);
 
-    setCarregando(false);
+    try {
+      const resultado = await assistantEngine.executar(texto);
+
+      setMensagens((prev) => [
+        ...prev,
+        {
+          tipo: "assistente",
+          texto: resultado?.resposta || "Não consegui responder agora.",
+          ok: resultado?.ok,
+          skill: resultado?.skill,
+          intent: resultado?.intent,
+          categoria: resultado?.categoria,
+          tipoResposta: resultado?.tipo,
+        },
+      ]);
+    } catch (error) {
+      console.error("ERRO AO CONSULTAR ASSISTENTE:", error);
+
+      setMensagens((prev) => [
+        ...prev,
+        {
+          tipo: "assistente",
+          texto: "Ocorreu um erro ao consultar o Assistente Virtual.",
+          ok: false,
+        },
+      ]);
+    } finally {
+      setCarregando(false);
+    }
   }
 
   function handleKeyDown(e) {
@@ -112,6 +135,7 @@ export default function AssistenteVirtual() {
                   key={item.titulo}
                   type="button"
                   className="assistant-card"
+                  disabled={carregando}
                   onClick={() => enviarPergunta(item.pergunta)}
                 >
                   <div className="assistant-card-icon">
@@ -181,6 +205,7 @@ export default function AssistenteVirtual() {
           onKeyDown={handleKeyDown}
           placeholder="Pergunte qualquer coisa sobre seu negócio..."
           rows={1}
+          disabled={carregando}
         />
 
         <button type="submit" disabled={carregando || !pergunta.trim()}>
