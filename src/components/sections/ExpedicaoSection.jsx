@@ -528,6 +528,13 @@ export default function ExpedicaoSection({
     const isMobile = typeof window !== "undefined" ? window.innerWidth <= 767 : false;
     const [alterandoPagamentoId, setAlterandoPagamentoId] = useState(null);
     const [statusPagamentoLocal, setStatusPagamentoLocal] = useState({});
+    const [pedidoRastreioEditandoId, setPedidoRastreioEditandoId] = useState(null);
+    const [salvandoRastreioPedidoId, setSalvandoRastreioPedidoId] = useState(null);
+    const [formRastreioPedido, setFormRastreioPedido] = useState({
+        codigo_rastreio: "",
+        transportadora: "",
+        link_rastreio: "",
+    });
 
     const vendasLiveExpedicao = useMemo(() => {
         return (todasVendasLive || []).map((venda) => {
@@ -584,6 +591,218 @@ export default function ExpedicaoSection({
         } finally {
             setAlterandoPagamentoId(null);
         }
+    }
+
+    function abrirEdicaoRastreioPedido(pedido) {
+        setPedidoRastreioEditandoId(pedido?.id || null);
+        setFormRastreioPedido({
+            codigo_rastreio: pedido?.codigo_rastreio || "",
+            transportadora: pedido?.transportadora || "",
+            link_rastreio: pedido?.link_rastreio || "",
+        });
+    }
+
+    function cancelarEdicaoRastreioPedido() {
+        setPedidoRastreioEditandoId(null);
+        setFormRastreioPedido({
+            codigo_rastreio: "",
+            transportadora: "",
+            link_rastreio: "",
+        });
+    }
+
+    async function salvarRastreioPedido(pedidoId) {
+        if (!pedidoId || salvandoRastreioPedidoId) return;
+
+        try {
+            setSalvandoRastreioPedidoId(pedidoId);
+
+            const payload = {
+                codigo_rastreio: String(formRastreioPedido.codigo_rastreio || "").trim() || null,
+                transportadora: String(formRastreioPedido.transportadora || "").trim() || null,
+                link_rastreio: String(formRastreioPedido.link_rastreio || "").trim() || null,
+                atualizado_em: new Date().toISOString(),
+            };
+
+            const { error } = await supabase
+                .from("pedidos_envio")
+                .update(payload)
+                .eq("id", pedidoId);
+
+            if (error) {
+                console.error("ERRO AO SALVAR RASTREIO:", error);
+                alert(`Erro ao salvar rastreio: ${error.message}`);
+                return;
+            }
+
+            cancelarEdicaoRastreioPedido();
+            alert("Rastreio salvo com sucesso. Atualize a expedição se os dados não aparecerem imediatamente.");
+        } catch (error) {
+            console.error("ERRO GERAL AO SALVAR RASTREIO:", error);
+            alert("Erro inesperado ao salvar rastreio.");
+        } finally {
+            setSalvandoRastreioPedidoId(null);
+        }
+    }
+
+    function renderRastreamentoPedido(pedido) {
+        const editando = pedidoRastreioEditandoId === pedido?.id;
+        const salvando = salvandoRastreioPedidoId === pedido?.id;
+
+        if (editando) {
+            return (
+                <div style={{ display: "grid", gap: 8 }}>
+                    <input
+                        value={formRastreioPedido.codigo_rastreio}
+                        onChange={(e) =>
+                            setFormRastreioPedido((prev) => ({
+                                ...prev,
+                                codigo_rastreio: e.target.value,
+                            }))
+                        }
+                        placeholder="Código de rastreio"
+                        style={{
+                            minHeight: 40,
+                            borderRadius: 12,
+                            border: "1px solid #e2e8f0",
+                            padding: "0 12px",
+                            outline: "none",
+                            fontSize: 14,
+                        }}
+                    />
+
+                    <input
+                        value={formRastreioPedido.transportadora}
+                        onChange={(e) =>
+                            setFormRastreioPedido((prev) => ({
+                                ...prev,
+                                transportadora: e.target.value,
+                            }))
+                        }
+                        placeholder="Transportadora / Correios"
+                        style={{
+                            minHeight: 40,
+                            borderRadius: 12,
+                            border: "1px solid #e2e8f0",
+                            padding: "0 12px",
+                            outline: "none",
+                            fontSize: 14,
+                        }}
+                    />
+
+                    <input
+                        value={formRastreioPedido.link_rastreio}
+                        onChange={(e) =>
+                            setFormRastreioPedido((prev) => ({
+                                ...prev,
+                                link_rastreio: e.target.value,
+                            }))
+                        }
+                        placeholder="Link de rastreio (opcional)"
+                        style={{
+                            minHeight: 40,
+                            borderRadius: 12,
+                            border: "1px solid #e2e8f0",
+                            padding: "0 12px",
+                            outline: "none",
+                            fontSize: 14,
+                        }}
+                    />
+
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                            type="button"
+                            disabled={salvando}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                salvarRastreioPedido(pedido.id);
+                            }}
+                            style={{
+                                minHeight: 40,
+                                border: "none",
+                                borderRadius: 12,
+                                padding: "0 14px",
+                                background: "#15803d",
+                                color: "#fff",
+                                fontWeight: 800,
+                                cursor: salvando ? "not-allowed" : "pointer",
+                                opacity: salvando ? 0.7 : 1,
+                            }}
+                        >
+                            {salvando ? "Salvando..." : "Salvar rastreio"}
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                cancelarEdicaoRastreioPedido();
+                            }}
+                            style={{
+                                minHeight: 40,
+                                border: "1px solid #e2e8f0",
+                                borderRadius: 12,
+                                padding: "0 14px",
+                                background: "#fff",
+                                color: "#475569",
+                                fontWeight: 800,
+                                cursor: "pointer",
+                            }}
+                        >
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <div style={{ display: "grid", gap: 8 }}>
+                <div style={{ fontSize: 13, color: "#475569" }}>
+                    <strong>Status:</strong> {pedido?.status === "enviado" ? "Enviado" : "Em montagem"}
+                </div>
+
+                <div style={{ fontSize: 13, color: "#475569" }}>
+                    <strong>Transportadora:</strong> {pedido?.transportadora || "-"}
+                </div>
+
+                <div style={{ fontSize: 13, color: "#475569" }}>
+                    <strong>Código de rastreio:</strong> {pedido?.codigo_rastreio || "-"}
+                </div>
+
+                <div style={{ fontSize: 13, color: "#475569" }}>
+                    <strong>Link:</strong>{" "}
+                    {pedido?.link_rastreio ? (
+                        <a href={pedido.link_rastreio} target="_blank" rel="noreferrer" style={{ color: "#1d4ed8", fontWeight: 800 }}>
+                            abrir rastreio
+                        </a>
+                    ) : (
+                        "-"
+                    )}
+                </div>
+
+                <button
+                    type="button"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        abrirEdicaoRastreioPedido(pedido);
+                    }}
+                    style={{
+                        minHeight: 40,
+                        border: "1px solid #bfdbfe",
+                        borderRadius: 12,
+                        padding: "0 14px",
+                        background: "#eff6ff",
+                        color: "#1d4ed8",
+                        fontWeight: 900,
+                        cursor: "pointer",
+                        justifySelf: "start",
+                    }}
+                >
+                    Alimentar rastreio
+                </button>
+            </div>
+        );
     }
 
     const totais = {
@@ -918,6 +1137,10 @@ export default function ExpedicaoSection({
                                                         )}
                                                     </BlocoInfo>
 
+                                                    <BlocoInfo titulo="Rastreamento" icon={Truck}>
+                                                        {renderRastreamentoPedido(pedido)}
+                                                    </BlocoInfo>
+
                                                     <BlocoInfo titulo="Itens do pedido" icon={FileCheck2}>
                                                         {!pedido.itens || pedido.itens.length === 0 ? (
                                                             <EmptyState>Nenhum item encontrado.</EmptyState>
@@ -1027,6 +1250,10 @@ export default function ExpedicaoSection({
                                                                 </div>
                                                             ))
                                                         )}
+                                                    </BlocoInfo>
+
+                                                    <BlocoInfo titulo="Rastreamento" icon={Truck}>
+                                                        {renderRastreamentoPedido(pedido)}
                                                     </BlocoInfo>
 
                                                     <BlocoInfo titulo="Itens enviados" icon={CheckCircle2}>

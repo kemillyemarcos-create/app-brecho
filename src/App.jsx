@@ -50,6 +50,7 @@ import {
   BarChart3,
   Truck,
   CreditCard,
+  Sparkles,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import PreviewModal from "./components/layout/PreviewModal";
@@ -62,7 +63,11 @@ import PendenciasSection from "./components/sections/PendenciasSection";
 import VendasSection from "./components/sections/VendasSection";
 import LivesSection from "./components/sections/LivesSection";
 import FaturamentoSection from "./components/sections/FaturamentoSection";
+import AssistenteVirtual from "./components/assistant/AssistenteVirtual";
 import PortalCliente from "./components/portalcliente/PortalCliente";
+import LoginAdmin from "./components/login/LoginAdmin";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { UserProvider, useUser } from "./contexts/UserContext";
 import useExpedicaoMemo from "./hooks/useExpedicaoMemo";
 import useFinanceiroMemo from "./hooks/useFinanceiroMemo";
 import { lerArquivoComoDataURL } from "./utils/arquivos";
@@ -316,39 +321,83 @@ function montarTextoComanda(clienteResumo) {
     formatarDataLiveCurta(clienteResumo?.data_live) ||
     "";
 
-  const complementoLive = dataLiveFormatada ? ` ${dataLiveFormatada}` : "";
+  const complementoLive = dataLiveFormatada ? ` *${dataLiveFormatada}*` : "";
+  const pago = !!clienteResumo?.pago;
 
-  return `Oie! ${saudacao} amiga, segue sua comandinha da live:${complementoLive}
+  const itensTexto = (clienteResumo.itens || [])
+    .map((item, index) => {
+      const dataVendaFormatada = formatarDataHoraBR(item.dataVenda);
+
+      return `${index + 1}. ${item.nomePeca}
+💲 ${formatarBRL(item.valor)}
+🏷️ Código: ${item.codigo}${dataVendaFormatada ? `\n🕒 ${dataVendaFormatada}` : ""}`;
+    })
+    .join("\n\n");
+
+  if (pago) {
+    return `Oie! ${saudacao}, amiga! 🌸
+
+Segue sua comandinha da live:${complementoLive} 🛍️
 
 🧾 *Comanda da Cliente*
 
-Cliente: ${clienteResumo.nome}
-Status do pagamento: ${clienteResumo.pago ? "Pago" : "Pendente"}
-Total de peças: ${clienteResumo.pecas}
-Valor total: ${formatarBRL(clienteResumo.total)}
+👤 Cliente: ${clienteResumo.nome}
 
-${(clienteResumo.itens || [])
-      .map((item, index) => {
-        const dataVendaFormatada = formatarDataHoraBR(item.dataVenda);
+💳 Status do pagamento: *Pago*
 
-        return `${index + 1}. ${item.nomePeca} - ${formatarBRL(item.valor)} - Código: ${item.codigo}${dataVendaFormatada ? ` - ${dataVendaFormatada}` : ""}`;
-      })
-      .join("\n")}
+🛍️ Total de peças: ${clienteResumo.pecas}
+
+💰 Valor total: *${formatarBRL(clienteResumo.total)}*
+
+━━━━━━━━━━━━━━
+
+${itensTexto}
+
+━━━━━━━━━━━━━━
+
+❌ Caso queira deixar em sacolinha, é só nos avisar. 😊
+
+🚚 Caso deseje envio, solicite o fechamento que encaminhamos os dados para pagamento do frete.
+
+Obrigada! ☺️🌸`;
+  }
+
+  return `Oie! ${saudacao}, amiga! 🌸
+
+Segue sua comandinha da live:${complementoLive} 🛍️
+
+🧾 *Comanda da Cliente*
+
+👤 Cliente: ${clienteResumo.nome}
+
+💳 Status do pagamento: *Pendente*
+
+🛍️ Total de peças: ${clienteResumo.pecas}
+
+💰 Valor total: *${formatarBRL(clienteResumo.total)}*
+
+━━━━━━━━━━━━━━
+
+${itensTexto}
+
+━━━━━━━━━━━━━━
 
 PIX para pagamento:
-Chave: CELULAR – 41988921085
+Chave: *CELULAR* – *41988921085*
 
-🏦 Banco: *cloudwalk*
+🏦 Banco: *Nubank*
 👩‍💼 Nome: *Kemilly Lima*
 
-💳 Para pagamento via Cartão solicite o link de pagamento (em até 12x com taxas da operadora)
+💳 Para pagamento via cartão, solicite o link de pagamento.
 
-❌Caso queira deixar em sacolinha nos avisar! Obrigada ☺️🌸
+❌ Caso queira deixar em sacolinha, é só nos avisar. 😊
 
-🚚 Caso deseje envio, solicitar o envio que encaminho os dados para envio 🚚`;
+🚚 Caso deseje envio, solicite o fechamento que encaminhamos os dados para pagamento do frete.
+
+Obrigada! ☺️🌸`;
 }
 
-export default function App() {
+function AppContent() {
   const paramsPortal = typeof window !== "undefined"
     ? new URLSearchParams(window.location.search)
     : new URLSearchParams();
@@ -356,10 +405,17 @@ export default function App() {
   const portalClienteAtivo =
     paramsPortal.has("portal") || paramsPortal.get("portal") === "cliente";
 
-  if (portalClienteAtivo) {
-    return <PortalCliente />;
-  }
+  const cadastroPublicoAtivo = paramsPortal.get("cadastro") === "cliente";
+  const rotaPublica = portalClienteAtivo || cadastroPublicoAtivo;
 
+  const { session, carregando: carregandoAuth, sair: sairDoApp } = useAuth();
+  const {
+    usuarioSistema,
+    carregando: carregandoUsuario,
+    acessoLiberado,
+    motivoBloqueio,
+    isAdmin,
+  } = useUser();
   const [abaAtiva, setAbaAtiva] = useState("cadastro");
   const [carregando, setCarregando] = useState(true);
 
@@ -805,8 +861,13 @@ Qualquer dúvida, é só nos chamar! 💕`;
   }
 
   useEffect(() => {
+    if (rotaPublica) {
+      setCarregando(false);
+      return;
+    }
+
     carregarTudoInicial();
-  }, []);
+  }, [rotaPublica]);
 
   useEffect(() => {
     let ativo = true;
@@ -1586,23 +1647,19 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     );
     if (!confirmar) return;
 
-    const liveIdAlvo =
-      liveEmVisualizacao?.id || liveAtual?.id || null;
-
-    if (!liveIdAlvo) {
-      alert("Nenhuma live selecionada para cancelar a venda.");
-      return;
-    }
-
     try {
-      const { data: vendaAlvo, error: erroBuscaVenda } = await supabase
+      let queryVenda = supabase
         .from("vendas_live")
         .select("*")
         .eq("peca_id", id)
-        .eq("live_id", liveIdAlvo)
         .order("data_hora", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
+
+      if (liveEmVisualizacao?.id) {
+        queryVenda = queryVenda.eq("live_id", liveEmVisualizacao.id);
+      }
+
+      const { data: vendaAlvo, error: erroBuscaVenda } = await queryVenda.maybeSingle();
 
       if (erroBuscaVenda) {
         console.error("ERRO AO BUSCAR VENDA PARA CANCELAMENTO:", erroBuscaVenda);
@@ -1611,7 +1668,48 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       }
 
       if (!vendaAlvo) {
-        alert("Não encontrei a venda dessa peça na live selecionada.");
+        const { data: pecaAlvo, error: erroBuscaPeca } = await supabase
+          .from("pecas")
+          .select("id, vendido")
+          .eq("id", id)
+          .maybeSingle();
+
+        if (erroBuscaPeca) {
+          console.error("ERRO AO BUSCAR PEÇA PARA CANCELAMENTO:", erroBuscaPeca);
+          alert(`Erro ao localizar peça: ${erroBuscaPeca.message}`);
+          return;
+        }
+
+        if (!pecaAlvo) {
+          alert("Não encontrei essa peça no estoque.");
+          return;
+        }
+
+        if (!pecaAlvo.vendido) {
+          alert("Essa peça já está disponível.");
+          return;
+        }
+
+        const { error: errorPecaSemVenda } = await supabase
+          .from("pecas")
+          .update({
+            vendido: false,
+            cliente: null,
+            data_venda: null,
+            valor_venda_final: null,
+          })
+          .eq("id", id);
+
+        if (errorPecaSemVenda) {
+          console.error("ERRO AO LIMPAR PEÇA SEM VENDA_LIVE:", errorPecaSemVenda);
+          alert(`Erro ao limpar peça: ${errorPecaSemVenda.message}`);
+          return;
+        }
+
+        await recarregarDadosGerais();
+        await recarregarLiveEmVisualizacaoAtual();
+
+        alert("Venda cancelada na peça. Nenhum registro em vendas_live foi encontrado.");
         return;
       }
 
@@ -2677,15 +2775,17 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   }, [pecas, buscaPeca, filtroEstoque, pecaIdsEnviados]);
 
   const MENU_ITEMS = [
-    { id: "cadastro", label: "Cadastro", icon: Package },
-    { id: "pecas", label: "Estoque", icon: Boxes },
-    { id: "vendas", label: "Vendas", icon: ShoppingBag },
-    { id: "lives", label: "Lives", icon: Radio },
-    { id: "clientes", label: "Clientes", icon: Users },
-    { id: "expedicao", label: "Expedição", icon: Truck },
-    { id: "pendencias", label: "Pendências", icon: CreditCard },
-    { id: "faturamento", label: "Faturamento", icon: BarChart3 },
+    { id: "cadastro", label: "Cadastro", icon: Package, adminOnly: false },
+    { id: "pecas", label: "Estoque", icon: Boxes, adminOnly: false },
+    { id: "vendas", label: "Vendas", icon: ShoppingBag, adminOnly: false },
+    { id: "lives", label: "Lives", icon: Radio, adminOnly: false },
+    { id: "clientes", label: "Clientes", icon: Users, adminOnly: false },
+    { id: "expedicao", label: "Expedição", icon: Truck, adminOnly: false },
+    { id: "pendencias", label: "Pendências", icon: CreditCard, adminOnly: false },
+    { id: "faturamento", label: "Faturamento", icon: BarChart3, adminOnly: true },
   ];
+
+  const menuVisivel = MENU_ITEMS.filter((item) => !item.adminOnly || isAdmin);
 
   function getTituloAba(aba) {
     if (aba === "cadastro") return "Cadastro";
@@ -2695,6 +2795,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     if (aba === "clientes") return "Clientes";
     if (aba === "expedicao") return "Expedição";
     if (aba === "pendencias") return "Pendências";
+    if (aba === "assistente") return "Assistente Virtual";
     if (aba === "faturamento") return "Faturamento";
     return "Painel";
   }
@@ -2802,6 +2903,43 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     boxShadow: "none",
   };
 
+  const assistenteTopoBotao = {
+    width: "100%",
+    border: abaAtiva === "assistente"
+      ? `1px solid ${CORES_APP.rosaPrincipal}`
+      : `1px solid ${CORES_APP.borda}`,
+    background: abaAtiva === "assistente"
+      ? CORES_APP.rosaPrincipal
+      : "linear-gradient(135deg, #fff7f9 0%, #ffffff 100%)",
+    color: abaAtiva === "assistente" ? "#fff" : CORES_APP.rosaPrincipal,
+    padding: "13px 14px",
+    borderRadius: 18,
+    display: "grid",
+    gridTemplateColumns: "22px 1fr auto",
+    alignItems: "center",
+    gap: 12,
+    textAlign: "left",
+    cursor: "pointer",
+    fontSize: 15,
+    fontWeight: 800,
+    boxShadow: abaAtiva === "assistente"
+      ? "0 10px 22px rgba(143,39,69,0.18)"
+      : "0 6px 16px rgba(15,23,42,0.05)",
+    transition: "all 0.18s ease",
+  };
+
+  const assistenteSelo = {
+    justifySelf: "end",
+    fontSize: 10,
+    fontWeight: 900,
+    letterSpacing: "0.04em",
+    padding: "4px 7px",
+    borderRadius: 999,
+    background: abaAtiva === "assistente" ? "rgba(255,255,255,0.20)" : CORES_APP.rosaClaro,
+    color: abaAtiva === "assistente" ? "#fff" : CORES_APP.rosaPrincipal,
+    border: abaAtiva === "assistente" ? "1px solid rgba(255,255,255,0.25)" : `1px solid ${CORES_APP.borda}`,
+  };
+
   const sidebarRodapeNovo = {
     marginTop: "auto",
     fontSize: 12,
@@ -2842,6 +2980,10 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     padding: 0,
   };
 
+  if (portalClienteAtivo) {
+    return <PortalCliente />;
+  }
+
   if (modoCadastroPublicoAtivo()) {
     return (
       <CadastroPublicoCliente
@@ -2852,6 +2994,103 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         salvandoCadastroPublico={salvandoCadastroPublico}
         salvarCadastroClientePublico={salvarCadastroClientePublico}
       />
+    );
+  }
+
+  if (carregandoAuth) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: CORES_APP.fundo,
+          color: CORES_APP.textoPrincipal,
+          fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+          padding: 24,
+        }}
+      >
+        Carregando acesso...
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <LoginAdmin />;
+  }
+
+  if (carregandoUsuario) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: CORES_APP.fundo,
+          color: CORES_APP.textoPrincipal,
+          fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+          padding: 24,
+        }}
+      >
+        Carregando usuário...
+      </div>
+    );
+  }
+
+  if (!acessoLiberado) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: CORES_APP.fundo,
+          fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+          padding: 24,
+        }}
+      >
+        <div
+          style={{
+            width: "min(420px, 100%)",
+            background: "#fff",
+            border: `1px solid ${CORES_APP.borda}`,
+            borderRadius: 24,
+            padding: 24,
+            boxShadow: CORES_APP.sombraLeve,
+            display: "grid",
+            gap: 12,
+            textAlign: "center",
+          }}
+        >
+          <strong style={{ fontSize: 20, color: CORES_APP.textoPrincipal }}>
+            Acesso não liberado
+          </strong>
+
+          <p style={{ margin: 0, color: CORES_APP.textoSuave, lineHeight: 1.5 }}>
+            {motivoBloqueio || "Seu usuário ainda não foi liberado no painel interno."}
+          </p>
+
+          <button
+            type="button"
+            onClick={sairDoApp}
+            style={{
+              border: "none",
+              borderRadius: 14,
+              background: CORES_APP.rosaPrincipal,
+              color: "#fff",
+              fontWeight: 800,
+              padding: "12px 16px",
+              cursor: "pointer",
+              marginTop: 8,
+            }}
+          >
+            Sair
+          </button>
+        </div>
+      </div>
     );
   }
 
@@ -3251,11 +3490,21 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
               Estoque, vendas, clientes e lives em um só lugar.
             </p>
 
+            <button
+              type="button"
+              style={assistenteTopoBotao}
+              onClick={() => trocarAba("assistente")}
+            >
+              <Sparkles size={20} strokeWidth={2.2} />
+              <span>Assistente Virtual</span>
+              <span style={assistenteSelo}>NOVO</span>
+            </button>
+
             <hr style={linhaDivisoriaNova} />
           </div>
 
           <div className="menu-lista" style={menuListaNovo}>
-            {MENU_ITEMS.map((item) => {
+            {menuVisivel.map((item) => {
               const Icone = item.icon;
               const ativo = abaAtiva === item.id;
 
@@ -3279,8 +3528,29 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
             })}
           </div>
 
-          <div style={sidebarRodapeNovo}>
-            {carregando ? "Carregando dados..." : "Dados sincronizados com Supabase"}
+          <div
+            style={{
+              display: "grid",
+              gap: 8,
+              marginTop: "auto",
+            }}
+          >
+            <button
+              type="button"
+              onClick={sairDoApp}
+              style={{
+                ...menuBotaoNovo,
+                color: "#b91c1c",
+                borderColor: "rgba(185,28,28,0.16)",
+              }}
+            >
+              <X size={18} strokeWidth={2} />
+              <span>Sair</span>
+            </button>
+
+            <div style={sidebarRodapeNovo}>
+              {carregando ? "Carregando dados..." : `${usuarioSistema?.apelido || usuarioSistema?.nome || session?.user?.email || "admin"} • ${usuarioSistema?.perfil || "ADMIN"}`}
+            </div>
           </div>
         </aside>
 
@@ -3296,13 +3566,14 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                   {abaAtiva === "clientes" && "Cadastro de Clientes"}
                   {abaAtiva === "expedicao" && "Expedição"}
                   {abaAtiva === "pendencias" && "Pendências de Pagamento"}
+                  {abaAtiva === "assistente" && "Assistente Virtual"}
                   {abaAtiva === "faturamento" && "Faturamento"}
                 </h2>
 
                 <p style={topoPainelTexto}>
                   {carregando
                     ? "Atualizando informações do sistema..."
-                    : "Painel operacional do brechó"}
+                    : `Olá, ${usuarioSistema?.apelido || usuarioSistema?.nome || "admin"} 👋`}
                 </p>
               </div>
             </div>
@@ -3597,6 +3868,10 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
             )}
 
 
+            {abaAtiva === "assistente" && (
+              <AssistenteVirtual />
+            )}
+
             {abaAtiva === "faturamento" && (
               <FaturamentoSection
                 boxGrande={boxGrande}
@@ -3734,6 +4009,16 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         </style>
       </div>
     </>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <UserProvider>
+        <AppContent />
+      </UserProvider>
+    </AuthProvider>
   );
 }
 

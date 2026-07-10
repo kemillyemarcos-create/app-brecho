@@ -1,4 +1,18 @@
 import { QRCodeCanvas } from "qrcode.react";
+import logoKchic from "../../assets/logo-kchic.png";
+
+function limparMoeda(valor) {
+  if (!valor) return 0;
+
+  return (
+    Number(
+      String(valor)
+        .replace(/[^\d,]/g, "")
+        .replace(/\./g, "")
+        .replace(",", ".")
+    ) || 0
+  );
+}
 
 function formatarBRL(numero) {
   return Number(numero || 0).toLocaleString("pt-BR", {
@@ -7,139 +21,205 @@ function formatarBRL(numero) {
   });
 }
 
+function separarCodigo(codigo) {
+  const numeros = String(codigo || "").replace(/\D/g, "");
+
+  return {
+    completo: numeros || String(codigo || ""),
+    inicio: numeros ? `KC-${numeros.slice(0, 4)}` : "KC-",
+    restante: numeros.slice(4),
+  };
+}
+
+function quebrarTexto(texto, limite = 16) {
+  const palavras = String(texto || "").toUpperCase().split(" ");
+  const linhas = [];
+  let linhaAtual = "";
+
+  palavras.forEach((palavra) => {
+    const tentativa = linhaAtual ? `${linhaAtual} ${palavra}` : palavra;
+
+    if (tentativa.length <= limite) {
+      linhaAtual = tentativa;
+    } else {
+      if (linhaAtual) linhas.push(linhaAtual);
+      linhaAtual = palavra;
+    }
+  });
+
+  if (linhaAtual) linhas.push(linhaAtual);
+
+  return linhas.slice(0, 4);
+}
+
 export default function EtiquetaPrint({ peca }) {
+  const valorVenda = limparMoeda(peca?.venda);
+
   const valorEtiqueta =
-    typeof peca.venda === "number"
-      ? formatarBRL(peca.venda)
-      : peca.venda || "R$ 0,00";
+    valorVenda > 0 ? formatarBRL(valorVenda) : "R$ 0,00";
 
-  const obsEtiqueta =
-    typeof peca?.obs === "string"
-      ? peca.obs.trim()
-      : String(peca?.obs || "").trim();
+  const codigoOriginal = String(peca?.id || "");
 
-  const linhaExtra =
-    peca?.marca ||
-    peca?.categoria ||
-    peca?.tamanho ||
-    peca?.ref ||
-    peca?.referencia ||
-    "";
+  const {
+    completo: codigoCompleto,
+    inicio: codigoInicio,
+    restante: codigoRestante,
+  } = separarCodigo(codigoOriginal);
+
+  const linhasNome = quebrarTexto(peca?.nome || "PEÇA", 16);
+
+  const observacao = String(
+  peca?.obs ||
+  peca?.observacao ||
+  ""
+)
+  .trim()
+  .toUpperCase();
 
   return (
     <div
-      className="etiqueta etiqueta-40x50"
+      className="etiqueta etiqueta-termica-37x58"
       style={{
-        width: "40mm",
-        height: "50mm",
-        minWidth: "40mm",
-        maxWidth: "40mm",
-        minHeight: "50mm",
-        maxHeight: "50mm",
-        padding: "0.6mm 1mm 1mm 1mm",
+        width: "37mm",
+        height: "58mm",
+        minWidth: "37mm",
+        maxWidth: "37mm",
+        minHeight: "58mm",
+        maxHeight: "58mm",
         boxSizing: "border-box",
-        fontFamily: "Arial, sans-serif",
-        textAlign: "center",
+        background: "#fff",
         overflow: "hidden",
+        borderRadius: "1.5mm",
+        border: "0.2mm solid #ddd",
+        fontFamily: "Arial, sans-serif",
+        color: "#000",
         display: "grid",
-        gridTemplateRows: "9mm 4mm 3.5mm 6.5mm 5mm 20mm",
-        alignItems: "center",
-        justifyItems: "center",
-        rowGap: "0mm",
+        gridTemplateRows: "9mm 21mm 18mm 10mm",
         breakInside: "avoid",
         pageBreakInside: "avoid",
-        background: "#fff",
-        flexShrink: 0,
       }}
     >
       <div
         style={{
-          width: "100%",
+          display: "grid",
+          gridTemplateColumns: "1fr auto",
+          alignItems: "start",
+          padding: "2mm 2.2mm 0 2.2mm",
+        }}
+      >
+        <img
+          src={logoKchic}
+          alt="K.Chic"
+          style={{
+            width: "13mm",
+            maxHeight: "9mm",
+            objectFit: "contain",
+          }}
+        />
+
+        <div
+          style={{
+            textAlign: "right",
+            fontSize: "8px",
+            lineHeight: 1,
+            letterSpacing: "0.6px",
+            fontWeight: 900,
+            paddingTop: "0.8mm",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {codigoInicio}
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "0 2mm",
+          display: "grid",
+          alignContent: "center",
+          justifyItems: "center",
+          textAlign: "center",
           fontWeight: 900,
           fontSize: "11px",
-          lineHeight: 1.05,
-          overflow: "hidden",
-          display: "-webkit-box",
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: "vertical",
-          wordBreak: "keep-all",
-          overflowWrap: "break-word",
-          hyphens: "auto",
+          letterSpacing: "1.4px",
+          lineHeight: 1.25,
         }}
       >
-        {peca.nome}
+        {linhasNome.map((linha, index) => (
+  <div key={index}>{linha}</div>
+))}
+
+{observacao && (
+  <div
+    style={{
+      marginTop: "0.7mm",
+      fontSize: "7px",
+      color: "#666",
+      fontWeight: 700,
+      letterSpacing: "0.5px",
+      textTransform: "uppercase",
+      lineHeight: 1.1,
+    }}
+  >
+    {observacao}
+  </div>
+)}
+
+<div
+  style={{
+    marginTop: "0.7mm",
+    fontSize: "10px",
+    letterSpacing: "1.5px",
+    fontWeight: 900,
+  }}
+>
+  {codigoRestante}
+</div>
       </div>
 
       <div
         style={{
-          width: "100%",
-          fontSize: "7.2px",
-          lineHeight: 1,
-          overflow: "hidden",
-          display: "-webkit-box",
-          WebkitLineClamp: 1,
-          WebkitBoxOrient: "vertical",
-          wordBreak: "break-word",
-          overflowWrap: "break-word",
-          color: "#333",
+          borderTop: "0.25mm dashed #c65b78",
+          margin: "0 2mm",
+          paddingTop: "1.4mm",
+          display: "grid",
+          justifyItems: "center",
+          alignContent: "center",
         }}
       >
-        {obsEtiqueta || ""}
+        <QRCodeCanvas value={codigoCompleto} size={64} />
       </div>
 
       <div
         style={{
-          width: "100%",
-          fontSize: "7px",
-          lineHeight: 1,
-          overflow: "hidden",
-          display: "-webkit-box",
-          WebkitLineClamp: 1,
-          WebkitBoxOrient: "vertical",
-          wordBreak: "break-word",
-          overflowWrap: "break-word",
-          color: "#444",
+          padding: "0 2.2mm 1mm 2.2mm",
+          display: "grid",
+          gridTemplateColumns: "1fr auto",
+          alignItems: "end",
         }}
       >
-        {linhaExtra ? `Marca/Ref.: ${linhaExtra}` : ""}
-      </div>
+        <div
+          style={{
+            fontSize: "8px",
+            color: "#b14a66",
+            fontWeight: 500,
+            letterSpacing: "0.4px",
+            paddingBottom: "0.5mm",
+          }}
+        >
+          PREÇO
+        </div>
 
-      <div
-        style={{
-          width: "100%",
-          fontSize: "12px",
-          fontWeight: 900,
-          lineHeight: 1,
-          overflow: "hidden",
-        }}
-      >
-        {valorEtiqueta}
-      </div>
-
-      <div
-        style={{
-          width: "100%",
-          fontSize: "8.5px",
-          fontWeight: 700,
-          lineHeight: 1,
-          overflow: "hidden",
-          whiteSpace: "nowrap",
-        }}
-      >
-        Código: <strong>{peca.id}</strong>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: "100%",
-          height: "100%",
-          marginTop: "-0.8mm",
-        }}
-      >
-        <QRCodeCanvas value={String(peca.id || "")} size={76} />
+        <div
+          style={{
+            fontSize: "14px",
+            fontWeight: 900,
+            letterSpacing: "0.6px",
+            lineHeight: 1,
+          }}
+        >
+          {valorEtiqueta}
+        </div>
       </div>
     </div>
   );

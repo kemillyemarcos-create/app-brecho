@@ -56,6 +56,7 @@ export default function PortalCliente() {
   const [sacolinhaAtual, setSacolinhaAtual] = useState(null);
   const [vendas, setVendas] = useState([]);
   const [pecas, setPecas] = useState({});
+  const [pedidoEnvio, setPedidoEnvio] = useState(null);
   const [carregandoLives, setCarregandoLives] = useState(true);
   const [carregandoConsulta, setCarregandoConsulta] = useState(false);
   const [consultado, setConsultado] = useState(false);
@@ -140,6 +141,33 @@ export default function PortalCliente() {
     return porId || null;
   }
 
+  async function buscarPedidoEnvioDaSacolinha(sacolinhaId) {
+    if (!sacolinhaId) return null;
+
+    const { data: vinculos, error: erroVinculos } = await supabase
+      .from("pedido_envio_sacolinhas")
+      .select("pedido_envio_id")
+      .eq("sacolinha_id", sacolinhaId);
+
+    if (erroVinculos) throw erroVinculos;
+
+    const pedidoIds = [
+      ...new Set((vinculos || []).map((item) => item.pedido_envio_id).filter(Boolean)),
+    ];
+
+    if (pedidoIds.length === 0) return null;
+
+    const { data: pedidos, error: erroPedidos } = await supabase
+      .from("pedidos_envio")
+      .select("*")
+      .in("id", pedidoIds)
+      .order("criado_em", { ascending: false });
+
+    if (erroPedidos) throw erroPedidos;
+
+    return pedidos?.[0] || null;
+  }
+
   async function consultarSacolinha(codigoManual = codigoPortal) {
     const codigo = normalizarCodigo(codigoManual);
 
@@ -159,11 +187,15 @@ export default function PortalCliente() {
         setSacolinhaAtual(null);
         setVendas([]);
         setPecas({});
+        setPedidoEnvio(null);
         setErro("Não encontramos uma sacolinha com esse código.");
         return;
       }
 
       setSacolinhaAtual(sacolinha);
+
+      const pedidoDaSacolinha = await buscarPedidoEnvioDaSacolinha(sacolinha.id);
+      setPedidoEnvio(pedidoDaSacolinha);
 
       if (sacolinha.live_id) {
         setLiveId(sacolinha.live_id);
@@ -231,8 +263,8 @@ export default function PortalCliente() {
   useEffect(() => {
     if (!sacolinhaAtual?.id || !consultado) return undefined;
 
-    const canal = supabase
-      .channel(`portal-cliente-sacolinha-${sacolinhaAtual.id}`)
+    const canalVendas = supabase
+      .channel(`portal-cliente-vendas-${sacolinhaAtual.id}`)
       .on(
         "postgres_changes",
         {
@@ -247,8 +279,41 @@ export default function PortalCliente() {
       )
       .subscribe();
 
+    const canalVinculos = supabase
+      .channel(`portal-cliente-pedido-vinculos-${sacolinhaAtual.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "pedido_envio_sacolinhas",
+          filter: `sacolinha_id=eq.${sacolinhaAtual.id}`,
+        },
+        () => {
+          consultarSacolinha(codigoPortal);
+        }
+      )
+      .subscribe();
+
+    const canalPedidos = supabase
+      .channel("portal-cliente-pedidos-envio")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "pedidos_envio",
+        },
+        () => {
+          consultarSacolinha(codigoPortal);
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(canal);
+      supabase.removeChannel(canalVendas);
+      supabase.removeChannel(canalVinculos);
+      supabase.removeChannel(canalPedidos);
     };
   }, [sacolinhaAtual?.id, codigoPortal, consultado]);
 
@@ -258,13 +323,40 @@ export default function PortalCliente() {
       0
     );
 
+    const statusPagamento = statusPagamentoDasVendas(vendas);
+
+    let statusOperacional = "nenhuma_sacolinha";
+    let statusTexto = "Nenhuma peça confirmada para essa sacolinha";
+
+    if (statusPagamento === "pendente") {
+      statusOperacional = "aguardando_pagamento";
+      statusTexto = "Pagamento pendente";
+    }
+
+    if (statusPagamento === "pago") {
+      statusOperacional = "aguardando_envio";
+      statusTexto = "Pagamento confirmado • aguardando solicitação de envio";
+    }
+
+    if (pedidoEnvio?.status === "montagem") {
+      statusOperacional = "pedido_em_montagem";
+      statusTexto = "Pedido de envio em montagem";
+    }
+
+    if (pedidoEnvio?.status === "enviado") {
+      statusOperacional = "pedido_enviado";
+      statusTexto = "Pedido enviado";
+    }
+
     return {
       itensComprados: vendas,
       total,
       quantidade: vendas.length,
-      statusPagamento: statusPagamentoDasVendas(vendas),
+      statusPagamento,
+      statusOperacional,
+      statusTexto,
     };
-  }, [vendas]);
+  }, [vendas, pedidoEnvio]);
 
   const container = {
     minHeight: "100vh",
@@ -410,6 +502,7 @@ export default function PortalCliente() {
               setConsultado(false);
               setVendas([]);
               setPecas({});
+              setPedidoEnvio(null);
               setSacolinhaAtual(null);
             }}
             onKeyDown={(e) => {
@@ -494,31 +587,117 @@ export default function PortalCliente() {
             style={{
               ...statusBox,
               background:
-                resumo.statusPagamento === "pago"
+                resumo.statusOperacional === "pedido_enviado"
                   ? "#ecfdf5"
-                  : resumo.statusPagamento === "pendente"
+                  : resumo.statusOperacional === "pedido_em_montagem"
+                  ? "#eff6ff"
+                  : resumo.statusOperacional === "aguardando_envio"
+                  ? "#f0fdf4"
+                  : resumo.statusOperacional === "aguardando_pagamento"
                   ? "#fff7ed"
                   : "#f8fafc",
               border:
-                resumo.statusPagamento === "pago"
+                resumo.statusOperacional === "pedido_enviado"
                   ? "1px solid #bbf7d0"
-                  : resumo.statusPagamento === "pendente"
+                  : resumo.statusOperacional === "pedido_em_montagem"
+                  ? "1px solid #bfdbfe"
+                  : resumo.statusOperacional === "aguardando_envio"
+                  ? "1px solid #bbf7d0"
+                  : resumo.statusOperacional === "aguardando_pagamento"
                   ? "1px solid #fed7aa"
                   : "1px solid #e2e8f0",
               color:
-                resumo.statusPagamento === "pago"
+                resumo.statusOperacional === "pedido_enviado"
                   ? "#15803d"
-                  : resumo.statusPagamento === "pendente"
+                  : resumo.statusOperacional === "pedido_em_montagem"
+                  ? "#1d4ed8"
+                  : resumo.statusOperacional === "aguardando_envio"
+                  ? "#15803d"
+                  : resumo.statusOperacional === "aguardando_pagamento"
                   ? "#b45309"
                   : "#64748b",
             }}
           >
-            {resumo.statusPagamento === "pago"
-              ? "Pagamento confirmado"
-              : resumo.statusPagamento === "pendente"
-              ? "Pagamento pendente"
-              : "Nenhuma peça confirmada para essa sacolinha"}
+            {resumo.statusTexto}
           </div>
+
+          {pedidoEnvio ? (
+            <div
+              style={{
+                border: "1px solid #e2e8f0",
+                borderRadius: 18,
+                padding: 14,
+                background: "#f8fafc",
+                marginBottom: 16,
+                display: "grid",
+                gap: 8,
+                lineHeight: 1.4,
+              }}
+            >
+              <strong style={{ color: "#111827" }}>🚚 Acompanhamento do envio</strong>
+
+              <div style={{ fontSize: 13, color: "#475569" }}>
+                Status: <strong>{pedidoEnvio.status === "enviado" ? "Enviado" : "Em montagem"}</strong>
+              </div>
+
+              {pedidoEnvio.transportadora ? (
+                <div style={{ fontSize: 13, color: "#475569" }}>
+                  Transportadora: <strong>{pedidoEnvio.transportadora}</strong>
+                </div>
+              ) : null}
+
+              {pedidoEnvio.codigo_rastreio ? (
+                <div style={{ fontSize: 13, color: "#475569" }}>
+                  Código de rastreio: <strong>{pedidoEnvio.codigo_rastreio}</strong>
+                </div>
+              ) : null}
+
+              {pedidoEnvio.link_rastreio ? (
+                <a
+                  href={pedidoEnvio.link_rastreio}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    display: "inline-flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    minHeight: 42,
+                    marginTop: 4,
+                    borderRadius: 14,
+                    background: "#db4f7a",
+                    color: "#fff",
+                    fontWeight: 800,
+                    textDecoration: "none",
+                  }}
+                >
+                  Acompanhar rastreio
+                </a>
+              ) : pedidoEnvio.status === "enviado" ? (
+                <div style={{ fontSize: 13, color: "#64748b" }}>
+                  O pedido foi marcado como enviado. O código de rastreio será exibido aqui assim que for informado.
+                </div>
+              ) : (
+                <div style={{ fontSize: 13, color: "#64748b" }}>
+                  Seu pedido está sendo preparado. Assim que for enviado, o rastreio aparecerá aqui.
+                </div>
+              )}
+            </div>
+          ) : resumo.statusPagamento === "pago" ? (
+            <div
+              style={{
+                border: "1px solid #bbf7d0",
+                borderRadius: 18,
+                padding: 14,
+                background: "#f0fdf4",
+                color: "#166534",
+                marginBottom: 16,
+                lineHeight: 1.4,
+                fontSize: 13,
+              }}
+            >
+              ✅ Pagamento confirmado. Quando você solicitar o envio e o pedido for gerado, o acompanhamento aparecerá aqui.
+            </div>
+          ) : null}
 
           <h3 style={{ margin: "0 0 12px" }}>Peças arrematadas</h3>
 

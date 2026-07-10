@@ -1,3 +1,202 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.overlay-preview-impressao {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-preview-impressao {
+  width: min(1000px, 95vw);
+  max-height: 90vh;
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-topo {
+  padding: 16px;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.area-preview-impressao {
+  padding: 20px;
+  overflow: auto;
+  background: #f8fafc;
+}
+
+.etiquetas-rolo-preview {
+  display: grid;
+  gap: 2mm;
+  justify-content: center;
+}
+
+.pagina-etiqueta-rolo {
+  width: 37mm;
+  min-height: 58mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.comanda-print {
+  max-width: 780px;
+  margin: 0 auto;
+  background: #fff;
+  padding: 24px;
+  border-radius: 12px;
+  display: grid;
+  gap: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.comanda-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  border-bottom: 2px solid #eef2f7;
+  padding-bottom: 18px;
+}
+
+.comanda-header h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.comanda-header small,
+.comanda-resumo small {
+  font-size: 13px;
+  color: #6b7280;
+  display: block;
+}
+
+.comanda-resumo {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+.comanda-box {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 16px;
+  line-height: 1.7;
+}
+
+.comanda-box h3 {
+  margin-top: 0;
+}
+
+.comanda-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px;
+  background: #fff;
+}
+
+@media print {
+  @page {
+    size: 37mm 58mm;
+    margin: 0;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  #area-preview-impressao,
+  #area-preview-impressao * {
+    visibility: visible;
+  }
+
+  #area-preview-impressao {
+    position: absolute;
+    inset: 0;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+    overflow: visible !important;
+  }
+
+  .overlay-preview-impressao,
+  .modal-preview-impressao {
+    position: static !important;
+    inset: auto !important;
+    width: auto !important;
+    max-height: none !important;
+    background: #fff !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  .no-print,
+  .preview-topo {
+    display: none !important;
+  }
+
+  .etiquetas-rolo-preview {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+  }
+
+  .pagina-etiqueta-rolo {
+    width: 37mm !important;
+    height: 58mm !important;
+    min-height: 58mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .etiqueta-termica-37x58 {
+    width: 37mm !important;
+    height: 58mm !important;
+    min-width: 37mm !important;
+    min-height: 58mm !important;
+    max-width: 37mm !important;
+    max-height: 58mm !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+
+  .comanda-print {
+    visibility: visible;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+  }
+}
