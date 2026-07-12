@@ -1,6 +1,12 @@
+import { useMemo, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import {
+    ArrowUpDown,
+    CalendarDays,
     CheckSquare,
+    Eraser,
+    Filter,
+    Image,
     ListChecks,
     PackageCheck,
     PackageX,
@@ -8,6 +14,7 @@ import {
     Printer,
     RotateCcw,
     Save,
+    StickyNote,
     Square,
     Trash2,
     X,
@@ -59,6 +66,42 @@ function getTimestampCadastro(peca) {
         parseDataFlex(peca?.created_at);
 
     return data ? data.getTime() : 0;
+}
+
+function getTimestampVenda(peca) {
+    const data = parseDataFlex(peca?.data_venda);
+    return data ? data.getTime() : 0;
+}
+
+function limparMoedaLocal(valor) {
+    if (valor === null || valor === undefined || valor === "") return 0;
+
+    const texto = String(valor).trim();
+
+    if (typeof valor === "number") return valor;
+
+    const numero = Number(
+        texto
+            .replace(/[^\d,.-]/g, "")
+            .replace(/\./g, "")
+            .replace(",", ".")
+    );
+
+    return Number.isFinite(numero) ? numero : 0;
+}
+
+function inicioDoDia(valor) {
+    if (!valor) return null;
+
+    const data = new Date(`${valor}T00:00:00`);
+    return Number.isNaN(data.getTime()) ? null : data;
+}
+
+function fimDoDia(valor) {
+    if (!valor) return null;
+
+    const data = new Date(`${valor}T23:59:59.999`);
+    return Number.isNaN(data.getTime()) ? null : data;
 }
 
 function formatarDataLocal(valor) {
@@ -155,17 +198,125 @@ export default function EstoqueSection({
 }) {
     const isMobile = typeof window !== "undefined" ? window.innerWidth <= 767 : false;
 
-    const pecasOrdenadas = [...(pecasFiltradas || [])].sort((a, b) => {
-        const dataB = getTimestampCadastro(b);
-        const dataA = getTimestampCadastro(a);
+    const [mostrarFiltrosAvancados, setMostrarFiltrosAvancados] = useState(false);
+    const [ordenacao, setOrdenacao] = useState("cadastro_desc");
+    const [tipoData, setTipoData] = useState("cadastro");
+    const [dataInicialLocal, setDataInicialLocal] = useState("");
+    const [dataFinalLocal, setDataFinalLocal] = useState("");
+    const [filtroObservacao, setFiltroObservacao] = useState("todas");
+    const [filtroFoto, setFiltroFoto] = useState("todas");
 
-        if (dataB !== dataA) return dataB - dataA;
+    const filtrosAvancadosAtivos =
+        !!dataInicialLocal ||
+        !!dataFinalLocal ||
+        filtroObservacao !== "todas" ||
+        filtroFoto !== "todas";
 
-        return String(b?.id || "").localeCompare(String(a?.id || ""), "pt-BR", {
-            numeric: true,
-            sensitivity: "base",
+    function limparFiltrosAvancados() {
+        setTipoData("cadastro");
+        setDataInicialLocal("");
+        setDataFinalLocal("");
+        setFiltroObservacao("todas");
+        setFiltroFoto("todas");
+        setOrdenacao("cadastro_desc");
+    }
+
+    const pecasOrdenadas = useMemo(() => {
+        const inicio = inicioDoDia(dataInicialLocal);
+        const fim = fimDoDia(dataFinalLocal);
+
+        const filtradas = [...(pecasFiltradas || [])].filter((peca) => {
+            const observacao = String(peca?.obs || "").trim();
+            const foto = String(peca?.foto || "").trim();
+
+            if (filtroObservacao === "com" && !observacao) return false;
+            if (filtroObservacao === "sem" && observacao) return false;
+
+            if (filtroFoto === "com" && !foto) return false;
+            if (filtroFoto === "sem" && foto) return false;
+
+            if (inicio || fim) {
+                const timestamp =
+                    tipoData === "venda"
+                        ? getTimestampVenda(peca)
+                        : getTimestampCadastro(peca);
+
+                if (!timestamp) return false;
+                if (inicio && timestamp < inicio.getTime()) return false;
+                if (fim && timestamp > fim.getTime()) return false;
+            }
+
+            return true;
         });
-    });
+
+        filtradas.sort((a, b) => {
+            const nomeA = String(a?.nome || "");
+            const nomeB = String(b?.nome || "");
+            const codigoA = String(a?.id || "");
+            const codigoB = String(b?.id || "");
+            const cadastroA = getTimestampCadastro(a);
+            const cadastroB = getTimestampCadastro(b);
+            const vendaA = getTimestampVenda(a);
+            const vendaB = getTimestampVenda(b);
+            const custoA = limparMoedaLocal(a?.custo);
+            const custoB = limparMoedaLocal(b?.custo);
+            const precoA = limparMoedaLocal(a?.venda);
+            const precoB = limparMoedaLocal(b?.venda);
+
+            switch (ordenacao) {
+                case "cadastro_asc":
+                    return cadastroA - cadastroB;
+                case "venda_desc":
+                    return vendaB - vendaA;
+                case "venda_asc":
+                    return vendaA - vendaB;
+                case "preco_desc":
+                    return precoB - precoA;
+                case "preco_asc":
+                    return precoA - precoB;
+                case "custo_desc":
+                    return custoB - custoA;
+                case "custo_asc":
+                    return custoA - custoB;
+                case "nome_asc":
+                    return nomeA.localeCompare(nomeB, "pt-BR", {
+                        sensitivity: "base",
+                    });
+                case "nome_desc":
+                    return nomeB.localeCompare(nomeA, "pt-BR", {
+                        sensitivity: "base",
+                    });
+                case "codigo_asc":
+                    return codigoA.localeCompare(codigoB, "pt-BR", {
+                        numeric: true,
+                        sensitivity: "base",
+                    });
+                case "codigo_desc":
+                    return codigoB.localeCompare(codigoA, "pt-BR", {
+                        numeric: true,
+                        sensitivity: "base",
+                    });
+                case "cadastro_desc":
+                default:
+                    if (cadastroB !== cadastroA) return cadastroB - cadastroA;
+
+                    return codigoB.localeCompare(codigoA, "pt-BR", {
+                        numeric: true,
+                        sensitivity: "base",
+                    });
+            }
+        });
+
+        return filtradas;
+    }, [
+        pecasFiltradas,
+        ordenacao,
+        tipoData,
+        dataInicialLocal,
+        dataFinalLocal,
+        filtroObservacao,
+        filtroFoto,
+    ]);
 
     const textoCompacto = {
         ...textoItem,
@@ -264,6 +415,274 @@ export default function EstoqueSection({
                         onClick={() => setFiltroEstoque("vendidas")}
                     />
                 </div>
+
+                <div
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: isMobile
+                            ? "1fr"
+                            : "minmax(240px, 340px) auto auto",
+                        gap: 10,
+                        alignItems: "center",
+                        marginTop: 10,
+                    }}
+                >
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "auto 1fr",
+                            gap: 8,
+                            alignItems: "center",
+                        }}
+                    >
+                        <ArrowUpDown size={17} color="#9b7582" />
+
+                        <select
+                            style={{
+                                ...estiloInputBusca,
+                                cursor: "pointer",
+                                textTransform: "none",
+                            }}
+                            value={ordenacao}
+                            onChange={(e) => setOrdenacao(e.target.value)}
+                        >
+                            <option value="cadastro_desc">Cadastro: mais recente</option>
+                            <option value="cadastro_asc">Cadastro: mais antigo</option>
+                            <option value="venda_desc">Venda: mais recente</option>
+                            <option value="venda_asc">Venda: mais antiga</option>
+                            <option value="preco_desc">Preço de venda: maior</option>
+                            <option value="preco_asc">Preço de venda: menor</option>
+                            <option value="custo_desc">Preço de compra: maior</option>
+                            <option value="custo_asc">Preço de compra: menor</option>
+                            <option value="nome_asc">Nome: A–Z</option>
+                            <option value="nome_desc">Nome: Z–A</option>
+                            <option value="codigo_asc">Código: crescente</option>
+                            <option value="codigo_desc">Código: decrescente</option>
+                        </select>
+                    </div>
+
+                    <IconButton
+                        icon={Filter}
+                        label={
+                            filtrosAvancadosAtivos
+                                ? "Filtros ativos"
+                                : "Filtros avançados"
+                        }
+                        active={mostrarFiltrosAvancados || filtrosAvancadosAtivos}
+                        onClick={() =>
+                            setMostrarFiltrosAvancados((aberto) => !aberto)
+                        }
+                    />
+
+                    <IconButton
+                        icon={Eraser}
+                        label="Limpar filtros"
+                        disabled={!filtrosAvancadosAtivos && ordenacao === "cadastro_desc"}
+                        onClick={limparFiltrosAvancados}
+                    />
+                </div>
+
+                {mostrarFiltrosAvancados ? (
+                    <div
+                        style={{
+                            marginTop: 12,
+                            padding: isMobile ? 12 : 16,
+                            border: "1px solid #f1dce4",
+                            borderRadius: 18,
+                            background: "#fffafb",
+                            display: "grid",
+                            gap: 14,
+                        }}
+                    >
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                color: "#8f2745",
+                                fontWeight: 900,
+                            }}
+                        >
+                            <Filter size={18} />
+                            Filtros avançados
+                        </div>
+
+                        <div
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns: isMobile
+                                    ? "1fr"
+                                    : "repeat(3, minmax(0, 1fr))",
+                                gap: 12,
+                            }}
+                        >
+                            <label style={{ display: "grid", gap: 6 }}>
+                                <span
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 6,
+                                        fontSize: 12,
+                                        fontWeight: 800,
+                                        color: "#64748b",
+                                    }}
+                                >
+                                    <CalendarDays size={15} />
+                                    Consultar data
+                                </span>
+
+                                <select
+                                    style={{
+                                        ...estiloInputBusca,
+                                        cursor: "pointer",
+                                        textTransform: "none",
+                                    }}
+                                    value={tipoData}
+                                    onChange={(e) => setTipoData(e.target.value)}
+                                >
+                                    <option value="cadastro">Data de cadastro</option>
+                                    <option value="venda">Data da venda</option>
+                                </select>
+                            </label>
+
+                            <label style={{ display: "grid", gap: 6 }}>
+                                <span
+                                    style={{
+                                        fontSize: 12,
+                                        fontWeight: 800,
+                                        color: "#64748b",
+                                    }}
+                                >
+                                    Data inicial
+                                </span>
+
+                                <input
+                                    type="date"
+                                    style={estiloInputBusca}
+                                    value={dataInicialLocal}
+                                    max={dataFinalLocal || undefined}
+                                    onChange={(e) => setDataInicialLocal(e.target.value)}
+                                />
+                            </label>
+
+                            <label style={{ display: "grid", gap: 6 }}>
+                                <span
+                                    style={{
+                                        fontSize: 12,
+                                        fontWeight: 800,
+                                        color: "#64748b",
+                                    }}
+                                >
+                                    Data final
+                                </span>
+
+                                <input
+                                    type="date"
+                                    style={estiloInputBusca}
+                                    value={dataFinalLocal}
+                                    min={dataInicialLocal || undefined}
+                                    onChange={(e) => setDataFinalLocal(e.target.value)}
+                                />
+                            </label>
+                        </div>
+
+                        <div
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns: isMobile
+                                    ? "1fr"
+                                    : "repeat(2, minmax(0, 1fr))",
+                                gap: 12,
+                            }}
+                        >
+                            <label style={{ display: "grid", gap: 6 }}>
+                                <span
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 6,
+                                        fontSize: 12,
+                                        fontWeight: 800,
+                                        color: "#64748b",
+                                    }}
+                                >
+                                    <StickyNote size={15} />
+                                    Observação
+                                </span>
+
+                                <select
+                                    style={{
+                                        ...estiloInputBusca,
+                                        cursor: "pointer",
+                                        textTransform: "none",
+                                    }}
+                                    value={filtroObservacao}
+                                    onChange={(e) =>
+                                        setFiltroObservacao(e.target.value)
+                                    }
+                                >
+                                    <option value="todas">Todas</option>
+                                    <option value="com">Somente com observação</option>
+                                    <option value="sem">Somente sem observação</option>
+                                </select>
+                            </label>
+
+                            <label style={{ display: "grid", gap: 6 }}>
+                                <span
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 6,
+                                        fontSize: 12,
+                                        fontWeight: 800,
+                                        color: "#64748b",
+                                    }}
+                                >
+                                    <Image size={15} />
+                                    Foto
+                                </span>
+
+                                <select
+                                    style={{
+                                        ...estiloInputBusca,
+                                        cursor: "pointer",
+                                        textTransform: "none",
+                                    }}
+                                    value={filtroFoto}
+                                    onChange={(e) => setFiltroFoto(e.target.value)}
+                                >
+                                    <option value="todas">Todas</option>
+                                    <option value="com">Somente com foto</option>
+                                    <option value="sem">Somente sem foto</option>
+                                </select>
+                            </label>
+                        </div>
+
+                        <div
+                            style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                gap: 10,
+                                flexWrap: "wrap",
+                            }}
+                        >
+                            <span style={{ color: "#64748b", fontSize: 13 }}>
+                                {pecasOrdenadas.length} peça(s) encontrada(s)
+                            </span>
+
+                            <IconButton
+                                icon={Eraser}
+                                label="Restaurar filtros"
+                                disabled={
+                                    !filtrosAvancadosAtivos &&
+                                    ordenacao === "cadastro_desc"
+                                }
+                                onClick={limparFiltrosAvancados}
+                            />
+                        </div>
+                    </div>
+                ) : null}
             </div>
 
             <div

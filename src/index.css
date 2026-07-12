@@ -2,65 +2,143 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =========================================================
+   MODAL
+========================================================= */
+
 .overlay-preview-impressao {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
   z-index: 9999;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   padding: 20px;
+
+  background: rgba(0, 0, 0, 0.6);
 }
 
 .modal-preview-impressao {
   width: min(1000px, 95vw);
   max-height: 90vh;
-  background: #fff;
-  border-radius: 16px;
-  overflow: hidden;
+
   display: flex;
   flex-direction: column;
+
+  overflow: hidden;
+
+  background: #ffffff;
+  border-radius: 16px;
 }
 
 .preview-topo {
-  padding: 16px;
-  border-bottom: 1px solid #ddd;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
   flex-wrap: wrap;
+
+  gap: 12px;
+  padding: 16px;
+
+  background: #ffffff;
+  border-bottom: 1px solid #dddddd;
 }
 
 .area-preview-impressao {
+  flex: 1;
+
   padding: 20px;
+
   overflow: auto;
+
   background: #f8fafc;
 }
 
+/* =========================================================
+   PREVIEW DAS ETIQUETAS
+========================================================= */
+
+.area-preview-impressao-etiquetas {
+  width: 100%;
+  overflow: auto;
+}
+
 .etiquetas-rolo-preview {
-  display: grid;
-  gap: 2mm;
-  justify-content: center;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+
+  width: 37mm;
+  min-width: 37mm;
+
+  margin: 0;
+  padding: 0;
+  gap: 0;
+
+  background: #ffffff;
 }
 
 .pagina-etiqueta-rolo {
+  display: block;
+
   width: 37mm;
+  height: 58mm;
+
+  min-width: 37mm;
+  max-width: 37mm;
+
   min-height: 58mm;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  max-height: 58mm;
+
+  flex: 0 0 58mm;
+
+  margin: 0;
+  padding: 0;
+
+  overflow: hidden;
+
+  background: #ffffff;
+
+  border: none;
+  border-radius: 0;
+
+  box-sizing: border-box;
 }
+
+.pagina-etiqueta-rolo > .etiqueta,
+.pagina-etiqueta-rolo > .etiqueta-termica-37x58 {
+  width: 37mm !important;
+  height: 58mm !important;
+
+  min-width: 37mm !important;
+  max-width: 37mm !important;
+
+  min-height: 58mm !important;
+  max-height: 58mm !important;
+
+  margin: 0 !important;
+
+  box-sizing: border-box !important;
+}
+
+/* =========================================================
+   COMANDA
+========================================================= */
 
 .comanda-print {
   max-width: 780px;
+
   margin: 0 auto;
-  background: #fff;
   padding: 24px;
-  border-radius: 12px;
+
   display: grid;
   gap: 16px;
+
+  background: #ffffff;
+  border-radius: 12px;
+
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
@@ -68,9 +146,11 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+
   gap: 20px;
-  border-bottom: 2px solid #eef2f7;
   padding-bottom: 18px;
+
+  border-bottom: 2px solid #eef2f7;
 }
 
 .comanda-header h1 {
@@ -80,27 +160,34 @@
 
 .comanda-header small,
 .comanda-resumo small {
+  display: block;
+
   font-size: 13px;
   color: #6b7280;
-  display: block;
 }
 
 .comanda-resumo {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+
+  gap: 12px;
+  padding: 16px;
+
   background: #f9fafb;
+
   border: 1px solid #e5e7eb;
   border-radius: 14px;
-  padding: 16px;
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 12px;
 }
 
 .comanda-box {
+  padding: 16px;
+
+  line-height: 1.7;
+
   background: #f9fafb;
+
   border: 1px solid #e5e7eb;
   border-radius: 14px;
-  padding: 16px;
-  line-height: 1.7;
 }
 
 .comanda-box h3 {
@@ -108,13 +195,69 @@
 }
 
 .comanda-item {
+  padding: 12px;
+
+  background: #ffffff;
+
   border: 1px solid #e5e7eb;
   border-radius: 10px;
-  padding: 12px;
-  background: #fff;
 }
 
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 767px) {
+  .overlay-preview-impressao {
+    align-items: flex-start;
+
+    padding: 16px 10px;
+  }
+
+  .modal-preview-impressao {
+    width: 100%;
+    max-height: calc(100vh - 32px);
+
+    border-radius: 14px;
+  }
+
+  .preview-topo {
+    align-items: stretch;
+  }
+
+  .preview-topo > div {
+    width: 100%;
+  }
+
+  .preview-topo button {
+    flex: 1;
+  }
+
+  .area-preview-impressao {
+    padding: 20px;
+  }
+
+  .comanda-header {
+    flex-direction: column;
+  }
+
+  .comanda-resumo {
+    grid-template-columns: repeat(
+      2,
+      minmax(0, 1fr)
+    );
+  }
+}
+
+/* =========================================================
+   IMPRESSÃO
+========================================================= */
+
 @media print {
+  /*
+   * O Safari tende a respeitar este tamanho quando o conteúdo
+   * contém páginas individuais com a mesma medida.
+   */
   @page {
     size: 37mm 58mm;
     margin: 0;
@@ -122,9 +265,12 @@
 
   html,
   body {
+    width: 37mm !important;
+
     margin: 0 !important;
     padding: 0 !important;
-    background: #fff !important;
+
+    background: #ffffff !important;
   }
 
   body * {
@@ -137,26 +283,44 @@
   }
 
   #area-preview-impressao {
-    position: absolute;
-    inset: 0;
-    padding: 0 !important;
+    position: absolute !important;
+
+    top: 0 !important;
+    left: 0 !important;
+
+    width: 37mm !important;
+
     margin: 0 !important;
-    background: #fff !important;
+    padding: 0 !important;
+
     overflow: visible !important;
+
+    background: #ffffff !important;
   }
 
   .overlay-preview-impressao,
   .modal-preview-impressao {
     position: static !important;
     inset: auto !important;
-    width: auto !important;
+
+    width: 37mm !important;
+    min-width: 37mm !important;
+    max-width: 37mm !important;
+
+    height: auto !important;
     max-height: none !important;
-    background: #fff !important;
-    overflow: visible !important;
-    padding: 0 !important;
+
     margin: 0 !important;
-    box-shadow: none !important;
+    padding: 0 !important;
+
+    overflow: visible !important;
+
+    background: #ffffff !important;
+
+    border: none !important;
     border-radius: 0 !important;
+
+    box-shadow: none !important;
   }
 
   .no-print,
@@ -164,39 +328,108 @@
     display: none !important;
   }
 
+  .area-preview-impressao-etiquetas {
+    width: 37mm !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    overflow: visible !important;
+
+    background: #ffffff !important;
+  }
+
   .etiquetas-rolo-preview {
     display: block !important;
-    padding: 0 !important;
+
+    width: 37mm !important;
+
     margin: 0 !important;
-    background: #fff !important;
+    padding: 0 !important;
+
+    background: #ffffff !important;
   }
 
   .pagina-etiqueta-rolo {
+    display: block !important;
+
     width: 37mm !important;
     height: 58mm !important;
+
+    min-width: 37mm !important;
+    max-width: 37mm !important;
+
     min-height: 58mm !important;
+    max-height: 58mm !important;
+
     margin: 0 !important;
     padding: 0 !important;
-    page-break-after: always;
-    break-after: page;
+
+    overflow: hidden !important;
+
+    background: #ffffff !important;
+
+    border: none !important;
+    border-radius: 0 !important;
+
+    box-sizing: border-box !important;
+
+    break-before: page !important;
+    page-break-before: always !important;
+
+    break-after: page !important;
+    page-break-after: always !important;
+
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 
+  .pagina-etiqueta-rolo:first-child {
+    break-before: auto !important;
+    page-break-before: auto !important;
+  }
+
+  .pagina-etiqueta-rolo:last-child {
+    break-after: auto !important;
+    page-break-after: auto !important;
+  }
+
+  .etiqueta,
   .etiqueta-termica-37x58 {
     width: 37mm !important;
     height: 58mm !important;
+
     min-width: 37mm !important;
-    min-height: 58mm !important;
     max-width: 37mm !important;
+
+    min-height: 58mm !important;
     max-height: 58mm !important;
+
+    margin: 0 !important;
+
+    overflow: hidden !important;
+
     border: none !important;
     border-radius: 0 !important;
+
+    box-sizing: border-box !important;
+
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 
+  /*
+   * A comanda continua disponível, porém o tamanho de página
+   * será o mesmo enquanto este CSS estiver ativo.
+   */
   .comanda-print {
-    visibility: visible;
+    width: 100% !important;
+    max-width: none !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
     box-shadow: none !important;
     border-radius: 0 !important;
-    max-width: none !important;
-    width: 100% !important;
   }
 }
