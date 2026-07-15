@@ -1,7 +1,9 @@
-import consultarVendasHoje from "./vendas/consultarVendasHoje";
+import skillsVendas from "./vendas/index.js";
+import skillsLives from "./lives/index.js";
 
 const skills = [
-  consultarVendasHoje,
+  ...skillsVendas,
+  ...skillsLives,
 ];
 
 export default skills;

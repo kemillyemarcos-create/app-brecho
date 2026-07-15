@@ -1,6 +1,12 @@
 import IntentTypes from "./IntentTypes";
 
 const IntentPatterns = [
+  /*
+   * ==========================
+   * KNOWLEDGE
+   * ==========================
+   */
+
   {
     id: "knowledge_modules",
     type: IntentTypes.KNOWLEDGE,
@@ -59,6 +65,12 @@ const IntentPatterns = [
     ],
   },
 
+  /*
+   * ==========================
+   * SKILLS
+   * ==========================
+   */
+
   {
     id: "skill_sales_today",
     type: IntentTypes.SKILL,
@@ -70,6 +82,22 @@ const IntentPatterns = [
       "quanto faturou hoje",
       "quanto entrou hoje",
       "quanto vendeu hoje",
+    ],
+  },
+
+  {
+    id: "skill_last_live_summary",
+    type: IntentTypes.SKILL,
+    target: "consultar_resumo_ultima_live",
+    patterns: [
+      "resumo da ultima live",
+      "vendas da ultima live",
+      "quanto vendeu na ultima live",
+      "quanto faturou na ultima live",
+      "quanto faturou a ultima live",
+      "resultado da ultima live",
+      "desempenho da ultima live",
+      "como foi a ultima live",
     ],
   },
 ];
