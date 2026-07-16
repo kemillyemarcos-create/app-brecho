@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { formatarDataHoraBR } from "../../utils/dateUtils";
-import imprimirEtiquetas from "../print/imprimirEtiquetas";
+import imprimirEtiquetas from "../print/ImprimirEtiquetas";
 
 export default function PreviewModal({
   previewAberto,
