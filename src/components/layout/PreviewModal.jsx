@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { formatarDataHoraBR } from "../../utils/dateUtils";
 import imprimirEtiquetas from "../print/imprimirEtiquetas";
 
@@ -14,6 +15,9 @@ export default function PreviewModal({
   formatarBRL,
   EtiquetaPrint,
 }) {
+  const [preparandoImpressao, setPreparandoImpressao] =
+    useState(false);
+
   if (!previewAberto) return null;
 
   const ehPreviewComanda =
@@ -27,13 +31,30 @@ export default function PreviewModal({
       ? dadosPreview
       : [];
 
-  function imprimir() {
-    if (ehPreviewEtiquetas) {
-      imprimirEtiquetas();
+  async function imprimir() {
+    if (preparandoImpressao) return;
+
+    if (!ehPreviewEtiquetas) {
+      window.print();
       return;
     }
 
-    window.print();
+    try {
+      setPreparandoImpressao(true);
+
+      await imprimirEtiquetas();
+    } catch (error) {
+      console.error(
+        "Erro ao iniciar impressão das etiquetas:",
+        error
+      );
+
+      alert(
+        "Não foi possível preparar as etiquetas para impressão."
+      );
+    } finally {
+      setPreparandoImpressao(false);
+    }
   }
 
   return (
@@ -43,31 +64,51 @@ export default function PreviewModal({
           ? "preview-modo-etiquetas"
           : "preview-modo-comanda"
       }`}
+      role="dialog"
+      aria-modal="true"
+      aria-label={
+        ehPreviewComanda
+          ? "Preview da comanda"
+          : "Preview das etiquetas"
+      }
     >
       <div className="modal-preview-impressao">
         <div className="no-print preview-topo">
-          <strong>
-            {ehPreviewComanda
-              ? "Preview da Comanda"
-              : "Preview de Etiquetas"}
-          </strong>
+          <div className="preview-titulo">
+            <strong>
+              {ehPreviewComanda
+                ? "Preview da Comanda"
+                : "Preview de Etiquetas"}
+            </strong>
 
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              flexWrap: "wrap",
-            }}
-          >
+            {ehPreviewEtiquetas && (
+              <small>
+                {etiquetas.length} etiqueta(s) selecionada(s)
+              </small>
+            )}
+          </div>
+
+          <div className="preview-acoes">
             <button
               type="button"
               style={{
                 ...botao,
                 background: "#2563eb",
+                opacity: preparandoImpressao ? 0.7 : 1,
+                cursor: preparandoImpressao
+                  ? "wait"
+                  : "pointer",
               }}
               onClick={imprimir}
+              disabled={
+                preparandoImpressao ||
+                (ehPreviewEtiquetas &&
+                  etiquetas.length === 0)
+              }
             >
-              Imprimir
+              {preparandoImpressao
+                ? "Preparando..."
+                : "Imprimir"}
             </button>
 
             <button
@@ -77,6 +118,7 @@ export default function PreviewModal({
                 background: "#6b7280",
               }}
               onClick={fecharPreview}
+              disabled={preparandoImpressao}
             >
               Fechar
             </button>
@@ -93,14 +135,7 @@ export default function PreviewModal({
         >
           {ehPreviewComanda && dadosPreview && (
             <div className="comanda-print">
-              <div
-                className="no-print"
-                style={{
-                  display: "flex",
-                  gap: 10,
-                  flexWrap: "wrap",
-                }}
-              >
+              <div className="no-print comanda-acoes">
                 <button
                   type="button"
                   style={{
@@ -146,7 +181,6 @@ export default function PreviewModal({
               <div className="comanda-resumo">
                 <div>
                   <small>Cliente</small>
-
                   <strong>
                     {dadosPreview.nome || "-"}
                   </strong>
@@ -154,7 +188,6 @@ export default function PreviewModal({
 
                 <div>
                   <small>Live</small>
-
                   <strong>
                     {dadosPreview.liveNome ||
                       dadosPreview.live ||
@@ -180,7 +213,6 @@ export default function PreviewModal({
 
                 <div>
                   <small>Peças</small>
-
                   <strong>
                     {dadosPreview.pecas || 0}
                   </strong>
@@ -188,7 +220,6 @@ export default function PreviewModal({
 
                 <div>
                   <small>Total</small>
-
                   <strong>
                     {formatarBRL(dadosPreview.total)}
                   </strong>
@@ -290,7 +321,7 @@ export default function PreviewModal({
                   </div>
                 ))
               ) : (
-                <div className="no-print">
+                <div className="no-print preview-vazio">
                   Nenhuma etiqueta selecionada.
                 </div>
               )}

@@ -698,20 +698,20 @@ export default function EstoqueSection({
                     icon={CheckSquare}
                     label={isMobile ? "Marcar" : "Marcar todas"}
                     active
-                    onClick={marcarTodasEtiquetas}
+                    onClick={() => marcarTodasEtiquetas(pecasOrdenadas)}
                 />
 
                 <IconButton
                     icon={Square}
                     label={isMobile ? "Limpar" : "Desmarcar todas"}
-                    onClick={desmarcarTodasEtiquetas}
+                    onClick={() => desmarcarTodasEtiquetas(pecasOrdenadas)}
                 />
 
                 <IconButton
                     icon={Printer}
                     label={isMobile ? "Imprimir" : "Imprimir selecionadas"}
                     active
-                    onClick={imprimirEtiquetasSelecionadas}
+                    onClick={() => imprimirEtiquetasSelecionadas(pecasOrdenadas)}
                 />
             </div>
 

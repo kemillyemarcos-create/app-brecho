@@ -1,162 +1,9 @@
-import {
-  buscarUltimaLiveEncerrada,
-  buscarVendasDaLive,
-} from "../database/queries/lives.js";
+// PlanExecutor.js
 
-function normalizarTexto(valor = "") {
-  return String(valor || "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
-function obterValorVenda(venda) {
-  return Number(
-    venda?.valor_venda ||
-      venda?.valor ||
-      venda?.preco_venda ||
-      venda?.total ||
-      0
-  );
-}
-
-function obterCustoVenda(venda) {
-  return Number(
-    venda?.valor_compra ||
-      venda?.custo ||
-      venda?.preco_compra ||
-      venda?.peca?.custo ||
-      0
-  );
-}
-
-function obterNomeCliente(venda) {
-  return (
-    venda?.cliente_nome ||
-    venda?.nome_cliente ||
-    venda?.cliente ||
-    venda?.clientes?.nome ||
-    "Cliente não identificado"
-  );
-}
-
-function obterNomePeca(venda) {
-  return (
-    venda?.peca_nome ||
-    venda?.nome_peca ||
-    venda?.nome ||
-    venda?.peca?.nome ||
-    ""
-  );
-}
-
-function vendaEstaPaga(venda) {
-  const status = normalizarTexto(
-    venda?.status_pagamento ||
-      venda?.status ||
-      ""
-  );
-
-  return status === "pago";
-}
-
-function agruparVendasPorCliente(vendas = []) {
-  const mapa = new Map();
-
-  for (const venda of vendas) {
-    const nomeOriginal = obterNomeCliente(venda);
-    const chave = normalizarTexto(nomeOriginal);
-
-    if (!chave) continue;
-
-    const atual = mapa.get(chave) || {
-      nome: nomeOriginal,
-      quantidade: 0,
-      valor: 0,
-      vendas: [],
-    };
-
-    atual.quantidade += 1;
-    atual.valor += obterValorVenda(venda);
-    atual.vendas.push(venda);
-
-    mapa.set(chave, atual);
-  }
-
-  return Array.from(mapa.values());
-}
-
-function identificarMarca(venda) {
-  const marcaDireta =
-    venda?.marca ||
-    venda?.peca?.marca ||
-    "";
-
-  if (marcaDireta) {
-    return String(marcaDireta).trim();
-  }
-
-  const nomePeca = obterNomePeca(venda);
-
-  if (!nomePeca) return "Sem marca";
-
-  const marcasConhecidas = [
-    "Zara",
-    "Nike",
-    "Adidas",
-    "Levi's",
-    "Levis",
-    "Columbia",
-    "The North Face",
-    "Calvin Klein",
-    "Tommy Hilfiger",
-    "Michael Kors",
-    "H&M",
-    "Mango",
-    "Puma",
-    "Guess",
-    "Ralph Lauren",
-    "Gap",
-  ];
-
-  const nomeNormalizado = normalizarTexto(nomePeca);
-
-  const encontrada = marcasConhecidas.find((marca) =>
-    nomeNormalizado.includes(normalizarTexto(marca))
-  );
-
-  return encontrada || "Sem marca";
-}
-
-function extrairMarcaDaPergunta(pergunta = "") {
-  const marcasConhecidas = [
-    "Zara",
-    "Nike",
-    "Adidas",
-    "Levi's",
-    "Levis",
-    "Columbia",
-    "The North Face",
-    "Calvin Klein",
-    "Tommy Hilfiger",
-    "Michael Kors",
-    "H&M",
-    "Mango",
-    "Puma",
-    "Guess",
-    "Ralph Lauren",
-    "Gap",
-  ];
-
-  const texto = normalizarTexto(pergunta);
-
-  return (
-    marcasConhecidas.find((marca) =>
-      texto.includes(normalizarTexto(marca))
-    ) || null
-  );
-}
+import queryBuilder from "../query/QueryBuilder";
+import queryExecutor from "../query/QueryExecutor";
+import resultProcessor from "../results/ResultProcessor";
+import { normalizarTexto } from "../utils/TextUtils";
 
 function formatarBRL(valor) {
   return Number(valor || 0).toLocaleString("pt-BR", {
@@ -165,337 +12,843 @@ function formatarBRL(valor) {
   });
 }
 
-function formatarListaClientes(clientes = []) {
-  if (!clientes.length) {
+function formatarPercentual(valor) {
+  if (
+    valor === null ||
+    valor === undefined ||
+    !Number.isFinite(Number(valor))
+  ) {
+    return "-";
+  }
+
+  return `${Number(valor)
+    .toFixed(1)
+    .replace(".", ",")}%`;
+}
+
+function obterNomeLive(live) {
+  return (
+    live?.nome ||
+    live?.titulo ||
+    live?.descricao ||
+    live?.nome_live ||
+    (live?.id
+      ? `Live ${live.id}`
+      : "Live")
+  );
+}
+
+function descricaoPeriodo(
+  definicao = {},
+  live = null
+) {
+  const descricoes = {
+    ultima_live:
+      "da última live",
+    ultimas_lives:
+      "das últimas lives",
+    hoje:
+      "de hoje",
+    ontem:
+      "de ontem",
+    semana_atual:
+      "desta semana",
+    mes_atual:
+      "deste mês",
+    ano_atual:
+      "deste ano",
+  };
+
+  if (
+    definicao?.periodo?.tipo ===
+      "ultima_live" &&
+    live
+  ) {
+    return `da última live (${obterNomeLive(live)})`;
+  }
+
+  return (
+    descricoes[
+      definicao?.periodo?.tipo
+    ] ||
+    "do período consultado"
+  );
+}
+
+function formatarListaClientes(
+  clientes = []
+) {
+  if (
+    !Array.isArray(clientes) ||
+    clientes.length === 0
+  ) {
     return "Nenhum cliente encontrado.";
   }
 
   return clientes
     .map(
-      (cliente, index) =>
-        `${index + 1}. ${cliente.nome} — ${cliente.quantidade} peça(s) — ${formatarBRL(
-          cliente.valor
-        )}`
+      (
+        cliente,
+        index
+      ) => {
+        const nome =
+          cliente?.nome ||
+          cliente?.cliente ||
+          "Cliente não identificado";
+
+        const quantidade =
+          Number(
+            cliente?.quantidade ??
+              cliente?.pecas ??
+              0
+          );
+
+        return `${index + 1}. ${nome} — ${quantidade} peça(s) — ${formatarBRL(
+          cliente?.valor
+        )}`;
+      }
     )
     .join("\n");
 }
 
+function formatarVariacao(valor) {
+  if (
+    valor === null ||
+    valor === undefined ||
+    !Number.isFinite(
+      Number(valor)
+    )
+  ) {
+    return "sem base anterior";
+  }
+
+  const numero =
+    Number(valor);
+
+  if (numero > 0) {
+    return `alta de ${formatarPercentual(
+      numero
+    )}`;
+  }
+
+  if (numero < 0) {
+    return `queda de ${formatarPercentual(
+      Math.abs(numero)
+    )}`;
+  }
+
+  return "estável";
+}
+
+function formatarTendencia(
+  tendencia
+) {
+  const mapa = {
+    crescimento:
+      "crescimento",
+    queda:
+      "queda",
+    estavel:
+      "estabilidade",
+  };
+
+  return (
+    mapa[tendencia] ||
+    "estabilidade"
+  );
+}
+
+function detectarObjetivoComparacao(
+  definicao = {}
+) {
+  const objetivoConfigurado =
+    definicao?.parametros
+      ?.objetivoComparacao;
+
+  if (
+    [
+      "melhor",
+      "pior",
+      "completo",
+    ].includes(
+      objetivoConfigurado
+    )
+  ) {
+    return objetivoConfigurado;
+  }
+
+  const pergunta =
+    normalizarTexto(
+      definicao?.perguntaOriginal ||
+      definicao?.entidades
+        ?.perguntaOriginal ||
+      ""
+    );
+
+  if (!pergunta) {
+    return "completo";
+  }
+
+  const termosMelhor = [
+    "qual foi a melhor",
+    "qual a melhor",
+    "melhor live",
+    "melhor das lives",
+    "melhor das ultimas",
+    "maior faturamento",
+    "faturou mais",
+    "qual faturou mais",
+    "teve maior faturamento",
+  ];
+
+  if (
+    termosMelhor.some(
+      (termo) =>
+        pergunta.includes(
+          normalizarTexto(termo)
+        )
+    )
+  ) {
+    return "melhor";
+  }
+
+  const termosPior = [
+    "qual foi a pior",
+    "qual a pior",
+    "pior live",
+    "pior das lives",
+    "pior das ultimas",
+    "menor faturamento",
+    "faturou menos",
+    "qual faturou menos",
+    "teve menor faturamento",
+  ];
+
+  if (
+    termosPior.some(
+      (termo) =>
+        pergunta.includes(
+          normalizarTexto(termo)
+        )
+    )
+  ) {
+    return "pior";
+  }
+
+  return "completo";
+}
+
+function montarRespostaLiveDestaque({
+  live,
+  limite,
+  tipo,
+}) {
+  if (!live) {
+    return `Não encontrei dados suficientes para identificar a ${
+      tipo === "melhor"
+        ? "melhor"
+        : "pior"
+    } live.`;
+  }
+
+  const titulo =
+    tipo === "melhor"
+      ? `🏆 Melhor das últimas ${limite} lives`
+      : `📉 Pior das últimas ${limite} lives`;
+
+  return `${titulo}
+
+Live: ${live?.nome || "Live sem nome"}
+Faturamento: ${formatarBRL(
+    live?.faturamento
+  )}
+Peças vendidas: ${Number(
+    live?.quantidadeVendas ||
+      0
+  )}
+Clientes: ${Number(
+    live?.quantidadeClientes ||
+      0
+  )}
+Ticket médio por peça: ${formatarBRL(
+    live?.ticketMedioPorPeca
+  )}
+Ticket médio por cliente: ${formatarBRL(
+    live?.ticketMedioPorCliente
+  )}
+Lucro estimado: ${formatarBRL(
+    live?.lucro
+  )}
+Margem estimada: ${formatarPercentual(
+    live?.margem
+  )}`;
+}
+
+function montarRespostaComparacaoCompleta(
+  dados = {},
+  definicao = {}
+) {
+  const comparacoes =
+    Array.isArray(
+      dados?.comparacoes
+    )
+      ? dados.comparacoes
+      : [];
+
+  if (
+    comparacoes.length === 0
+  ) {
+    return "Não encontrei lives encerradas suficientes para realizar a comparação.";
+  }
+
+  const linhas =
+    comparacoes
+      .map(
+        (
+          live,
+          index
+        ) => {
+          const variacao =
+            index === 0
+              ? "base inicial"
+              : formatarVariacao(
+                  live?.variacaoPercentual
+                );
+
+          return `${index + 1}. ${live?.nome || "Live sem nome"} — ${formatarBRL(
+            live?.faturamento
+          )} — ${Number(
+            live?.quantidadeVendas ||
+              0
+          )} venda(s) — ${variacao}`;
+        }
+      )
+      .join("\n");
+
+  const maior =
+    dados?.maiorFaturamento;
+
+  const menor =
+    dados?.menorFaturamento;
+
+  const limite =
+    Number(
+      definicao?.parametros
+        ?.limite ||
+        dados?.quantidadeLives ||
+        comparacoes.length
+    );
+
+  return `📈 Evolução das últimas ${limite} lives
+
+${linhas}
+
+💰 Faturamento total: ${formatarBRL(
+    dados?.faturamentoTotal
+  )}
+📊 Média por live: ${formatarBRL(
+    dados?.faturamentoMedio
+  )}
+
+🏆 Maior faturamento: ${
+    maior?.nome ||
+    "Não identificado"
+  } — ${formatarBRL(
+    maior?.faturamento
+  )}
+
+📉 Menor faturamento: ${
+    menor?.nome ||
+    "Não identificado"
+  } — ${formatarBRL(
+    menor?.faturamento
+  )}
+
+🔄 Variação total: ${formatarVariacao(
+    dados?.variacaoTotalPercentual
+  )}
+📌 Tendência recente: ${formatarTendencia(
+    dados?.tendencia
+  )}`;
+}
+
+function montarRespostaComparacaoLives(
+  dados = {},
+  definicao = {}
+) {
+  const limite =
+    Number(
+      definicao?.parametros
+        ?.limite ||
+        dados?.quantidadeLives ||
+        5
+    );
+
+  const objetivo =
+    detectarObjetivoComparacao(
+      definicao
+    );
+
+  if (objetivo === "melhor") {
+    return montarRespostaLiveDestaque({
+      live:
+        dados?.maiorFaturamento ||
+        null,
+      limite,
+      tipo: "melhor",
+    });
+  }
+
+  if (objetivo === "pior") {
+    return montarRespostaLiveDestaque({
+      live:
+        dados?.menorFaturamento ||
+        null,
+      limite,
+      tipo: "pior",
+    });
+  }
+
+  return montarRespostaComparacaoCompleta(
+    dados,
+    definicao
+  );
+}
+
+function montarResposta(
+  resultado = {},
+  definicao = {}
+) {
+  if (!resultado?.ok) {
+    return (
+      resultado?.resposta ||
+      "Não foi possível processar o resultado dessa análise."
+    );
+  }
+
+  const dados =
+    resultado?.dados ||
+    {};
+
+  const periodo =
+    descricaoPeriodo(
+      definicao,
+      dados?.live
+    );
+
+  switch (
+    resultado?.tipo ||
+    definicao?.operacao
+  ) {
+    case "maior_compra": {
+      const cliente =
+        dados?.cliente;
+
+      if (!cliente) {
+        return `Não encontrei clientes com compras registradas ${periodo}.`;
+      }
+
+      return `👑 Cliente destaque ${periodo}
+
+Cliente: ${
+        cliente?.nome ||
+        cliente?.cliente ||
+        "Cliente não identificado"
+      }
+Peças compradas: ${Number(
+        cliente?.quantidade ??
+          cliente?.pecas ??
+          0
+      )}
+Valor total: ${formatarBRL(
+        cliente?.valor
+      )}`;
+    }
+
+    case "pendentes": {
+      const clientes =
+        Array.isArray(
+          dados?.clientes
+        )
+          ? dados.clientes
+          : [];
+
+      if (
+        clientes.length === 0
+      ) {
+        return `✅ Não existem clientes pendentes ${periodo}.`;
+      }
+
+      return `⏳ Clientes pendentes ${periodo}
+
+${formatarListaClientes(
+  clientes
+)}
+
+Total pendente: ${formatarBRL(
+        dados?.totalPendente
+      )}`;
+    }
+
+    case "ticket_medio":
+      return `📊 Ticket médio ${periodo}
+
+Clientes: ${Number(
+        dados?.quantidadeClientes ||
+          0
+      )}
+Peças vendidas: ${Number(
+        dados?.quantidadePecas ||
+          0
+      )}
+Faturamento: ${formatarBRL(
+        dados?.faturamento
+      )}
+
+Por cliente: ${formatarBRL(
+        dados?.ticketMedioPorCliente ??
+          dados?.ticketCliente ??
+          0
+      )}
+Por peça: ${formatarBRL(
+        dados?.ticketMedioPorPeca ??
+          dados?.ticketPeca ??
+          0
+      )}`;
+
+    case "mais_vendida": {
+      const marca =
+        dados?.marca;
+
+      if (!marca) {
+        return `Não encontrei marcas identificadas nas vendas ${periodo}.`;
+      }
+
+      return `🏷️ Marca mais vendida ${periodo}
+
+Marca: ${
+        marca?.marca ||
+        "Sem marca"
+      }
+Peças vendidas: ${Number(
+        marca?.quantidade ||
+          0
+      )}
+Faturamento: ${formatarBRL(
+        marca?.valor
+      )}`;
+    }
+
+    case "quantidade":
+      if (dados?.marca) {
+        return `🏷️ Vendas da marca ${dados.marca} ${periodo}
+
+Peças vendidas: ${Number(
+          dados?.quantidade ||
+            0
+        )}
+Faturamento: ${formatarBRL(
+          dados?.faturamento
+        )}`;
+      }
+
+      return `🛍️ Vendas ${periodo}
+
+Peças vendidas: ${Number(
+        dados?.quantidade ||
+          0
+      )}
+Faturamento: ${formatarBRL(
+        dados?.faturamento
+      )}`;
+
+    case "lucro": {
+      const vendasSemCusto =
+        Number(
+          dados?.vendasSemCusto ||
+            0
+        );
+
+      const aviso =
+        vendasSemCusto > 0
+          ? `\n\n⚠️ ${vendasSemCusto} venda(s) não possuem custo identificado. O lucro é uma estimativa.`
+          : "";
+
+      return `💰 Resultado ${periodo}
+
+Faturamento: ${formatarBRL(
+        dados?.faturamento
+      )}
+Custo identificado: ${formatarBRL(
+        dados?.custo
+      )}
+Lucro estimado: ${formatarBRL(
+        dados?.lucro
+      )}
+Margem estimada: ${formatarPercentual(
+        dados?.margem
+      )}${aviso}`;
+    }
+
+    case "total":
+      return `💰 Vendas ${periodo}
+
+Peças vendidas: ${Number(
+        dados?.quantidade ||
+          0
+      )}
+Faturamento total: ${formatarBRL(
+        dados?.faturamento
+      )}`;
+
+    case "comparar_lives":
+      return montarRespostaComparacaoLives(
+        dados,
+        definicao
+      );
+
+    default:
+      return (
+        resultado?.resposta ||
+        "A análise foi concluída, mas ainda não possui uma resposta formatada."
+      );
+  }
+}
+
 class PlanExecutor {
-  async executar({ plano, pergunta, supabase }) {
+  async executar({
+    plano,
+    pergunta,
+    supabase,
+  }) {
     if (!plano?.encontrado) {
       return {
         ok: false,
-        resposta: "Nenhum plano válido foi encontrado para essa solicitação.",
+        tipo: "planner",
+        resposta:
+          "Nenhum plano válido foi encontrado para essa solicitação.",
+      };
+    }
+
+    if (!supabase) {
+      return {
+        ok: false,
+        tipo: "planner",
+        resposta:
+          "Não foi possível acessar o banco de dados.",
       };
     }
 
     try {
-      const live = await buscarUltimaLiveEncerrada(supabase);
+      const perguntaOriginal =
+        plano?.entidades
+          ?.perguntaOriginal ||
+        pergunta ||
+        "";
 
-      if (!live) {
+      const definicao =
+        queryBuilder.construir({
+          ...plano,
+
+          entidades: {
+            ...(
+              plano?.entidades ||
+              {}
+            ),
+
+            perguntaOriginal,
+          },
+        });
+
+      if (
+        !definicao?.valido
+      ) {
+        return {
+          ok: false,
+          tipo: "planner",
+          plano:
+            plano?.planoId ||
+            null,
+          motivo:
+            definicao?.motivo ||
+            "definicao_invalida",
+          definicao,
+          resposta:
+            "O plano foi reconhecido, mas a consulta ainda não está disponível.",
+        };
+      }
+
+      /*
+       * Garante que o texto original esteja disponível
+       * para escolher entre:
+       *
+       * - comparação completa;
+       * - melhor live;
+       * - pior live.
+       */
+      definicao.perguntaOriginal =
+        definicao?.perguntaOriginal ||
+        perguntaOriginal;
+
+      definicao.parametros = {
+        ...(
+          definicao?.parametros ||
+          {}
+        ),
+
+        objetivoComparacao:
+          definicao?.operacao ===
+          "comparar_lives"
+            ? detectarObjetivoComparacao({
+                ...definicao,
+                perguntaOriginal:
+                  definicao.perguntaOriginal,
+              })
+            : definicao?.parametros
+                ?.objetivoComparacao,
+      };
+
+      const contexto =
+        await queryExecutor.executar(
+          definicao,
+          supabase
+        );
+
+      if (
+        definicao?.periodo
+          ?.requerUltimaLive &&
+        !contexto?.live
+      ) {
         return {
           ok: true,
+          tipo: "planner",
+          plano:
+            plano?.planoId ||
+            null,
+          definicao,
+          dados: {
+            live: null,
+            vendas: [],
+            pecas: [],
+          },
           resposta:
             "Ainda não encontrei nenhuma live encerrada para executar essa análise.",
         };
       }
 
-      const vendas = await buscarVendasDaLive(supabase, live.id);
-
-      switch (plano.operacao) {
-        case "cliente_maior_compra":
-          return this.executarClienteMaiorCompra({
-            live,
-            vendas,
-          });
-
-        case "lucro":
-          return this.executarLucro({
-            live,
-            vendas,
-          });
-
-        case "clientes_pendentes":
-          return this.executarClientesPendentes({
-            live,
-            vendas,
-          });
-
-        case "marca_mais_vendida":
-          return this.executarMarcaMaisVendida({
-            live,
-            vendas,
-          });
-
-        case "quantidade_por_marca":
-          return this.executarQuantidadePorMarca({
-            live,
-            vendas,
-            pergunta,
-          });
-
-        case "ticket_medio":
-          return this.executarTicketMedio({
-            live,
-            vendas,
-          });
-
-        default:
-          return {
-            ok: false,
-            resposta:
-              "O plano foi identificado, mas a operação ainda não possui um executor.",
-          };
+      if (
+        definicao?.periodo
+          ?.requerMultiplasLives &&
+        (
+          !Array.isArray(
+            contexto?.lives
+          ) ||
+          contexto.lives
+            .length === 0
+        )
+      ) {
+        return {
+          ok: true,
+          tipo: "planner",
+          plano:
+            plano?.planoId ||
+            null,
+          definicao,
+          dados: {
+            lives: [],
+            vendas: [],
+            pecas: [],
+          },
+          resposta:
+            "Ainda não encontrei lives encerradas suficientes para executar essa comparação.",
+        };
       }
+
+      const resultado =
+        resultProcessor.processar(
+          definicao,
+          contexto
+        );
+
+      return {
+        ok:
+          Boolean(
+            resultado?.ok
+          ),
+
+        tipo:
+          "planner",
+
+        plano:
+          plano?.planoId ||
+          null,
+
+        origemPlano:
+          plano?.origem ||
+          null,
+
+        dominio:
+          definicao?.dominio ||
+          plano?.dominio ||
+          null,
+
+        operacao:
+          definicao?.operacao ||
+          plano?.operacao ||
+          null,
+
+        periodo:
+          definicao?.periodo
+            ?.tipo ||
+          plano?.periodo ||
+          null,
+
+        filtros:
+          definicao?.filtros ||
+          {},
+
+        parametros:
+          definicao?.parametros ||
+          {},
+
+        definicao,
+
+        dados:
+          resultado?.dados ||
+          null,
+
+        resposta:
+          montarResposta(
+            resultado,
+            definicao
+          ),
+      };
     } catch (error) {
       console.error(
-        `[PlanExecutor] Erro ao executar plano "${plano.planoId}"`,
+        `[PlanExecutor] Erro ao executar plano "${
+          plano?.planoId ||
+          "desconhecido"
+        }"`,
         error
       );
 
       return {
         ok: false,
+        tipo: "planner",
+        plano:
+          plano?.planoId ||
+          null,
         resposta:
           "Ocorreu um erro ao executar essa análise.",
+        erro:
+          error?.message ||
+          String(error),
       };
     }
-  }
-
-  executarClienteMaiorCompra({ live, vendas }) {
-    const clientes = agruparVendasPorCliente(vendas).sort(
-      (a, b) => b.valor - a.valor
-    );
-
-    const cliente = clientes[0];
-
-    if (!cliente) {
-      return {
-        ok: true,
-        resposta:
-          "Não encontrei clientes com compras registradas na última live.",
-      };
-    }
-
-    return {
-      ok: true,
-      tipo: "planner",
-      dados: {
-        liveId: live.id,
-        cliente,
-      },
-      resposta: `👑 Cliente destaque da última live
-
-Cliente: ${cliente.nome}
-Peças compradas: ${cliente.quantidade}
-Valor total: ${formatarBRL(cliente.valor)}`,
-    };
-  }
-
-  executarLucro({ live, vendas }) {
-    const faturamento = vendas.reduce(
-      (total, venda) => total + obterValorVenda(venda),
-      0
-    );
-
-    const custo = vendas.reduce(
-      (total, venda) => total + obterCustoVenda(venda),
-      0
-    );
-
-    const lucro = faturamento - custo;
-
-    const margem =
-      faturamento > 0
-        ? (lucro / faturamento) * 100
-        : 0;
-
-    return {
-      ok: true,
-      tipo: "planner",
-      dados: {
-        liveId: live.id,
-        faturamento,
-        custo,
-        lucro,
-        margem,
-      },
-      resposta: `💰 Resultado da última live
-
-Faturamento: ${formatarBRL(faturamento)}
-Custo das peças: ${formatarBRL(custo)}
-Lucro estimado: ${formatarBRL(lucro)}
-Margem estimada: ${margem.toFixed(1).replace(".", ",")}%`,
-    };
-  }
-
-  executarClientesPendentes({ live, vendas }) {
-    const pendentes = vendas.filter(
-      (venda) => !vendaEstaPaga(venda)
-    );
-
-    const clientes = agruparVendasPorCliente(pendentes).sort(
-      (a, b) => b.valor - a.valor
-    );
-
-    const totalPendente = clientes.reduce(
-      (total, cliente) => total + cliente.valor,
-      0
-    );
-
-    if (!clientes.length) {
-      return {
-        ok: true,
-        tipo: "planner",
-        resposta:
-          "✅ Não existem clientes pendentes na última live.",
-      };
-    }
-
-    return {
-      ok: true,
-      tipo: "planner",
-      dados: {
-        liveId: live.id,
-        clientes,
-        totalPendente,
-      },
-      resposta: `⏳ Clientes pendentes da última live
-
-${formatarListaClientes(clientes)}
-
-Total pendente: ${formatarBRL(totalPendente)}`,
-    };
-  }
-
-  executarMarcaMaisVendida({ live, vendas }) {
-    const mapa = new Map();
-
-    for (const venda of vendas) {
-      const marca = identificarMarca(venda);
-      const chave = normalizarTexto(marca);
-
-      const atual = mapa.get(chave) || {
-        marca,
-        quantidade: 0,
-        valor: 0,
-      };
-
-      atual.quantidade += 1;
-      atual.valor += obterValorVenda(venda);
-
-      mapa.set(chave, atual);
-    }
-
-    const ranking = Array.from(mapa.values()).sort(
-      (a, b) =>
-        b.quantidade - a.quantidade ||
-        b.valor - a.valor
-    );
-
-    const primeira = ranking[0];
-
-    if (!primeira) {
-      return {
-        ok: true,
-        resposta:
-          "Não encontrei marcas nas vendas da última live.",
-      };
-    }
-
-    return {
-      ok: true,
-      tipo: "planner",
-      dados: {
-        liveId: live.id,
-        ranking,
-      },
-      resposta: `🏷️ Marca mais vendida da última live
-
-Marca: ${primeira.marca}
-Peças vendidas: ${primeira.quantidade}
-Faturamento: ${formatarBRL(primeira.valor)}`,
-    };
-  }
-
-  executarQuantidadePorMarca({ live, vendas, pergunta }) {
-    const marca = extrairMarcaDaPergunta(pergunta);
-
-    if (!marca) {
-      return {
-        ok: false,
-        tipo: "planner",
-        resposta:
-          "Entendi que você deseja consultar uma marca, mas não consegui identificar qual.",
-      };
-    }
-
-    const vendasDaMarca = vendas.filter((venda) => {
-      const marcaVenda = identificarMarca(venda);
-
-      return (
-        normalizarTexto(marcaVenda) ===
-        normalizarTexto(marca)
-      );
-    });
-
-    const faturamento = vendasDaMarca.reduce(
-      (total, venda) => total + obterValorVenda(venda),
-      0
-    );
-
-    return {
-      ok: true,
-      tipo: "planner",
-      dados: {
-        liveId: live.id,
-        marca,
-        quantidade: vendasDaMarca.length,
-        faturamento,
-      },
-      resposta: `🏷️ Vendas da marca ${marca}
-
-Peças vendidas: ${vendasDaMarca.length}
-Faturamento: ${formatarBRL(faturamento)}`,
-    };
-  }
-
-  executarTicketMedio({ live, vendas }) {
-    const clientes = agruparVendasPorCliente(vendas);
-
-    const faturamento = vendas.reduce(
-      (total, venda) => total + obterValorVenda(venda),
-      0
-    );
-
-    const quantidadeClientes = clientes.length;
-    const quantidadePecas = vendas.length;
-
-    const ticketCliente =
-      quantidadeClientes > 0
-        ? faturamento / quantidadeClientes
-        : 0;
-
-    const ticketPeca =
-      quantidadePecas > 0
-        ? faturamento / quantidadePecas
-        : 0;
-
-    return {
-      ok: true,
-      tipo: "planner",
-      dados: {
-        liveId: live.id,
-        ticketCliente,
-        ticketPeca,
-      },
-      resposta: `📊 Ticket médio da última live
-
-Por cliente: ${formatarBRL(ticketCliente)}
-Por peça: ${formatarBRL(ticketPeca)}`,
-    };
   }
 }
 
-const planExecutor = new PlanExecutor();
+const planExecutor =
+  new PlanExecutor();
 
 export default planExecutor;

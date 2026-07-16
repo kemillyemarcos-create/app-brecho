@@ -46,6 +46,47 @@
   border-bottom: 1px solid #dddddd;
 }
 
+.preview-titulo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.preview-titulo small {
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.preview-acoes {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+
+  gap: 10px;
+}
+
+.comanda-acoes {
+  display: flex;
+  flex-wrap: wrap;
+
+  gap: 10px;
+}
+
+.preview-vazio {
+  min-width: 260px;
+
+  padding: 30px;
+
+  color: #6b7280;
+  text-align: center;
+
+  background: #ffffff;
+
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+}
+
 .area-preview-impressao {
   flex: 1;
 
@@ -155,6 +196,7 @@
 
 .comanda-header h1 {
   margin: 0;
+
   font-size: 28px;
 }
 
@@ -225,11 +267,12 @@
     align-items: stretch;
   }
 
-  .preview-topo > div {
+  .preview-titulo,
+  .preview-acoes {
     width: 100%;
   }
 
-  .preview-topo button {
+  .preview-acoes button {
     flex: 1;
   }
 
@@ -254,10 +297,6 @@
 ========================================================= */
 
 @media print {
-  /*
-   * O Safari tende a respeitar este tamanho quando o conteúdo
-   * contém páginas individuais com a mesma medida.
-   */
   @page {
     size: 37mm 58mm;
     margin: 0;
@@ -418,10 +457,6 @@
     page-break-inside: avoid !important;
   }
 
-  /*
-   * A comanda continua disponível, porém o tamanho de página
-   * será o mesmo enquanto este CSS estiver ativo.
-   */
   .comanda-print {
     width: 100% !important;
     max-width: none !important;

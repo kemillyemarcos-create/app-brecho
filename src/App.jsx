@@ -2503,33 +2503,66 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     );
   }
 
-  function marcarTodasEtiquetas() {
-    const idsVisiveis = pecasFiltradas.map((p, index) =>
-      String(p?.id || `sem-codigo-${index}`)
-    );
+  function normalizarListaEtiquetas(lista = []) {
+    return (Array.isArray(lista) ? lista : [])
+      .filter(Boolean)
+      .map((peca, index) => ({
+        ...peca,
+        id: String(peca?.id || `sem-codigo-${index}`),
+      }));
+  }
+
+  function marcarTodasEtiquetas(listaVisivel = pecasFiltradas) {
+    const itensVisiveis = normalizarListaEtiquetas(listaVisivel);
+    const idsVisiveis = itensVisiveis.map((peca) => peca.id);
+
+    /*
+     * A seleção passa a representar exatamente o resultado
+     * exibido na tela, inclusive filtros avançados do EstoqueSection.
+     */
     setEtiquetasSelecionadas(idsVisiveis);
   }
 
-  function desmarcarTodasEtiquetas() {
-    setEtiquetasSelecionadas([]);
+  function desmarcarTodasEtiquetas(listaVisivel = null) {
+    /*
+     * Quando o EstoqueSection envia a lista visível, remove somente
+     * as etiquetas daquele filtro. Sem argumento, limpa tudo.
+     */
+    if (!Array.isArray(listaVisivel)) {
+      setEtiquetasSelecionadas([]);
+      return;
+    }
+
+    const idsVisiveis = new Set(
+      normalizarListaEtiquetas(listaVisivel).map((peca) => peca.id)
+    );
+
+    setEtiquetasSelecionadas((atuais) =>
+      atuais.filter((id) => !idsVisiveis.has(String(id)))
+    );
   }
 
-  function imprimirEtiquetasSelecionadas() {
-    const selecionadas = pecasFiltradas
-      .map((p, index) => {
-        const codigo = String(p?.id || `sem-codigo-${index}`);
-        return {
-          ...p,
-          id: codigo,
-          nome: p?.nome || "Sem nome",
-          venda: p?.venda ? p.venda : formatarBRL(0),
-          obs: p?.obs || "-",
-        };
-      })
-      .filter((p) => etiquetasSelecionadas.includes(p.id));
+  function imprimirEtiquetasSelecionadas(
+    listaVisivel = pecasFiltradas
+  ) {
+    const itensVisiveis = normalizarListaEtiquetas(listaVisivel);
+    const idsSelecionados = new Set(
+      etiquetasSelecionadas.map((id) => String(id))
+    );
+
+    const selecionadas = itensVisiveis
+      .filter((peca) => idsSelecionados.has(peca.id))
+      .map((peca) => ({
+        ...peca,
+        nome: peca?.nome || "Sem nome",
+        venda: peca?.venda ? peca.venda : formatarBRL(0),
+        obs: peca?.obs || "-",
+      }));
 
     if (!selecionadas.length) {
-      alert("Selecione pelo menos uma etiqueta.");
+      alert(
+        "Selecione pelo menos uma etiqueta dentro do filtro atual."
+      );
       return;
     }
 
