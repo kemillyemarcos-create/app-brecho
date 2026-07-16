@@ -72,16 +72,6 @@ function extrairLimite(
     return null;
   }
 
-  /*
-   * Reconhece:
-   *
-   * - últimas 5 lives
-   * - ultimas 10 lives
-   * - últimos 3 eventos
-   *
-   * O texto já foi normalizado, portanto
-   * acentos não precisam ser tratados aqui.
-   */
   const correspondencia =
     texto.match(
       /\b(?:ultimas|ultimos)\s+(\d+)\b/
@@ -102,10 +92,6 @@ function extrairLimite(
     return null;
   }
 
-  /*
-   * Limite de segurança para impedir
-   * consultas exageradamente grandes.
-   */
   return Math.min(
     limite,
     50
@@ -133,7 +119,7 @@ function extrairObjetivoComparacao(
     "faturou mais",
   ];
 
-  const encontrouMelhor =
+  if (
     termosMelhor.some(
       (termo) =>
         texto.includes(
@@ -141,9 +127,8 @@ function extrairObjetivoComparacao(
             termo
           )
         )
-    );
-
-  if (encontrouMelhor) {
+    )
+  ) {
     return "melhor";
   }
 
@@ -161,7 +146,7 @@ function extrairObjetivoComparacao(
     "faturou menos",
   ];
 
-  const encontrouPior =
+  if (
     termosPior.some(
       (termo) =>
         texto.includes(
@@ -169,9 +154,8 @@ function extrairObjetivoComparacao(
             termo
           )
         )
-    );
-
-  if (encontrouPior) {
+    )
+  ) {
     return "pior";
   }
 
@@ -188,7 +172,7 @@ function extrairObjetivoComparacao(
     "faturamento esta caindo",
   ];
 
-  const encontrouComparacaoCompleta =
+  if (
     termosCompletos.some(
       (termo) =>
         texto.includes(
@@ -196,10 +180,7 @@ function extrairObjetivoComparacao(
             termo
           )
         )
-    );
-
-  if (
-    encontrouComparacaoCompleta
+    )
   ) {
     return "completo";
   }
@@ -230,6 +211,35 @@ function resolverPeriodoComparativo({
   return periodo;
 }
 
+function resolverDominioPorOperacao({
+  dominioDetectado,
+  operacao,
+}) {
+  const dominiosPreferenciais = {
+    maior_compra: "clientes",
+    menor_compra: "clientes",
+    pendentes: "clientes",
+
+    lucro: "financeiro",
+    margem: "financeiro",
+    ticket_medio: "financeiro",
+
+    comparar_lives: "lives",
+
+    mais_vendida: "vendas",
+    quantidade: "vendas",
+    total: "vendas",
+  };
+
+  return (
+    dominiosPreferenciais[
+      operacao
+    ] ||
+    dominioDetectado ||
+    null
+  );
+}
+
 class EntityExtractor {
   extrair(pergunta = "") {
     const texto =
@@ -237,7 +247,7 @@ class EntityExtractor {
         pergunta
       );
 
-    const dominio =
+    const dominioDetectado =
       encontrarEntidade(
         texto,
         EntityPatterns.dominios
@@ -295,6 +305,15 @@ class EntityExtractor {
           )
         : limite;
 
+    const dominio =
+      resolverDominioPorOperacao({
+        dominioDetectado:
+          dominioDetectado.id,
+
+        operacao:
+          operacao.id,
+      });
+
     return {
       perguntaOriginal:
         pergunta,
@@ -302,8 +321,7 @@ class EntityExtractor {
       textoNormalizado:
         texto,
 
-      dominio:
-        dominio.id,
+      dominio,
 
       operacao:
         operacao.id,
@@ -329,7 +347,7 @@ class EntityExtractor {
 
       confianca: {
         dominio:
-          dominio.pontuacao,
+          dominioDetectado.pontuacao,
 
         operacao:
           operacao.pontuacao,
@@ -337,7 +355,7 @@ class EntityExtractor {
 
       encontrado:
         Boolean(
-          dominio.id
+          dominio
         ) ||
         Boolean(
           operacao.id
