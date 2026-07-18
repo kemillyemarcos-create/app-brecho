@@ -1,7 +1,21 @@
+// EntityExtractor.jsx
+
 import EntityPatterns from "./EntityPatterns";
 import periodExtractor from "./PeriodExtractor";
 import filterExtractor from "./FilterExtractor";
+
 import { normalizarTexto } from "../utils/TextUtils";
+
+/*
+ * Operações de estoque suportadas.
+ */
+const OPERACOES_ESTOQUE = [
+  "quantidade_estoque",
+  "listar_pecas",
+  "listar_marcas",
+  "listar_categorias",
+];
+
 
 function encontrarEntidade(
   texto,
@@ -65,6 +79,31 @@ function encontrarEntidade(
       };
 }
 
+function textoContemAlgumTermo(
+  texto = "",
+  termos = []
+) {
+  if (!texto) {
+    return false;
+  }
+
+  return termos.some(
+    (termo) => {
+      const termoNormalizado =
+        normalizarTexto(
+          termo
+        );
+
+      return (
+        termoNormalizado &&
+        texto.includes(
+          termoNormalizado
+        )
+      );
+    }
+  );
+}
+
 function extrairLimite(
   texto = ""
 ) {
@@ -72,6 +111,16 @@ function extrairLimite(
     return null;
   }
 
+  /*
+   * Reconhece:
+   *
+   * - últimas 5 lives
+   * - ultimas 10 lives
+   * - últimos 3 eventos
+   *
+   * Como o texto já foi normalizado,
+   * não precisamos tratar acentos.
+   */
   const correspondencia =
     texto.match(
       /\b(?:ultimas|ultimos)\s+(\d+)\b/
@@ -92,6 +141,10 @@ function extrairLimite(
     return null;
   }
 
+  /*
+   * Limite de segurança para impedir
+   * consultas exageradamente grandes.
+   */
   return Math.min(
     limite,
     50
@@ -120,13 +173,9 @@ function extrairObjetivoComparacao(
   ];
 
   if (
-    termosMelhor.some(
-      (termo) =>
-        texto.includes(
-          normalizarTexto(
-            termo
-          )
-        )
+    textoContemAlgumTermo(
+      texto,
+      termosMelhor
     )
   ) {
     return "melhor";
@@ -147,13 +196,9 @@ function extrairObjetivoComparacao(
   ];
 
   if (
-    termosPior.some(
-      (termo) =>
-        texto.includes(
-          normalizarTexto(
-            termo
-          )
-        )
+    textoContemAlgumTermo(
+      texto,
+      termosPior
     )
   ) {
     return "pior";
@@ -173,19 +218,258 @@ function extrairObjetivoComparacao(
   ];
 
   if (
-    termosCompletos.some(
-      (termo) =>
-        texto.includes(
-          normalizarTexto(
-            termo
-          )
-        )
+    textoContemAlgumTermo(
+      texto,
+      termosCompletos
     )
   ) {
     return "completo";
   }
 
   return null;
+}
+
+function possuiFiltroEstoque(
+  filtros = {}
+) {
+  return Boolean(
+    filtros?.marca ||
+    filtros?.categoria ||
+    filtros?.cor ||
+    filtros?.material ||
+    filtros?.genero ||
+    filtros?.tamanho ||
+    filtros?.statusEstoque
+  );
+}
+
+function perguntaIndicaExistenciaEstoque(
+  texto = "",
+  filtros = {}
+) {
+  if (!possuiFiltroEstoque(filtros)) {
+    return false;
+  }
+
+  /*
+   * Reconhece perguntas naturais de existência:
+   *
+   * - Tem Nike?
+   * - Existe MK?
+   * - Tem Michael Kors?
+   * - Vocês têm Columbia?
+   * - Há casaco preto?
+   */
+  return (
+    /^(?:tem|temos|existe|existem|ha)\b/.test(
+      texto
+    ) ||
+    /\b(?:voce|voces)\s+tem\b/.test(
+      texto
+    ) ||
+    /\b(?:tem|temos|existe|existem|ha)\b/.test(
+      texto
+    )
+  );
+}
+
+function perguntaIndicaEstoque(
+  texto = "",
+  filtros = {}
+) {
+  const termosEstoque = [
+    "estoque",
+    "em estoque",
+    "no estoque",
+    "nosso estoque",
+    "estoque atual",
+    "saldo em estoque",
+    "saldo do estoque",
+
+    "temos disponivel",
+    "temos disponiveis",
+    "esta disponivel",
+    "estao disponiveis",
+
+    "temos reservado",
+    "temos reservados",
+    "temos reservada",
+    "temos reservadas",
+
+    "quantas temos",
+    "quantos temos",
+    "quantas ainda temos",
+    "quantos ainda temos",
+
+    "quantas restam",
+    "quantos restam",
+    "quantas sobraram",
+    "quantos sobraram",
+  ];
+
+  if (
+    textoContemAlgumTermo(
+      texto,
+      termosEstoque
+    )
+  ) {
+    return true;
+  }
+
+  /*
+   * Reconhece perguntas em que existe um termo
+   * entre "quantas/quantos" e "temos".
+   */
+  const quantidadeQueTemos =
+    /\bquant(?:a|o)s?\b.*\b(?:ainda\s+)?temos\b/.test(
+      texto
+    );
+
+  if (quantidadeQueTemos) {
+    return true;
+  }
+
+  /*
+   * Reconhece construções com "restam"
+   * e "sobraram".
+   */
+  const quantidadeRestante =
+    /\bquant(?:a|o)s?\b.*\b(?:restam|sobraram)\b/.test(
+      texto
+    );
+
+  if (quantidadeRestante) {
+    return true;
+  }
+
+  /*
+   * Uma pergunta de quantidade com ao menos um
+   * filtro de produto e sem vocabulário de venda
+   * representa o estado atual do estoque.
+   *
+   * Exemplos:
+   *
+   * - Quantos vestidos Zara?
+   * - Quantas jaquetas Columbia?
+   * - Quantas peças femininas?
+   * - Quantas peças de pena de ganso?
+   */
+  const perguntaQuantidade =
+    /\b(?:quantas|quantos|quantidade|numero de)\b/.test(
+      texto
+    );
+
+  if (
+    perguntaQuantidade &&
+    possuiFiltroEstoque(filtros)
+  ) {
+    return true;
+  }
+
+  return perguntaIndicaExistenciaEstoque(
+    texto,
+    filtros
+  );
+}
+
+function perguntaIndicaVenda(
+  texto = ""
+) {
+  const termosVenda = [
+    "vendeu",
+    "venderam",
+    "vendida",
+    "vendidas",
+    "vendido",
+    "vendidos",
+
+    "foram vendidas",
+    "foram vendidos",
+
+    "faturou",
+    "faturamento",
+    "receita",
+
+    "comprou",
+    "compraram",
+    "compra",
+    "compras",
+
+    "ultima live",
+    "ultimas lives",
+    "live passada",
+    "live anterior",
+  ];
+
+  return textoContemAlgumTermo(
+    texto,
+    termosVenda
+  );
+}
+
+function resolverOperacaoPorContexto({
+  texto,
+  operacaoDetectada,
+  dominioDetectado,
+  filtros,
+}) {
+  const indicaEstoque =
+    perguntaIndicaEstoque(
+      texto,
+      filtros
+    );
+
+  const indicaVenda =
+    perguntaIndicaVenda(
+      texto
+    );
+
+  /*
+   * Perguntas como:
+   *
+   * "Quantas Nike temos no estoque?"
+   * "Quantas jaquetas estão disponíveis?"
+   * "Quantas peças ainda temos?"
+   *
+   * devem usar uma operação própria de estoque.
+   */
+  if (
+    (
+      operacaoDetectada ===
+        "quantidade" ||
+      !operacaoDetectada
+    ) &&
+    indicaEstoque &&
+    !indicaVenda
+  ) {
+    return "quantidade_estoque";
+  }
+
+  /*
+   * Caso o domínio já tenha sido claramente
+   * reconhecido como estoque e não exista
+   * indicação de venda, também convertemos
+   * a quantidade genérica.
+   *
+   * Isso permite reconhecer:
+   *
+   * "Quantas Nike no estoque?"
+   * "Quantidade de Zara no estoque"
+   */
+  if (
+    operacaoDetectada ===
+      "quantidade" &&
+    dominioDetectado ===
+      "estoque" &&
+    !indicaVenda
+  ) {
+    return "quantidade_estoque";
+  }
+
+  return (
+    operacaoDetectada ||
+    null
+  );
 }
 
 function resolverPeriodoComparativo({
@@ -216,19 +500,51 @@ function resolverDominioPorOperacao({
   operacao,
 }) {
   const dominiosPreferenciais = {
-    maior_compra: "clientes",
-    menor_compra: "clientes",
-    pendentes: "clientes",
+    maior_compra:
+      "clientes",
 
-    lucro: "financeiro",
-    margem: "financeiro",
-    ticket_medio: "financeiro",
+    menor_compra:
+      "clientes",
 
-    comparar_lives: "lives",
+    pendentes:
+      "clientes",
 
-    mais_vendida: "vendas",
-    quantidade: "vendas",
-    total: "vendas",
+    lucro:
+      "financeiro",
+
+    margem:
+      "financeiro",
+
+    ticket_medio:
+      "financeiro",
+
+    comparar_lives:
+      "lives",
+
+    /*
+     * A nova operação sempre pertence
+     * ao domínio de estoque.
+     */
+    quantidade_estoque:
+      "estoque",
+
+    listar_pecas:
+      "estoque",
+
+    listar_marcas:
+      "estoque",
+
+    listar_categorias:
+      "estoque",
+
+    mais_vendida:
+      "vendas",
+
+    quantidade:
+      "vendas",
+
+    total:
+      "vendas",
   };
 
   return (
@@ -238,6 +554,33 @@ function resolverDominioPorOperacao({
     dominioDetectado ||
     null
   );
+}
+
+function resolverPeriodoPorOperacao({
+  periodo,
+  operacao,
+}) {
+  /*
+   * Consultas sobre o estado atual do estoque
+   * não precisam de período.
+   *
+   * Não inventamos "hoje", pois a consulta será
+   * feita diretamente sobre o estado atual da
+   * tabela de peças.
+   */
+  if (
+    OPERACOES_ESTOQUE.includes(
+      operacao
+    )
+  ) {
+    return {
+      encontrado: true,
+      tipo: "estoque_atual",
+      termo: "estoque atual",
+    };
+  }
+
+  return periodo;
 }
 
 class EntityExtractor {
@@ -253,19 +596,42 @@ class EntityExtractor {
         EntityPatterns.dominios
       );
 
-    const operacao =
+    const operacaoDetectada =
       encontrarEntidade(
         texto,
         EntityPatterns.operacoes
       );
 
-    const periodoExtraido =
-      periodExtractor.extrair(
+    /*
+     * Os filtros são extraídos antes da resolução
+     * da operação porque marca, categoria, cor,
+     * material e gênero ajudam a identificar
+     * perguntas implícitas sobre estoque.
+     */
+    const filtros =
+      filterExtractor.extrair(
         pergunta
       );
 
-    const filtros =
-      filterExtractor.extrair(
+    /*
+     * Ajusta a operação usando o contexto da
+     * pergunta para separar estoque de vendas.
+     */
+    const operacao =
+      resolverOperacaoPorContexto({
+        texto,
+
+        operacaoDetectada:
+          operacaoDetectada.id,
+
+        dominioDetectado:
+          dominioDetectado.id,
+
+        filtros,
+      });
+
+    const periodoExtraido =
+      periodExtractor.extrair(
         pergunta
       );
 
@@ -275,7 +641,7 @@ class EntityExtractor {
       );
 
     const objetivoComparacao =
-      operacao.id ===
+      operacao ===
       "comparar_lives"
         ? (
             extrairObjetivoComparacao(
@@ -285,19 +651,26 @@ class EntityExtractor {
           )
         : null;
 
-    const periodo =
+    const periodoComparativo =
       resolverPeriodoComparativo({
         periodo:
           periodoExtraido,
 
-        operacao:
-          operacao.id,
+        operacao,
 
         limite,
       });
 
+    const periodo =
+      resolverPeriodoPorOperacao({
+        periodo:
+          periodoComparativo,
+
+        operacao,
+      });
+
     const limiteFinal =
-      operacao.id ===
+      operacao ===
       "comparar_lives"
         ? (
             limite ||
@@ -310,8 +683,7 @@ class EntityExtractor {
         dominioDetectado:
           dominioDetectado.id,
 
-        operacao:
-          operacao.id,
+        operacao,
       });
 
     return {
@@ -323,8 +695,7 @@ class EntityExtractor {
 
       dominio,
 
-      operacao:
-        operacao.id,
+      operacao,
 
       periodo: {
         tipo:
@@ -343,14 +714,26 @@ class EntityExtractor {
           limiteFinal,
 
         objetivoComparacao,
+
+        /*
+         * Informa às próximas camadas que a
+         * consulta se refere ao estado atual
+         * do estoque.
+         */
+        estoqueAtual:
+          OPERACOES_ESTOQUE.includes(
+            operacao
+          ),
       },
 
       confianca: {
         dominio:
-          dominioDetectado.pontuacao,
+          dominioDetectado
+            .pontuacao,
 
         operacao:
-          operacao.pontuacao,
+          operacaoDetectada
+            .pontuacao,
       },
 
       encontrado:
@@ -358,7 +741,7 @@ class EntityExtractor {
           dominio
         ) ||
         Boolean(
-          operacao.id
+          operacao
         ) ||
         Boolean(
           periodo?.tipo

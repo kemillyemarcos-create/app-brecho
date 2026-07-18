@@ -1,6 +1,9 @@
-// ResultProcessor.js
+// ResultProcessor.jsx
 // Recebe os dados brutos do QueryExecutor,
 // aplica filtros e executa a operação analítica adequada.
+// Atualizado com suporte às consultas de estoque.
+
+import inventorySemanticAnalyzer from "../analytics/InventorySemanticAnalyzer";
 
 import {
   calcularTotal,
@@ -717,6 +720,307 @@ function processarComparacaoLives({
   };
 }
 
+
+function normalizarTextoEstoque(
+  valor
+) {
+  if (
+    valor === null ||
+    valor === undefined
+  ) {
+    return "";
+  }
+
+  return String(valor).trim();
+}
+
+function normalizarChaveEstoque(
+  valor
+) {
+  return normalizarTextoEstoque(
+    valor
+  ).toLocaleLowerCase(
+    "pt-BR"
+  );
+}
+
+function obterCampoPeca(
+  peca,
+  nomes = []
+) {
+  for (const nome of nomes) {
+    const valor = peca?.[nome];
+
+    if (
+      valor !== null &&
+      valor !== undefined &&
+      String(valor).trim() !== ""
+    ) {
+      return valor;
+    }
+  }
+
+  return null;
+}
+
+function obterMarcaPeca(
+  peca
+) {
+  return (
+    peca?.analiseEstoque?.marca ||
+    obterNomePeca(peca)
+  );
+}
+
+function obterCategoriaPeca(
+  peca
+) {
+  return (
+    peca?.analiseEstoque?.categoria ||
+    obterNomePeca(peca)
+  );
+}
+
+function obterNomePeca(
+  peca
+) {
+  return obterCampoPeca(
+    peca,
+    [
+      "nome",
+      "descricao",
+      "titulo",
+      "produto",
+    ]
+  );
+}
+
+function filtrarPecasEstoque(
+  pecas = [],
+  filtros = {}
+) {
+  const lista =
+    Array.isArray(pecas)
+      ? pecas
+      : [];
+
+  return lista.filter(
+    (peca) =>
+      inventorySemanticAnalyzer
+        .pecaCorrespondeAosFiltros(
+          peca,
+          filtros
+        )
+  );
+}
+
+function agruparValoresEstoque(
+  pecas = [],
+  obterValor
+) {
+  const grupos = new Map();
+
+  for (const peca of pecas) {
+    const valorOriginal =
+      obterValor(peca);
+
+    const valor =
+      normalizarTextoEstoque(
+        valorOriginal
+      );
+
+    if (!valor) {
+      continue;
+    }
+
+    const chave =
+      normalizarChaveEstoque(
+        valor
+      );
+
+    const atual =
+      grupos.get(chave);
+
+    if (atual) {
+      atual.quantidade += 1;
+      atual.pecas.push(peca);
+      continue;
+    }
+
+    grupos.set(
+      chave,
+      {
+        nome: valor,
+        quantidade: 1,
+        pecas: [peca],
+      }
+    );
+  }
+
+  return [...grupos.values()]
+    .sort(
+      (a, b) => {
+        if (
+          b.quantidade !==
+          a.quantidade
+        ) {
+          return (
+            b.quantidade -
+            a.quantidade
+          );
+        }
+
+        return a.nome.localeCompare(
+          b.nome,
+          "pt-BR"
+        );
+      }
+    );
+}
+
+function processarQuantidadeEstoque({
+  pecas,
+  filtros,
+}) {
+  const pecasFiltradas =
+    filtrarPecasEstoque(
+      pecas,
+      filtros
+    );
+
+  return {
+    ok: true,
+    tipo:
+      "quantidade_estoque",
+
+    dados: {
+      quantidade:
+        pecasFiltradas.length,
+
+      marca:
+        filtros?.marca ||
+        null,
+
+      categoria:
+        filtros?.categoria ||
+        null,
+
+      nome:
+        filtros?.nome ||
+        filtros?.descricao ||
+        null,
+
+      filtros,
+
+      pecas:
+        pecasFiltradas,
+    },
+  };
+}
+
+function processarListarPecasEstoque({
+  pecas,
+  filtros,
+}) {
+  const pecasFiltradas =
+    filtrarPecasEstoque(
+      pecas,
+      filtros
+    );
+
+  return {
+    ok: true,
+    tipo:
+      "listar_pecas",
+
+    dados: {
+      quantidade:
+        pecasFiltradas.length,
+
+      filtros,
+
+      pecas:
+        pecasFiltradas,
+    },
+  };
+}
+
+function processarListarMarcasEstoque({
+  pecas,
+  filtros,
+}) {
+  const pecasFiltradas =
+    filtrarPecasEstoque(
+      pecas,
+      {
+        ...filtros,
+        marca: null,
+      }
+    );
+
+  const marcas =
+    agruparValoresEstoque(
+      pecasFiltradas,
+      obterMarcaPeca
+    );
+
+  return {
+    ok: true,
+    tipo:
+      "listar_marcas",
+
+    dados: {
+      quantidadeMarcas:
+        marcas.length,
+
+      quantidadePecas:
+        pecasFiltradas.length,
+
+      marcas,
+
+      filtros,
+    },
+  };
+}
+
+function processarListarCategoriasEstoque({
+  pecas,
+  filtros,
+}) {
+  const pecasFiltradas =
+    filtrarPecasEstoque(
+      pecas,
+      {
+        ...filtros,
+        categoria: null,
+      }
+    );
+
+  const categorias =
+    agruparValoresEstoque(
+      pecasFiltradas,
+      obterCategoriaPeca
+    );
+
+  return {
+    ok: true,
+    tipo:
+      "listar_categorias",
+
+    dados: {
+      quantidadeCategorias:
+        categorias.length,
+
+      quantidadePecas:
+        pecasFiltradas.length,
+
+      categorias,
+
+      filtros,
+    },
+  };
+}
+
 class ResultProcessor {
   processar(
     definicao = {},
@@ -773,11 +1077,13 @@ class ResultProcessor {
         : [];
 
     const pecas =
-      Array.isArray(
-        contexto.pecas
-      )
-        ? contexto.pecas
-        : [];
+      inventorySemanticAnalyzer.analisarListaPecasEstoque(
+        Array.isArray(
+          contexto.pecas
+        )
+          ? contexto.pecas
+          : []
+      );
 
     const vendasOriginais =
       Array.isArray(
@@ -851,6 +1157,35 @@ class ResultProcessor {
           limite:
             parametros?.limite ||
             5,
+        });
+
+      case "quantidade_estoque":
+      case "quantidade_estoque_por_marca":
+      case "quantidade_estoque_por_categoria":
+        return processarQuantidadeEstoque({
+          pecas,
+          filtros,
+        });
+
+      case "listar_pecas":
+      case "listar_pecas_estoque":
+        return processarListarPecasEstoque({
+          pecas,
+          filtros,
+        });
+
+      case "listar_marcas":
+      case "listar_marcas_estoque":
+        return processarListarMarcasEstoque({
+          pecas,
+          filtros,
+        });
+
+      case "listar_categorias":
+      case "listar_categorias_estoque":
+        return processarListarCategoriasEstoque({
+          pecas,
+          filtros,
         });
 
       default:

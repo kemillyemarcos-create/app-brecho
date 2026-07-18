@@ -1,6 +1,7 @@
 // QueryExecutor.js
 // Sprint 4.2
 // Executa as consultas construídas pelo QueryBuilder.
+// Atualizado com suporte às consultas do estoque.
 
 import QueryRegistry from "./QueryRegistry";
 
@@ -601,6 +602,70 @@ async function buscarPecasPorIds(
   return pecas;
 }
 
+
+function normalizarFiltroTexto(
+  valor
+) {
+  if (
+    valor === null ||
+    valor === undefined
+  ) {
+    return "";
+  }
+
+  return String(valor).trim();
+}
+
+
+function criarConsultaPecasEstoque(
+  supabase,
+  filtros = {}
+) {
+  const fonte =
+    QueryRegistry.fontes.pecas;
+
+  let consulta = supabase
+    .from(fonte.tabela)
+    .select("*")
+    .eq(
+      fonte.campos.vendido,
+      false
+    );
+
+  const status =
+    normalizarFiltroTexto(
+      filtros?.statusEstoque ||
+      filtros?.status_estoque ||
+      filtros?.status
+    );
+
+  if (
+    status &&
+    fonte?.campos?.status
+  ) {
+    consulta = consulta.eq(
+      fonte.campos.status,
+      status
+    );
+  }
+
+  return consulta;
+}
+
+async function buscarPecasEstoque(
+  supabase,
+  filtros = {}
+) {
+  return buscarPaginado(
+    () =>
+      criarConsultaPecasEstoque(
+        supabase,
+        filtros
+      ),
+    "Erro ao buscar peças do estoque"
+  );
+}
+
 function validarDefinicao(
   definicao
 ) {
@@ -744,6 +809,42 @@ class QueryExecutor {
 
           break;
         }
+
+        case "buscar_pecas_estoque": {
+  const filtrosEstoque = {
+    ...(
+      definicao?.filtros ||
+      {}
+    ),
+    ...(
+      consulta?.filtros ||
+      {}
+    ),
+  };
+
+  contexto.pecas =
+    await buscarPecasEstoque(
+      supabase,
+      filtrosEstoque
+    );
+
+  console.log(
+    "Primeira peça do estoque:",
+    contexto.pecas?.[0]
+  );
+
+  console.log(
+    "Quantidade de peças retornadas:",
+    contexto.pecas?.length
+  );
+
+  console.log(
+    "Filtros usados na consulta:",
+    filtrosEstoque
+  );
+
+  break;
+}
 
         default:
           throw new Error(

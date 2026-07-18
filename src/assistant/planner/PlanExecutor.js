@@ -1,4 +1,4 @@
-// PlanExecutor.js
+// PlanExecutor.jsx
 
 import queryBuilder from "../query/QueryBuilder";
 import queryExecutor from "../query/QueryExecutor";
@@ -57,6 +57,8 @@ function descricaoPeriodo(
       "deste mês",
     ano_atual:
       "deste ano",
+    estoque_atual:
+      "do estoque atual",
   };
 
   if (
@@ -415,6 +417,198 @@ function montarRespostaComparacaoLives(
   );
 }
 
+function obterNomePeca(
+  peca = {}
+) {
+  return (
+    peca?.nome ||
+    peca?.descricao ||
+    peca?.titulo ||
+    peca?.produto ||
+    "Peça sem nome"
+  );
+}
+
+function obterValorPeca(
+  peca = {}
+) {
+  return (
+    peca?.venda ??
+    peca?.valor_venda ??
+    peca?.valorVenda ??
+    peca?.valor_venda_final ??
+    peca?.valorVendaFinal ??
+    0
+  );
+}
+
+function montarDescricaoFiltroEstoque(
+  dados = {}
+) {
+  if (dados?.marca) {
+    return ` da marca "${dados.marca}"`;
+  }
+
+  if (dados?.categoria) {
+    return ` da categoria "${dados.categoria}"`;
+  }
+
+  if (dados?.nome) {
+    return ` contendo "${dados.nome}" no nome`;
+  }
+
+  return "";
+}
+
+function montarRespostaQuantidadeEstoque(
+  dados = {}
+) {
+  const quantidade =
+    Number(
+      dados?.quantidade ||
+      0
+    );
+
+  const descricaoFiltro =
+    montarDescricaoFiltroEstoque(
+      dados
+    );
+
+  if (quantidade === 0) {
+    return `📦 Estoque atual
+
+Não encontrei nenhuma peça${descricaoFiltro} disponível no estoque.`;
+  }
+
+  return `📦 Estoque atual
+
+Foram encontradas ${quantidade} peça(s)${descricaoFiltro} disponíveis no estoque.`;
+}
+
+function montarRespostaListaPecasEstoque(
+  dados = {}
+) {
+  const pecas =
+    Array.isArray(
+      dados?.pecas
+    )
+      ? dados.pecas
+      : [];
+
+  if (pecas.length === 0) {
+    return "📦 Peças do estoque\n\nNão encontrei peças para esse filtro.";
+  }
+
+  const linhas =
+    pecas
+      .map(
+        (
+          peca,
+          index
+        ) =>
+          `${index + 1}. ${obterNomePeca(
+            peca
+          )} — ${formatarBRL(
+            obterValorPeca(
+              peca
+            )
+          )}`
+      )
+      .join("\n");
+
+  return `📦 Peças encontradas
+
+Total: ${pecas.length} peça(s)
+
+${linhas}`;
+}
+
+function montarRespostaListaMarcasEstoque(
+  dados = {}
+) {
+  const marcas =
+    Array.isArray(
+      dados?.marcas
+    )
+      ? dados.marcas
+      : [];
+
+  if (marcas.length === 0) {
+    return "🏷️ Marcas do estoque\n\nNão encontrei marcas identificadas nas peças disponíveis.";
+  }
+
+  const linhas =
+    marcas
+      .map(
+        (
+          marca,
+          index
+        ) =>
+          `${index + 1}. ${
+            marca?.nome ||
+            marca?.marca ||
+            "Marca não identificada"
+          } — ${Number(
+            marca?.quantidade ||
+            0
+          )} peça(s)`
+      )
+      .join("\n");
+
+  return `🏷️ Marcas do estoque
+
+Foram encontradas ${Number(
+    dados?.quantidadeMarcas ||
+      marcas.length
+  )} marca(s).
+
+${linhas}`;
+}
+
+function montarRespostaListaCategoriasEstoque(
+  dados = {}
+) {
+  const categorias =
+    Array.isArray(
+      dados?.categorias
+    )
+      ? dados.categorias
+      : [];
+
+  if (
+    categorias.length === 0
+  ) {
+    return "🧥 Categorias do estoque\n\nNão encontrei categorias identificadas nas peças disponíveis.";
+  }
+
+  const linhas =
+    categorias
+      .map(
+        (
+          categoria,
+          index
+        ) =>
+          `${index + 1}. ${
+            categoria?.nome ||
+            categoria?.categoria ||
+            "Categoria não identificada"
+          } — ${Number(
+            categoria?.quantidade ||
+            0
+          )} peça(s)`
+      )
+      .join("\n");
+
+  return `🧥 Categorias do estoque
+
+Foram encontradas ${Number(
+    dados?.quantidadeCategorias ||
+      categorias.length
+  )} categoria(s).
+
+${linhas}`;
+}
+
 function montarResposta(
   resultado = {},
   definicao = {}
@@ -605,6 +799,31 @@ Faturamento total: ${formatarBRL(
       return montarRespostaComparacaoLives(
         dados,
         definicao
+      );
+
+    case "quantidade_estoque":
+    case "quantidade_estoque_por_marca":
+    case "quantidade_estoque_por_categoria":
+      return montarRespostaQuantidadeEstoque(
+        dados
+      );
+
+    case "listar_pecas":
+    case "listar_pecas_estoque":
+      return montarRespostaListaPecasEstoque(
+        dados
+      );
+
+    case "listar_marcas":
+    case "listar_marcas_estoque":
+      return montarRespostaListaMarcasEstoque(
+        dados
+      );
+
+    case "listar_categorias":
+    case "listar_categorias_estoque":
+      return montarRespostaListaCategoriasEstoque(
+        dados
       );
 
     default:

@@ -44,6 +44,20 @@ const EntityPatterns = {
       id: "estoque",
       termos: [
         "estoque",
+        "em estoque",
+        "no estoque",
+        "nosso estoque",
+        "estoque atual",
+        "saldo em estoque",
+        "quantidade em estoque",
+        "disponivel",
+        "disponível",
+        "disponiveis",
+        "disponíveis",
+        "temos disponivel",
+        "temos disponível",
+        "temos disponiveis",
+        "temos disponíveis",
         "peca",
         "peça",
         "pecas",
@@ -108,6 +122,68 @@ const EntityPatterns = {
         "total vendido",
         "faturamento total",
         "valor total",
+      ],
+    },
+
+    /*
+     * Operação específica do estoque.
+     *
+     * Ela fica antes da operação genérica "quantidade"
+     * para que frases como:
+     *
+     * "Quantas Nike temos no estoque?"
+     * "Quantas peças da Zara estão disponíveis?"
+     *
+     * sejam interpretadas como consulta de estoque,
+     * e não como quantidade vendida.
+     */
+    {
+      id: "quantidade_estoque",
+      termos: [
+        "quantidade em estoque",
+        "quantidade no estoque",
+        "saldo em estoque",
+        "saldo do estoque",
+        "total em estoque",
+        "total no estoque",
+
+        "temos no estoque",
+        "tem no estoque",
+        "estao no estoque",
+        "estão no estoque",
+
+        "temos em estoque",
+        "tem em estoque",
+        "estao em estoque",
+        "estão em estoque",
+
+        "temos disponivel",
+        "temos disponível",
+        "temos disponiveis",
+        "temos disponíveis",
+
+        "estao disponiveis",
+        "estão disponíveis",
+        "esta disponivel",
+        "está disponível",
+
+        "quantas temos",
+        "quantos temos",
+        "quantas ainda temos",
+        "quantos ainda temos",
+
+        "quantas pecas temos",
+        "quantas peças temos",
+        "quantos produtos temos",
+
+        "quantas pecas existem",
+        "quantas peças existem",
+        "quantos produtos existem",
+
+        "quantas sobraram",
+        "quantos sobraram",
+        "quantas restam",
+        "quantos restam",
       ],
     },
 
@@ -240,9 +316,6 @@ const EntityPatterns = {
 
         /*
          * Melhor live.
-         *
-         * Os termos abaixo não dependem de a quantidade aparecer
-         * imediatamente antes de "lives".
          */
         "qual foi a melhor",
         "qual a melhor",
@@ -369,9 +442,18 @@ const EntityPatterns = {
     },
   ],
 
+  /*
+   * Marcas reconhecidas pelo FilterExtractor.
+   *
+   * Algumas variações no plural foram adicionadas
+   * para entender perguntas naturais como:
+   *
+   * "Quantas Nikes temos no estoque?"
+   */
   marcas: [
     "Zara",
     "Nike",
+    "Nikes",
     "Adidas",
     "Levi's",
     "Levis",
@@ -386,6 +468,143 @@ const EntityPatterns = {
     "Guess",
     "Ralph Lauren",
     "Gap",
+  ],
+
+  /*
+   * Categorias iniciais do módulo de estoque.
+   *
+   * Serão utilizadas pelo FilterExtractor para reconhecer:
+   * "Quantas jaquetas temos?"
+   * "Quantos vestidos estão disponíveis?"
+   */
+  categorias: [
+"Blusa",
+"Blusas",
+
+"Camiseta",
+"Camisetas",
+
+"Camisa",
+"Camisas",
+
+"Regata",
+"Regatas",
+
+"Top",
+"Tops",
+
+"Body",
+"Bodys",
+
+"Cropped",
+"Croppeds",
+
+"Calça",
+"Calças",
+"Calca",
+"Calcas",
+
+"Legging",
+"Leggings",
+
+"Short",
+"Shorts",
+
+"Bermuda",
+"Bermudas",
+
+"Saia",
+"Saias",
+
+"Vestido",
+"Vestidos",
+
+"Macacão",
+"Macacões",
+"Macacao",
+"Macacoes",
+
+"Jaqueta",
+"Jaquetas",
+
+"Casaco",
+"Casacos",
+
+"Parka",
+"Parkas",
+
+"Cardigan",
+"Cardigans",
+
+"Colete",
+"Coletes",
+
+"Blazer",
+"Blazers",
+
+"Moletom",
+"Moletons",
+
+"Suéter",
+"Suéteres",
+"Sueter",
+"Suteres",
+
+"Pulôver",
+"Pulôveres",
+"Pulover",
+"Puloveres",
+
+"Pantalona",
+"Pantalonas",
+
+"Bolsa",
+"Bolsas",
+
+"tenis",
+"tenis",
+
+"Sapato",
+"Sapatos",
+
+"Tênis",
+"Tênis"
+  ],
+
+  /*
+   * Status reconhecidos nas consultas de estoque.
+   */
+  statusEstoque: [
+    {
+      id: "disponivel",
+      termos: [
+        "disponivel",
+        "disponível",
+        "disponiveis",
+        "disponíveis",
+        "em estoque",
+      ],
+    },
+
+    {
+      id: "reservada",
+      termos: [
+        "reservada",
+        "reservadas",
+        "reservado",
+        "reservados",
+      ],
+    },
+
+    {
+      id: "vendida",
+      termos: [
+        "vendida",
+        "vendidas",
+        "vendido",
+        "vendidos",
+      ],
+    },
   ],
 };
 

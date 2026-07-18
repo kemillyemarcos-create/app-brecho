@@ -230,27 +230,37 @@ class AssistantEngine {
   }
 
   async executarPlanner(pergunta, intent = null) {
-    const plano = plannerEngine.criarPlano(pergunta);
+  console.log("===== PERGUNTA =====");
+  console.log(pergunta);
 
-    if (!plano?.encontrado) {
-      return null;
-    }
+  const plano = plannerEngine.criarPlano(pergunta);
 
-    const resultado = await planExecutor.executar({
-      plano,
-      pergunta,
-      supabase,
-    });
+  console.log("===== PLANO =====");
+  console.log(plano);
 
-    return {
-      intent: intent?.intent?.id || null,
-      plano: plano.planoId,
-      dominio: plano.dominio,
-      operacao: plano.operacao,
-      periodo: plano.periodo,
-      ...resultado,
-    };
+  if (!plano?.encontrado) {
+    console.log("PLANO NÃO ENCONTRADO");
+    return null;
   }
+
+  const resultado = await planExecutor.executar({
+    plano,
+    pergunta,
+    supabase,
+  });
+
+  console.log("===== RESULTADO =====");
+  console.log(resultado);
+
+  return {
+    intent: intent?.intent?.id || null,
+    plano: plano.planoId,
+    dominio: plano.dominio,
+    operacao: plano.operacao,
+    periodo: plano.periodo,
+    ...resultado,
+  };
+}
 
   async executar(pergunta) {
     const textoOriginal = String(pergunta || "").trim();

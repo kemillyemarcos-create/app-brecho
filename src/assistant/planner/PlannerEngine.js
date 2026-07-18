@@ -1,4 +1,16 @@
 import PlannerPatterns from "./PlannerPatterns";
+
+/*
+ * Operações suportadas pelo módulo de estoque.
+ */
+const OPERACOES_ESTOQUE = [
+  "quantidade_estoque",
+  "listar_pecas",
+  "listar_marcas",
+  "listar_categorias",
+];
+
+
 import entityExtractor from "../entities/EntityExtractor";
 import { normalizarTexto } from "../utils/TextUtils";
 
@@ -6,11 +18,27 @@ function criarPlanoVazio(entidades = null) {
   return {
     encontrado: false,
     planoId: null,
-    dominio: entidades?.dominio || null,
-    operacao: entidades?.operacao || null,
-    periodo: entidades?.periodo?.tipo || null,
-    filtros: entidades?.filtros || {},
-    parametros: entidades?.parametros || {},
+
+    dominio:
+      entidades?.dominio ||
+      null,
+
+    operacao:
+      entidades?.operacao ||
+      null,
+
+    periodo:
+      entidades?.periodo?.tipo ||
+      null,
+
+    filtros:
+      entidades?.filtros ||
+      {},
+
+    parametros:
+      entidades?.parametros ||
+      {},
+
     etapas: [],
     pontuacao: 0,
     origem: null,
@@ -18,16 +46,28 @@ function criarPlanoVazio(entidades = null) {
   };
 }
 
-function calcularPontuacao(texto, pattern) {
-  const termo = normalizarTexto(pattern);
+function calcularPontuacao(
+  texto,
+  pattern
+) {
+  const termo =
+    normalizarTexto(
+      pattern
+    );
 
-  if (!termo) return 0;
+  if (!termo) {
+    return 0;
+  }
 
   if (texto === termo) {
     return 100;
   }
 
-  if (texto.includes(termo)) {
+  if (
+    texto.includes(
+      termo
+    )
+  ) {
     return (
       termo
         .split(" ")
@@ -36,21 +76,34 @@ function calcularPontuacao(texto, pattern) {
     );
   }
 
-  const palavrasPergunta = texto
-    .split(" ")
-    .filter((palavra) => palavra.length > 2);
+  const palavrasPergunta =
+    texto
+      .split(" ")
+      .filter(
+        (palavra) =>
+          palavra.length > 2
+      );
 
-  const palavrasPattern = termo
-    .split(" ")
-    .filter((palavra) => palavra.length > 2);
+  const palavrasPattern =
+    termo
+      .split(" ")
+      .filter(
+        (palavra) =>
+          palavra.length > 2
+      );
 
-  if (!palavrasPattern.length) {
+  if (
+    palavrasPattern.length === 0
+  ) {
     return 0;
   }
 
   const palavrasEncontradas =
-    palavrasPattern.filter((palavra) =>
-      palavrasPergunta.includes(palavra)
+    palavrasPattern.filter(
+      (palavra) =>
+        palavrasPergunta.includes(
+          palavra
+        )
     );
 
   const proporcao =
@@ -64,10 +117,24 @@ function calcularPontuacao(texto, pattern) {
   return palavrasEncontradas.length;
 }
 
-function criarEtapasPorEntidades(entidades) {
-  const operacao = entidades?.operacao;
-  const periodo = entidades?.periodo?.tipo;
-  const dominio = entidades?.dominio;
+function criarEtapasPorEntidades(
+  entidades = {}
+) {
+  const operacao =
+    entidades?.operacao ||
+    null;
+
+  const periodo =
+    entidades?.periodo?.tipo ||
+    null;
+
+  const dominio =
+    entidades?.dominio ||
+    null;
+
+  const filtros =
+    entidades?.filtros ||
+    {};
 
   if (!operacao) {
     return [];
@@ -75,23 +142,56 @@ function criarEtapasPorEntidades(entidades) {
 
   const etapas = [];
 
-  if (periodo === "ultima_live") {
+  /*
+   * Consultas baseadas na última live.
+   */
+  if (
+    periodo ===
+    "ultima_live"
+  ) {
     etapas.push(
       "buscar_ultima_live",
       "buscar_vendas_da_live"
     );
   }
 
-  if (periodo === "ultimas_lives") {
+  /*
+   * Consultas baseadas nas últimas N lives.
+   */
+  if (
+    periodo ===
+    "ultimas_lives"
+  ) {
     etapas.push(
       "buscar_ultimas_lives",
       "buscar_vendas_das_lives"
     );
   }
 
+  /*
+   * Consultas por período de calendário.
+   */
+  if (
+    [
+      "hoje",
+      "ontem",
+      "semana_atual",
+      "mes_atual",
+      "ano_atual",
+    ].includes(periodo)
+  ) {
+    etapas.push(
+      "buscar_vendas_por_periodo"
+    );
+  }
+
+  /*
+   * Módulo de clientes.
+   */
   if (
     dominio === "clientes" &&
-    operacao === "maior_compra"
+    operacao ===
+      "maior_compra"
   ) {
     etapas.push(
       "agrupar_vendas_por_cliente",
@@ -99,28 +199,68 @@ function criarEtapasPorEntidades(entidades) {
     );
   }
 
-  if (operacao === "pendentes") {
+  if (
+    dominio === "clientes" &&
+    operacao ===
+      "menor_compra"
+  ) {
+    etapas.push(
+      "agrupar_vendas_por_cliente",
+      "ordenar_clientes_por_menor_valor"
+    );
+  }
+
+  if (
+    operacao ===
+    "pendentes"
+  ) {
     etapas.push(
       "filtrar_vendas_pendentes",
       "agrupar_vendas_por_cliente"
     );
   }
 
-  if (operacao === "ticket_medio") {
+  /*
+   * Módulo financeiro.
+   */
+  if (
+    operacao ===
+    "ticket_medio"
+  ) {
     etapas.push(
       "agrupar_vendas_por_cliente",
       "calcular_ticket_medio"
     );
   }
 
-  if (operacao === "lucro") {
+  if (
+    operacao ===
+    "lucro"
+  ) {
     etapas.push(
       "buscar_custos_das_pecas",
       "calcular_lucro"
     );
   }
 
-  if (operacao === "mais_vendida") {
+  if (
+    operacao ===
+    "margem"
+  ) {
+    etapas.push(
+      "buscar_custos_das_pecas",
+      "calcular_lucro",
+      "calcular_margem"
+    );
+  }
+
+  /*
+   * Análises de vendas.
+   */
+  if (
+    operacao ===
+    "mais_vendida"
+  ) {
     etapas.push(
       "identificar_marcas",
       "agrupar_vendas_por_marca",
@@ -129,8 +269,9 @@ function criarEtapasPorEntidades(entidades) {
   }
 
   if (
-    operacao === "quantidade" &&
-    entidades?.filtros?.marca
+    operacao ===
+      "quantidade" &&
+    filtros?.marca
   ) {
     etapas.push(
       "filtrar_vendas_por_marca",
@@ -138,7 +279,13 @@ function criarEtapasPorEntidades(entidades) {
     );
   }
 
-  if (operacao === "comparar_lives") {
+  /*
+   * Comparação entre lives.
+   */
+  if (
+    operacao ===
+    "comparar_lives"
+  ) {
     etapas.push(
       "agrupar_vendas_por_live",
       "calcular_faturamento_por_live",
@@ -150,119 +297,345 @@ function criarEtapasPorEntidades(entidades) {
     );
   }
 
-  return [...new Set(etapas)];
+  /*
+   * Módulo de estoque.
+   *
+   * O QueryExecutor busca as peças disponíveis.
+   * Os filtros semânticos de marca, categoria,
+   * cor, material, gênero e tamanho são aplicados
+   * posteriormente pelo ResultProcessor por meio
+   * do InventorySemanticAnalyzer.
+   *
+   * Por isso o plano não cria etapas de SQL para
+   * cada filtro semântico.
+   */
+  if (
+    dominio === "estoque" &&
+    operacao ===
+      "quantidade_estoque"
+  ) {
+    etapas.push(
+      "buscar_pecas_estoque",
+      "contar_pecas_estoque"
+    );
+  }
+
+  return [
+    ...new Set(
+      etapas
+    ),
+  ];
 }
 
-function criarPlanoPorEntidades(entidades) {
-  if (!entidades?.encontrado) {
-    return null;
-  }
+function normalizarLimiteComparacao(
+  parametros = {}
+) {
+  return Math.min(
+    Math.max(
+      Number(
+        parametros?.limite ||
+        5
+      ),
+      2
+    ),
+    50
+  );
+}
 
-  const dominio = entidades.dominio;
-  const operacao = entidades.operacao;
-  const periodo = entidades.periodo?.tipo;
-  const filtros = entidades.filtros || {};
-  const parametros = entidades.parametros || {};
+function criarPlanoId({
+  dominio,
+  operacao,
+  periodo,
+  filtros = {},
+  limiteComparacao = null,
+}) {
+  return [
+    dominio ||
+      "geral",
 
-  if (!operacao || !periodo) {
-    return null;
-  }
-
-  const operacoesSuportadas = [
-    "maior_compra",
-    "pendentes",
-    "ticket_medio",
-    "lucro",
-    "mais_vendida",
-    "quantidade",
-    "comparar_lives",
-  ];
-
-  if (!operacoesSuportadas.includes(operacao)) {
-    return null;
-  }
-
-  if (
-    operacao === "quantidade" &&
-    !filtros.marca
-  ) {
-    return null;
-  }
-
-  if (
-    operacao === "comparar_lives" &&
-    periodo !== "ultimas_lives"
-  ) {
-    return null;
-  }
-
-  const limiteComparacao =
-    operacao === "comparar_lives"
-      ? Math.min(
-          Math.max(
-            Number(parametros?.limite || 5),
-            2
-          ),
-          50
-        )
-      : null;
-
-  const planoId = [
-    dominio || "geral",
     operacao,
+
     periodo,
-    filtros.marca
+
+    filtros?.marca
       ? normalizarTexto(
           filtros.marca
-        ).replace(/\s+/g, "_")
+        ).replace(
+          /\s+/g,
+          "_"
+        )
       : null,
+
+    filtros?.categoria
+      ? normalizarTexto(
+          filtros.categoria
+        ).replace(
+          /\s+/g,
+          "_"
+        )
+      : null,
+
+    filtros?.cor
+      ? normalizarTexto(
+          filtros.cor
+        ).replace(
+          /\s+/g,
+          "_"
+        )
+      : null,
+
+    filtros?.material
+      ? normalizarTexto(
+          filtros.material
+        ).replace(
+          /\s+/g,
+          "_"
+        )
+      : null,
+
+    filtros?.genero
+      ? normalizarTexto(
+          filtros.genero
+        ).replace(
+          /\s+/g,
+          "_"
+        )
+      : null,
+
+    filtros?.tamanho
+      ? normalizarTexto(
+          filtros.tamanho
+        ).replace(
+          /\s+/g,
+          "_"
+        )
+      : null,
+
+    filtros?.statusEstoque
+      ? normalizarTexto(
+          filtros.statusEstoque
+        ).replace(
+          /\s+/g,
+          "_"
+        )
+      : null,
+
     limiteComparacao
       ? `${limiteComparacao}_lives`
       : null,
   ]
     .filter(Boolean)
     .join("_");
+}
+
+function validarPlanoPorEntidades({
+  dominio,
+  operacao,
+  periodo,
+  filtros,
+}) {
+  const operacoesSuportadas = [
+    "maior_compra",
+    "menor_compra",
+    "pendentes",
+    "ticket_medio",
+    "lucro",
+    "margem",
+    "mais_vendida",
+    "quantidade",
+    "total",
+    "comparar_lives",
+    "quantidade_estoque",
+    "listar_pecas",
+    "listar_marcas",
+    "listar_categorias",
+  ];
+
+  if (
+    !operacoesSuportadas.includes(
+      operacao
+    )
+  ) {
+    return false;
+  }
+
+  /*
+   * A quantidade de vendas ainda exige marca,
+   * para não conflitar com perguntas genéricas
+   * ainda não implementadas.
+   */
+  if (
+    operacao ===
+      "quantidade" &&
+    !filtros?.marca
+  ) {
+    return false;
+  }
+
+  if (
+    operacao ===
+      "comparar_lives" &&
+    periodo !==
+      "ultimas_lives"
+  ) {
+    return false;
+  }
+
+  /*
+   * Consultas de estoque precisam pertencer
+   * ao domínio estoque e usar estoque_atual.
+   */
+  if (
+    OPERACOES_ESTOQUE.includes(
+      operacao
+    )
+  ) {
+    if (
+      dominio !==
+      "estoque"
+    ) {
+      return false;
+    }
+
+    if (
+      periodo !==
+      "estoque_atual"
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function criarPlanoPorEntidades(
+  entidades
+) {
+  if (
+    !entidades?.encontrado
+  ) {
+    return null;
+  }
+
+  const dominio =
+    entidades?.dominio ||
+    null;
+
+  const operacao =
+    entidades?.operacao ||
+    null;
+
+  const periodo =
+    entidades?.periodo?.tipo ||
+    null;
+
+  const filtros =
+    entidades?.filtros ||
+    {};
+
+  const parametros =
+    entidades?.parametros ||
+    {};
+
+  if (
+    !operacao ||
+    !periodo
+  ) {
+    return null;
+  }
+
+  const planoValido =
+    validarPlanoPorEntidades({
+      dominio,
+      operacao,
+      periodo,
+      filtros,
+    });
+
+  if (!planoValido) {
+    return null;
+  }
+
+  const limiteComparacao =
+    operacao ===
+      "comparar_lives"
+      ? normalizarLimiteComparacao(
+          parametros
+        )
+      : null;
+
+  const planoId =
+    criarPlanoId({
+      dominio,
+      operacao,
+      periodo,
+      filtros,
+      limiteComparacao,
+    });
 
   return {
     encontrado: true,
+
     planoId,
+
     dominio,
+
     operacao,
+
     periodo,
+
     filtros,
+
     parametros: {
       ...parametros,
+
       ...(limiteComparacao
         ? {
-            limite: limiteComparacao,
+            limite:
+              limiteComparacao,
+          }
+        : {}),
+
+      ...(OPERACOES_ESTOQUE.includes(
+      operacao
+    )
+        ? {
+            estoqueAtual: true,
           }
         : {}),
     },
+
     etapas:
       criarEtapasPorEntidades(
         entidades
       ),
+
     pontuacao:
       Number(
         entidades?.confianca
-          ?.dominio || 0
+          ?.dominio ||
+        0
       ) +
       Number(
         entidades?.confianca
-          ?.operacao || 0
+          ?.operacao ||
+        0
       ),
+
     origem: "entities",
+
     entidades,
   };
 }
 
 class PlannerEngine {
   constructor() {
-    this.patterns = Array.isArray(
-      PlannerPatterns
-    )
-      ? PlannerPatterns
-      : [];
+    this.patterns =
+      Array.isArray(
+        PlannerPatterns
+      )
+        ? PlannerPatterns
+        : [];
   }
 
   criarPlanoPorPatterns(
@@ -270,7 +643,9 @@ class PlannerEngine {
     entidades = null
   ) {
     const texto =
-      normalizarTexto(pergunta);
+      normalizarTexto(
+        pergunta
+      );
 
     if (!texto) {
       return criarPlanoVazio(
@@ -289,7 +664,8 @@ class PlannerEngine {
 
       for (
         const pattern of
-        patternConfig.patterns || []
+        patternConfig.patterns ||
+        []
       ) {
         const pontuacao =
           calcularPontuacao(
@@ -329,42 +705,54 @@ class PlannerEngine {
 
     return {
       encontrado: true,
-      planoId: melhorPlano.id,
+
+      planoId:
+        melhorPlano.id,
+
       dominio:
         melhorPlano.dominio,
+
       operacao:
         melhorPlano.operacao,
+
       periodo:
         melhorPlano.periodo,
+
       filtros:
         entidades?.filtros ||
         {},
+
       parametros:
         entidades?.parametros ||
         {},
+
       etapas: [
         ...(
           melhorPlano.etapas ||
           []
         ),
       ],
+
       pontuacao:
         maiorPontuacao,
+
       origem: "patterns",
+
       entidades,
     };
   }
 
-  criarPlano(pergunta = "") {
+  criarPlano(
+    pergunta = ""
+  ) {
     const entidades =
       entityExtractor.extrair(
         pergunta
       );
 
     /*
-     * 1. Primeiro tenta criar um plano genérico
-     * usando domínio, operação, período, filtros
-     * e parâmetros extraídos da pergunta.
+     * Primeiro tenta criar um plano
+     * usando as entidades extraídas.
      */
     const planoEntidades =
       criarPlanoPorEntidades(
@@ -376,7 +764,7 @@ class PlannerEngine {
     }
 
     /*
-     * 2. Se ainda não for possível, usa os
+     * Caso não seja possível, usa os
      * padrões antigos como fallback.
      */
     return this.criarPlanoPorPatterns(
@@ -385,7 +773,9 @@ class PlannerEngine {
     );
   }
 
-  detectar(pergunta = "") {
+  detectar(
+    pergunta = ""
+  ) {
     return this.criarPlano(
       pergunta
     );
@@ -402,19 +792,25 @@ class PlannerEngine {
   listarPlanos() {
     return this.patterns.map(
       (plano) => ({
-        id: plano.id,
+        id:
+          plano.id,
+
         dominio:
           plano.dominio,
+
         operacao:
           plano.operacao,
+
         periodo:
           plano.periodo,
+
         patterns: [
           ...(
             plano.patterns ||
             []
           ),
         ],
+
         etapas: [
           ...(
             plano.etapas ||
@@ -431,7 +827,9 @@ class PlannerEngine {
     }
 
     const idNormalizado =
-      normalizarTexto(id);
+      normalizarTexto(
+        id
+      );
 
     return (
       this.patterns.find(
@@ -440,7 +838,8 @@ class PlannerEngine {
             plano.id
           ) ===
           idNormalizado
-      ) || null
+      ) ||
+      null
     );
   }
 }
