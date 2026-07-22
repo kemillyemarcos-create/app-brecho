@@ -3,6 +3,8 @@
 // aplica filtros e executa a operação analítica adequada.
 // Atualizado com suporte às consultas de estoque.
 
+import inventoryConversationEngine
+  from "../conversation/InventoryConversationEngine";
 import inventorySemanticAnalyzer from "../analytics/InventorySemanticAnalyzer";
 
 import {
@@ -207,8 +209,8 @@ function processarPendentes({
         total +
         Number(
           cliente.quantidade ||
-            cliente.pecas ||
-            0
+          cliente.pecas ||
+          0
         ),
       0
     );
@@ -450,14 +452,14 @@ function processarComparacaoLives({
   const livesValidas =
     Array.isArray(lives)
       ? lives
-          .filter(
-            (live) =>
-              live?.id
-          )
-          .slice(
-            0,
-            Number(limite || 5)
-          )
+        .filter(
+          (live) =>
+            live?.id
+        )
+        .slice(
+          0,
+          Number(limite || 5)
+        )
       : [];
 
   if (
@@ -513,7 +515,7 @@ function processarComparacaoLives({
             (venda) =>
               String(
                 venda?.live_id ||
-                  ""
+                ""
               ) === liveId
           );
 
@@ -625,7 +627,7 @@ function processarComparacaoLives({
         total +
         Number(
           live.faturamento ||
-            0
+          0
         ),
       0
     );
@@ -633,7 +635,7 @@ function processarComparacaoLives({
   const faturamentoMedio =
     resumos.length > 0
       ? faturamentoTotal /
-        resumos.length
+      resumos.length
       : 0;
 
   const maiorFaturamento =
@@ -641,11 +643,11 @@ function processarComparacaoLives({
       (a, b) =>
         Number(
           b.faturamento ||
-            0
+          0
         ) -
         Number(
           a.faturamento ||
-            0
+          0
         )
     )[0] || null;
 
@@ -654,11 +656,11 @@ function processarComparacaoLives({
       (a, b) =>
         Number(
           a.faturamento ||
-            0
+          0
         ) -
         Number(
           b.faturamento ||
-            0
+          0
         )
     )[0] || null;
 
@@ -667,15 +669,15 @@ function processarComparacaoLives({
 
   const ultimo =
     resumos[
-      resumos.length - 1
+    resumos.length - 1
     ] || null;
 
   const variacaoTotalPercentual =
     primeiro && ultimo
       ? calcularVariacaoPercentual(
-          primeiro.faturamento,
-          ultimo.faturamento
-        )
+        primeiro.faturamento,
+        ultimo.faturamento
+      )
       : 0;
 
   const tendencia =
@@ -795,6 +797,100 @@ function obterNomePeca(
   );
 }
 
+function obterTamanhoPeca(peca) {
+  return (
+    peca?.analiseEstoque?.tamanho ||
+    peca?.tamanho ||
+    null
+  );
+}
+
+function obterCorPeca(peca) {
+  return (
+    peca?.analiseEstoque?.cor ||
+    peca?.cor ||
+    null
+  );
+}
+
+function processarListarTamanhosEstoque({
+  pecas,
+  filtros,
+}) {
+  const pecasFiltradas =
+    filtrarPecasEstoque(
+      pecas,
+      {
+        ...filtros,
+        tamanho: null,
+      }
+    );
+
+  const tamanhos =
+    agruparValoresEstoque(
+      pecasFiltradas,
+      obterTamanhoPeca
+    );
+
+  return {
+    ok: true,
+
+    tipo:
+      "listar_tamanhos",
+
+    dados: {
+      quantidadeTamanhos:
+        tamanhos.length,
+
+      quantidadePecas:
+        pecasFiltradas.length,
+
+      tamanhos,
+
+      filtros,
+    },
+  };
+}
+
+function processarListarCoresEstoque({
+  pecas,
+  filtros,
+}) {
+  const pecasFiltradas =
+    filtrarPecasEstoque(
+      pecas,
+      {
+        ...filtros,
+        cor: null,
+      }
+    );
+
+  const cores =
+    agruparValoresEstoque(
+      pecasFiltradas,
+      obterCorPeca
+    );
+
+  return {
+    ok: true,
+
+    tipo:
+      "listar_cores",
+
+    dados: {
+      quantidadeCores:
+        cores.length,
+
+      quantidadePecas:
+        pecasFiltradas.length,
+
+      cores,
+
+      filtros,
+    },
+  };
+}
+
 function filtrarPecasEstoque(
   pecas = [],
   filtros = {}
@@ -888,22 +984,152 @@ function processarQuantidadeEstoque({
       filtros
     );
 
+  const quantidade =
+  pecasFiltradas.length;
+
+/*
+ * Só procura alternativa quando
+ * nenhuma peça foi encontrada.
+ */
+let alternativaMaisProxima = null;
+
+if (quantidade === 0) {
+  const conversa =
+    inventoryConversationEngine.analisar({
+      pecas,
+      filtros,
+      pecasEncontradas:
+        pecasFiltradas,
+    });
+
+  alternativaMaisProxima =
+    conversa?.alternativaMaisProxima ||
+    null;
+}
+
+  const possuiFiltroMarca =
+    Boolean(
+      filtros?.marca ||
+      filtros?.marcas?.length
+    );
+
+  const possuiFiltroSecundario =
+    Boolean(
+      filtros?.categoria ||
+      filtros?.categorias?.length ||
+
+      filtros?.cor ||
+      filtros?.cores?.length ||
+
+      filtros?.material ||
+      filtros?.materiais?.length ||
+
+      filtros?.genero ||
+      filtros?.generos?.length ||
+
+      filtros?.tamanho ||
+      filtros?.tamanhos?.length ||
+
+      filtros?.nome ||
+      filtros?.descricao
+    );
+
+  let pecasDaMarca =
+    pecasFiltradas;
+
+  if (
+    possuiFiltroMarca &&
+    possuiFiltroSecundario
+  ) {
+    pecasDaMarca =
+      filtrarPecasEstoque(
+        pecas,
+        filtros?.marca
+          ? {
+            marca:
+              filtros.marca,
+          }
+          : {
+            marcas:
+              filtros.marcas,
+          }
+      );
+  }
+
   return {
     ok: true,
+
     tipo:
       "quantidade_estoque",
 
+    dominio:
+      "estoque",
+
+    operacao:
+      "quantidade_estoque",
+
     dados: {
-      quantidade:
-        pecasFiltradas.length,
+      dominio:
+        "estoque",
+
+      operacao:
+        "quantidade_estoque",
+
+      quantidade,
+
+      encontrou:
+        quantidade > 0,
+
+      quantidadeMarca:
+        pecasDaMarca.length,
 
       marca:
-        filtros?.marca ||
+        filtros?.marca ??
         null,
 
+      marcas:
+        filtros?.marcas ??
+        [],
+
       categoria:
-        filtros?.categoria ||
+        filtros?.categoria ??
         null,
+
+      categorias:
+        filtros?.categorias ??
+        [],
+
+      cor:
+        filtros?.cor ??
+        null,
+
+      cores:
+        filtros?.cores ??
+        [],
+
+      material:
+        filtros?.material ??
+        null,
+
+      materiais:
+        filtros?.materiais ??
+        [],
+
+      genero:
+        filtros?.genero ??
+        null,
+
+      generos:
+        filtros?.generos ??
+        [],
+
+      tamanho:
+        filtros?.tamanho ??
+        null,
+
+      tamanhos:
+        filtros?.tamanhos ??
+        [],
 
       nome:
         filtros?.nome ||
@@ -914,6 +1140,8 @@ function processarQuantidadeEstoque({
 
       pecas:
         pecasFiltradas,
+
+      alternativaMaisProxima,
     },
   };
 }
@@ -928,19 +1156,53 @@ function processarListarPecasEstoque({
       filtros
     );
 
+  const quantidade =
+    pecasFiltradas.length;
+
+  /*
+   * Só procura alternativa quando
+   * nenhuma peça foi encontrada.
+   */
+  let alternativaMaisProxima = null;
+
+  if (quantidade === 0) {
+    const conversa =
+      inventoryConversationEngine.analisar({
+        pecas,
+        filtros,
+        pecasEncontradas:
+          pecasFiltradas,
+      });
+
+    alternativaMaisProxima =
+      conversa?.alternativaMaisProxima ||
+      null;
+  }
+
   return {
     ok: true,
+
     tipo:
       "listar_pecas",
 
+    dominio:
+      "estoque",
+
+    operacao:
+      "listar_pecas",
+
     dados: {
-      quantidade:
-        pecasFiltradas.length,
+      quantidade,
+
+      encontrou:
+        quantidade > 0,
 
       filtros,
 
       pecas:
         pecasFiltradas,
+
+      alternativaMaisProxima,
     },
   };
 }
@@ -1170,6 +1432,20 @@ class ResultProcessor {
       case "listar_pecas":
       case "listar_pecas_estoque":
         return processarListarPecasEstoque({
+          pecas,
+          filtros,
+        });
+
+      case "listar_tamanhos":
+      case "listar_tamanhos_estoque":
+        return processarListarTamanhosEstoque({
+          pecas,
+          filtros,
+        });
+
+      case "listar_cores":
+      case "listar_cores_estoque":
+        return processarListarCoresEstoque({
           pecas,
           filtros,
         });

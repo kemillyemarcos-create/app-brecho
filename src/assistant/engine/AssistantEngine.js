@@ -4,158 +4,13 @@ import intentEngine from "../intents/IntentEngine";
 import plannerEngine from "../planner/PlannerEngine";
 import planExecutor from "../planner/PlanExecutor";
 import { normalizarTexto } from "../utils/TextUtils";
+import knowledgeExecutor from "./KnowledgeExecutor";
 import skillExecutor from "./SkillExecutor";
 
 import {
-  BusinessKnowledge,
-  BusinessModules,
-  BusinessRules,
-  BusinessVocabulary,
-} from "../knowledge";
-
-import {
   formatarErro,
-  formatarLista,
   formatarNaoAprendido,
-  formatarResultado,
 } from "./ResponseFormatter";
-
-function perguntaEhConceitual(texto = "") {
-  return (
-    texto.startsWith("o que e ") ||
-    texto === "o que e" ||
-    texto.startsWith("o que significa") ||
-    texto.includes("qual o significado") ||
-    texto.includes("significa o que") ||
-    texto.startsWith("explique ")
-  );
-}
-
-function perguntaEhSobreRegra(texto = "") {
-  return (
-    texto.startsWith("como funciona") ||
-    texto.startsWith("o que acontece") ||
-    texto.includes("qual a regra") ||
-    texto.includes("quais as regras")
-  );
-}
-
-function respostaModulos() {
-  const modulos = Object.values(BusinessModules).map(
-    (modulo) => `${modulo.nome} — ${modulo.descricao}`
-  );
-
-  return {
-    ok: true,
-    tipo: "knowledge",
-    resposta: formatarLista("Módulos disponíveis no sistema", modulos),
-  };
-}
-
-function respostaConhecimentoGeral() {
-  return {
-    ok: true,
-    tipo: "knowledge",
-    resposta: formatarResultado({
-      titulo: "✨ Sobre o sistema",
-      descricao: BusinessKnowledge.objetivo,
-      detalhes: [
-        `Segmento: ${BusinessKnowledge.segmento}`,
-        `País: ${BusinessKnowledge.pais}`,
-        `Moeda: ${BusinessKnowledge.moeda}`,
-        `Versão: ${BusinessKnowledge.versao}`,
-      ],
-    }),
-  };
-}
-
-function respostaVocabulario(perguntaNormalizada) {
-  for (const [termo, sinonimos] of Object.entries(BusinessVocabulary)) {
-    const termosRelacionados = [termo, ...(sinonimos || [])];
-
-    const encontrou = termosRelacionados.some((item) =>
-      perguntaNormalizada.includes(normalizarTexto(item))
-    );
-
-    if (!encontrou) continue;
-
-    return {
-      ok: true,
-      tipo: "knowledge",
-      resposta: formatarResultado({
-        titulo: `✨ ${termo}`,
-        descricao: `No sistema, "${termo}" está relacionado a:`,
-        detalhes: termosRelacionados,
-      }),
-    };
-  }
-
-  return null;
-}
-
-function respostaRegra(perguntaNormalizada) {
-  const regra = BusinessRules.find((item) => {
-    const titulo = normalizarTexto(item.titulo);
-    const id = normalizarTexto(item.id);
-
-    if (titulo && perguntaNormalizada.includes(titulo)) {
-      return true;
-    }
-
-    if (id && perguntaNormalizada.includes(id)) {
-      return true;
-    }
-
-    const palavrasImportantes = normalizarTexto(
-      `${item.titulo} ${item.descricao}`
-    )
-      .split(" ")
-      .filter((palavra) => palavra.length > 4);
-
-    return palavrasImportantes.some((palavra) =>
-      perguntaNormalizada.includes(palavra)
-    );
-  });
-
-  if (!regra) return null;
-
-  return {
-    ok: true,
-    tipo: "knowledge",
-    resposta: formatarResultado({
-      titulo: `✨ ${regra.titulo}`,
-      descricao: regra.descricao,
-    }),
-  };
-}
-
-function responderConhecimento(pergunta, intent) {
-  const texto = normalizarTexto(pergunta);
-
-  if (intent?.target === "modules") {
-    return respostaModulos();
-  }
-
-  if (intent?.target === "system") {
-    return respostaConhecimentoGeral();
-  }
-
-  if (
-    intent?.target === "vocabulary" &&
-    perguntaEhConceitual(texto)
-  ) {
-    return respostaVocabulario(texto);
-  }
-
-  if (
-    intent?.target === "rules" &&
-    perguntaEhSobreRegra(texto)
-  ) {
-    return respostaRegra(texto);
-  }
-
-  return null;
-}
 
 class AssistantEngine {
   constructor() {
@@ -163,13 +18,16 @@ class AssistantEngine {
   }
 
   buscarSkill(id) {
-    if (!id) return null;
+    if (!id) {
+      return null;
+    }
 
     const idNormalizado = normalizarTexto(id);
 
     return (
       this.skills.find(
-        (skill) => normalizarTexto(skill?.id) === idNormalizado
+        (skill) =>
+          normalizarTexto(skill?.id) === idNormalizado
       ) || null
     );
   }
@@ -177,7 +35,9 @@ class AssistantEngine {
   encontrarSkillPorAlias(pergunta) {
     const texto = normalizarTexto(pergunta);
 
-    if (!texto) return null;
+    if (!texto) {
+      return null;
+    }
 
     let melhorSkill = null;
     let maiorPontuacao = 0;
@@ -193,7 +53,9 @@ class AssistantEngine {
       for (const termoOriginal of termos) {
         const termo = normalizarTexto(termoOriginal);
 
-        if (!termo) continue;
+        if (!termo) {
+          continue;
+        }
 
         let pontuacao = 0;
 
@@ -201,7 +63,10 @@ class AssistantEngine {
           pontuacao = 100;
         } else if (texto.includes(termo)) {
           pontuacao =
-            termo.split(" ").filter(Boolean).length * 10;
+            termo
+              .split(" ")
+              .filter(Boolean)
+              .length * 10;
         }
 
         if (pontuacao > pontuacaoSkill) {
@@ -218,7 +83,11 @@ class AssistantEngine {
     return melhorSkill;
   }
 
-  async executarSkill(skill, pergunta, intent = null) {
+  async executarSkill(
+    skill,
+    pergunta,
+    intent = null
+  ) {
     return skillExecutor.executar({
       skill,
       pergunta,
@@ -229,41 +98,83 @@ class AssistantEngine {
     });
   }
 
-  async executarPlanner(pergunta, intent = null) {
-  console.log("===== PERGUNTA =====");
-  console.log(pergunta);
+  async executarPlanner(
+    pergunta,
+    intent = null,
+    opcoes = {}
+  ) {
+    const {
+      conversaId = "chat-principal",
+      usuarioId = null,
+      usarContexto = true,
+    } = opcoes;
 
-  const plano = plannerEngine.criarPlano(pergunta);
+    let resultado;
 
-  console.log("===== PLANO =====");
-  console.log(plano);
+    try {
+      resultado =
+        await planExecutor.executarMensagem({
+          pergunta,
+          supabase,
+          conversaId,
+          usuarioId,
+          usarContexto,
 
-  if (!plano?.encontrado) {
-    console.log("PLANO NÃO ENCONTRADO");
-    return null;
+          metadados: {
+            intent:
+              intent?.intent?.id ||
+              null,
+
+            target:
+              intent?.target ||
+              null,
+          },
+        });
+    } catch (error) {
+      console.error(
+        "[AssistantEngine] Falha no modo conversacional.",
+        error
+      );
+
+      const plano =
+        plannerEngine.criarPlano(pergunta);
+
+      if (!plano?.encontrado) {
+        return null;
+      }
+
+      resultado =
+        await planExecutor.executar({
+          plano,
+          pergunta,
+          supabase,
+        });
+    }
+
+    const planoNaoEncontrado =
+      resultado?.ok === false &&
+      resultado?.tipo === "planner" &&
+      !resultado?.plano;
+
+    if (planoNaoEncontrado) {
+      return null;
+    }
+
+    return {
+      intent:
+        intent?.intent?.id ||
+        null,
+
+      ...resultado,
+    };
   }
 
-  const resultado = await planExecutor.executar({
-    plano,
+  async executar(
     pergunta,
-    supabase,
-  });
-
-  console.log("===== RESULTADO =====");
-  console.log(resultado);
-
-  return {
-    intent: intent?.intent?.id || null,
-    plano: plano.planoId,
-    dominio: plano.dominio,
-    operacao: plano.operacao,
-    periodo: plano.periodo,
-    ...resultado,
-  };
-}
-
-  async executar(pergunta) {
-    const textoOriginal = String(pergunta || "").trim();
+    opcoes = {}
+  ) {
+    const textoOriginal =
+      String(pergunta || "").trim();
 
     if (!textoOriginal) {
       return {
@@ -274,37 +185,29 @@ class AssistantEngine {
       };
     }
 
-    const intent = intentEngine.detectar(textoOriginal);
+    const intent =
+      intentEngine.detectar(
+        textoOriginal
+      );
 
-    /*
-     * 1. O Planner recebe prioridade.
-     *
-     * Perguntas analíticas como:
-     * - cliente que mais comprou;
-     * - ticket médio;
-     * - quem ainda não pagou;
-     * - lucro;
-     * - marca mais vendida;
-     *
-     * precisam ser analisadas antes das Skills genéricas.
-     */
-    const resultadoPlanner = await this.executarPlanner(
-      textoOriginal,
-      intent
-    );
+    const resultadoPlanner =
+      await this.executarPlanner(
+        textoOriginal,
+        intent,
+        opcoes
+      );
 
     if (resultadoPlanner) {
       return resultadoPlanner;
     }
 
-    /*
-     * 2. Skill declarada diretamente no IntentPatterns.
-     *
-     * Exemplo:
-     * "Vendas da última live?"
-     */
-    if (intentEngine.isSkill(intent)) {
-      const skillDireta = this.buscarSkill(intent.target);
+    if (
+      intentEngine.isSkill(intent)
+    ) {
+      const skillDireta =
+        this.buscarSkill(
+          intent.target
+        );
 
       if (skillDireta) {
         return this.executarSkill(
@@ -315,11 +218,10 @@ class AssistantEngine {
       }
     }
 
-    /*
-     * 3. Skill reconhecida pelos aliases.
-     */
     const skillPorAlias =
-      this.encontrarSkillPorAlias(textoOriginal);
+      this.encontrarSkillPorAlias(
+        textoOriginal
+      );
 
     if (skillPorAlias) {
       return this.executarSkill(
@@ -329,18 +231,21 @@ class AssistantEngine {
       );
     }
 
-    /*
-     * 4. Knowledge para perguntas conceituais.
-     */
-    if (intentEngine.isKnowledge(intent)) {
-      const conhecimento = responderConhecimento(
-        textoOriginal,
-        intent
-      );
+    if (
+      intentEngine.isKnowledge(intent)
+    ) {
+      const conhecimento =
+        knowledgeExecutor.executar(
+          textoOriginal,
+          intent
+        );
 
       if (conhecimento) {
         return {
-          intent: intent.intent?.id || null,
+          intent:
+            intent?.intent?.id ||
+            null,
+
           ...conhecimento,
         };
       }
@@ -348,8 +253,13 @@ class AssistantEngine {
 
     return {
       ok: false,
-      intent: intent?.intent?.id || null,
-      resposta: formatarNaoAprendido(),
+
+      intent:
+        intent?.intent?.id ||
+        null,
+
+      resposta:
+        formatarNaoAprendido(),
     };
   }
 
@@ -372,6 +282,7 @@ class AssistantEngine {
   }
 }
 
-const assistantEngine = new AssistantEngine();
+const assistantEngine =
+  new AssistantEngine();
 
 export default assistantEngine;

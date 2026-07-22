@@ -1,5 +1,9 @@
 class SkillExecutor {
-  async executar({ skill, pergunta, contexto = {} }) {
+  async executar({
+    skill,
+    pergunta,
+    contexto = {},
+  }) {
     if (!skill) {
       return {
         ok: false,

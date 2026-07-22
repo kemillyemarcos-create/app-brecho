@@ -407,11 +407,11 @@ async function buscarUltimasLives(
 
   const limiteSeguro =
     Number.isInteger(numero) &&
-    numero > 0
+      numero > 0
       ? Math.min(
-          Math.max(numero, minimo),
-          maximo
-        )
+        Math.max(numero, minimo),
+        maximo
+      )
       : padrao;
 
   const livesOrdenadas =
@@ -632,6 +632,95 @@ function criarConsultaPecasEstoque(
       false
     );
 
+  const aplicarFiltroTexto = (
+    campo,
+    singular,
+    plural
+  ) => {
+    if (!campo) {
+      return;
+    }
+
+    const valores = [
+      ...(Array.isArray(plural)
+        ? plural
+        : plural
+          ? [plural]
+          : []),
+      ...(singular ? [singular] : []),
+    ]
+      .map(normalizarFiltroTexto)
+      .filter(Boolean);
+
+    if (valores.length === 0) {
+      return;
+    }
+
+    const unicos = [...new Set(valores)];
+
+    if (unicos.length === 1) {
+      consulta = consulta.eq(
+        campo,
+        unicos[0]
+      );
+    } else {
+      consulta = consulta.in(
+        campo,
+        unicos
+      );
+    }
+  };
+
+  aplicarFiltroTexto(
+    fonte?.campos?.marca,
+    filtros?.marca,
+    filtros?.marcas
+  );
+
+  aplicarFiltroTexto(
+    fonte?.campos?.categoria,
+    filtros?.categoria,
+    filtros?.categorias
+  );
+
+  aplicarFiltroTexto(
+    fonte?.campos?.cor,
+    filtros?.cor,
+    filtros?.cores
+  );
+
+  aplicarFiltroTexto(
+    fonte?.campos?.tamanho,
+    filtros?.tamanho,
+    filtros?.tamanhos
+  );
+
+  aplicarFiltroTexto(
+    fonte?.campos?.material,
+    filtros?.material,
+    filtros?.materiais
+  );
+
+  aplicarFiltroTexto(
+    fonte?.campos?.genero,
+    filtros?.genero,
+    filtros?.generos
+  );
+
+  const nome = normalizarFiltroTexto(
+    filtros?.nome
+  );
+
+  if (
+    nome &&
+    fonte?.campos?.nome
+  ) {
+    consulta = consulta.ilike(
+      fonte.campos.nome,
+      `%${nome}%`
+    );
+  }
+
   const status =
     normalizarFiltroTexto(
       filtros?.statusEstoque ||
@@ -677,9 +766,8 @@ function validarDefinicao(
 
   if (!definicao.valido) {
     throw new Error(
-      `Definição de consulta inválida: ${
-        definicao.motivo ||
-        "motivo não informado"
+      `Definição de consulta inválida: ${definicao.motivo ||
+      "motivo não informado"
       }`
     );
   }
@@ -730,7 +818,7 @@ class QueryExecutor {
       }
 
       switch (
-        consulta.tipo
+      consulta.tipo
       ) {
         case "buscar_ultima_live": {
           contexto.live =
@@ -746,8 +834,8 @@ class QueryExecutor {
             await buscarUltimasLives(
               supabase,
               consulta?.limite ||
-                definicao?.parametros
-                  ?.limite
+              definicao?.parametros
+                ?.limite
             );
 
           break;
@@ -786,7 +874,7 @@ class QueryExecutor {
             await buscarVendasPorPeriodo(
               supabase,
               consulta.periodo ||
-                definicao.periodo
+              definicao.periodo
             );
 
           break;
@@ -811,40 +899,25 @@ class QueryExecutor {
         }
 
         case "buscar_pecas_estoque": {
-  const filtrosEstoque = {
-    ...(
-      definicao?.filtros ||
-      {}
-    ),
-    ...(
-      consulta?.filtros ||
-      {}
-    ),
-  };
+          const filtrosEstoque = {
+            ...(
+              definicao?.filtros ||
+              {}
+            ),
+            ...(
+              consulta?.filtros ||
+              {}
+            ),
+          };
 
-  contexto.pecas =
-    await buscarPecasEstoque(
-      supabase,
-      filtrosEstoque
-    );
+          contexto.pecas =
+            await buscarPecasEstoque(
+              supabase,
+              filtrosEstoque
+            );
 
-  console.log(
-    "Primeira peça do estoque:",
-    contexto.pecas?.[0]
-  );
-
-  console.log(
-    "Quantidade de peças retornadas:",
-    contexto.pecas?.length
-  );
-
-  console.log(
-    "Filtros usados na consulta:",
-    filtrosEstoque
-  );
-
-  break;
-}
+          break;
+        }
 
         default:
           throw new Error(

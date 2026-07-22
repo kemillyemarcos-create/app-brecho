@@ -135,15 +135,46 @@ function prepararEtiquetaParaImpressao(
     elementoClonado
   );
 
+  /*
+   * Cada wrapper continuará representando
+   * uma página individual de etiqueta.
+   */
+  elementoClonado.style.width =
+    LARGURA_ETIQUETA;
+
+  elementoClonado.style.height =
+    ALTURA_ETIQUETA;
+
+  elementoClonado.style.minWidth =
+    LARGURA_ETIQUETA;
+
+  elementoClonado.style.maxWidth =
+    LARGURA_ETIQUETA;
+
+  elementoClonado.style.minHeight =
+    ALTURA_ETIQUETA;
+
+  elementoClonado.style.maxHeight =
+    ALTURA_ETIQUETA;
+
+  elementoClonado.style.margin = "0";
+  elementoClonado.style.padding = "0";
+  elementoClonado.style.border = "0";
+  elementoClonado.style.borderRadius = "0";
+  elementoClonado.style.boxShadow = "none";
+  elementoClonado.style.overflow = "hidden";
+
   return elementoClonado.outerHTML;
 }
 
 function criarHtmlImpressao({
   etiquetasHtml,
   imprimirAutomaticamente,
+  quantidadeEtiquetas,
 }) {
   return `
     <!DOCTYPE html>
+
     <html lang="pt-BR">
       <head>
         <meta charset="UTF-8" />
@@ -158,9 +189,20 @@ function criarHtmlImpressao({
           content="yes"
         />
 
-        <title>Etiquetas K.Chic</title>
+        <!--
+          O título fica vazio para não exibir
+          "Etiquetas K.Chic" no cabeçalho do navegador.
+        -->
+        <title></title>
 
         <style>
+          /*
+           * Cada página do documento tem exatamente
+           * o tamanho de uma etiqueta.
+           *
+           * Ao selecionar várias páginas por folha,
+           * o navegador distribuirá apenas as etiquetas.
+           */
           @page {
             size: ${LARGURA_ETIQUETA} ${ALTURA_ETIQUETA};
             margin: 0;
@@ -174,7 +216,9 @@ function criarHtmlImpressao({
           body {
             margin: 0;
             padding: 0;
+
             min-height: 100%;
+
             background: #f3f4f6;
 
             font-family:
@@ -192,9 +236,11 @@ function criarHtmlImpressao({
 
           .barra-impressao {
             position: fixed;
+
             top: 0;
             left: 0;
             right: 0;
+
             z-index: 9999;
 
             min-height: 64px;
@@ -204,13 +250,16 @@ function criarHtmlImpressao({
             justify-content: space-between;
 
             gap: 12px;
+
             padding:
               max(12px, env(safe-area-inset-top))
               16px
               12px;
 
             background: #ffffff;
-            border-bottom: 1px solid #e5e7eb;
+
+            border-bottom:
+              1px solid #e5e7eb;
 
             box-shadow:
               0 4px 16px rgba(0, 0, 0, 0.08);
@@ -271,6 +320,49 @@ function criarHtmlImpressao({
             background: #2563eb;
           }
 
+          .aviso-configuracao {
+            width: min(
+              calc(100% - 28px),
+              680px
+            );
+
+            margin: 16px auto 0;
+            padding: 12px 14px;
+
+            font-size: 13px;
+            line-height: 1.45;
+
+            color: #374151;
+            background: #ffffff;
+
+            border:
+              1px solid #e5e7eb;
+
+            border-radius: 10px;
+          }
+
+          .aviso-configuracao strong {
+            color: #111827;
+          }
+
+          .aviso-mobile {
+            display: none;
+
+            margin: 12px 14px 0;
+            padding: 11px 13px;
+
+            font-size: 13px;
+            line-height: 1.4;
+
+            color: #92400e;
+            background: #fffbeb;
+
+            border:
+              1px solid #fde68a;
+
+            border-radius: 10px;
+          }
+
           .area-visualizacao {
             width: 100%;
 
@@ -280,9 +372,16 @@ function criarHtmlImpressao({
             padding:
               18px
               14px
-              calc(24px + env(safe-area-inset-bottom));
+              calc(
+                24px +
+                env(safe-area-inset-bottom)
+              );
           }
 
+          /*
+           * Na visualização normal, as etiquetas
+           * aparecem uma embaixo da outra.
+           */
           .lista-etiquetas-impressao {
             display: flex;
             flex-direction: column;
@@ -292,6 +391,7 @@ function criarHtmlImpressao({
 
             margin: 0;
             padding: 0;
+
             gap: 8px;
 
             background: #ffffff;
@@ -304,14 +404,23 @@ function criarHtmlImpressao({
             display: block;
             position: relative;
 
-            width: ${LARGURA_ETIQUETA} !important;
-            height: ${ALTURA_ETIQUETA} !important;
+            width:
+              ${LARGURA_ETIQUETA} !important;
 
-            min-width: ${LARGURA_ETIQUETA} !important;
-            max-width: ${LARGURA_ETIQUETA} !important;
+            height:
+              ${ALTURA_ETIQUETA} !important;
 
-            min-height: ${ALTURA_ETIQUETA} !important;
-            max-height: ${ALTURA_ETIQUETA} !important;
+            min-width:
+              ${LARGURA_ETIQUETA} !important;
+
+            max-width:
+              ${LARGURA_ETIQUETA} !important;
+
+            min-height:
+              ${ALTURA_ETIQUETA} !important;
+
+            max-height:
+              ${ALTURA_ETIQUETA} !important;
 
             margin: 0 !important;
             padding: 0 !important;
@@ -322,36 +431,48 @@ function criarHtmlImpressao({
 
             border: 0 !important;
             border-radius: 0 !important;
+            box-shadow: none !important;
 
             box-sizing: border-box !important;
 
-            break-inside: avoid-page !important;
-            page-break-inside: avoid !important;
+            break-inside:
+              avoid-page !important;
+
+            page-break-inside:
+              avoid !important;
           }
 
-          .pagina-etiqueta-rolo > .etiqueta,
-          .pagina-etiqueta-rolo > .etiqueta-termica-37x58,
+          .pagina-etiqueta-rolo >
+            .etiqueta,
+          .pagina-etiqueta-rolo >
+            .etiqueta-termica-37x58,
           .etiqueta,
           .etiqueta-termica-37x58 {
             display: grid !important;
 
-            width: ${LARGURA_ETIQUETA} !important;
-            height: ${ALTURA_ETIQUETA} !important;
+            width:
+              ${LARGURA_ETIQUETA} !important;
 
-            min-width: ${LARGURA_ETIQUETA} !important;
-            max-width: ${LARGURA_ETIQUETA} !important;
+            height:
+              ${ALTURA_ETIQUETA} !important;
 
-            min-height: ${ALTURA_ETIQUETA} !important;
-            max-height: ${ALTURA_ETIQUETA} !important;
+            min-width:
+              ${LARGURA_ETIQUETA} !important;
+
+            max-width:
+              ${LARGURA_ETIQUETA} !important;
+
+            min-height:
+              ${ALTURA_ETIQUETA} !important;
+
+            max-height:
+              ${ALTURA_ETIQUETA} !important;
 
             margin: 0 !important;
 
             overflow: hidden !important;
 
             background: #ffffff !important;
-
-            border: 0 !important;
-            border-radius: 0 !important;
 
             box-sizing: border-box !important;
           }
@@ -360,30 +481,13 @@ function criarHtmlImpressao({
             image-rendering: auto;
           }
 
-          .pagina-etiqueta-rolo img[alt="QR Code"] {
+          .pagina-etiqueta-rolo
+            img[alt="QR Code"] {
             display: block !important;
+
             margin: 0 auto !important;
+
             object-fit: contain !important;
-          }
-
-          .aviso-mobile {
-            display: none;
-
-            margin:
-              0
-              14px
-              10px;
-
-            padding: 11px 13px;
-
-            font-size: 13px;
-            line-height: 1.4;
-
-            color: #92400e;
-            background: #fffbeb;
-
-            border: 1px solid #fde68a;
-            border-radius: 10px;
           }
 
           @media (max-width: 767px) {
@@ -396,6 +500,8 @@ function criarHtmlImpressao({
             }
 
             .barra-impressao {
+              position: absolute;
+
               align-items: stretch;
               flex-direction: column;
 
@@ -422,10 +528,24 @@ function criarHtmlImpressao({
           }
 
           @media print {
+            @page {
+              size:
+                ${LARGURA_ETIQUETA}
+                ${ALTURA_ETIQUETA};
+
+              margin: 0 !important;
+            }
+
             html,
             body {
-              width: ${LARGURA_ETIQUETA} !important;
-              min-width: ${LARGURA_ETIQUETA} !important;
+              width:
+                ${LARGURA_ETIQUETA} !important;
+
+              min-width:
+                ${LARGURA_ETIQUETA} !important;
+
+              height: auto !important;
+              min-height: 0 !important;
 
               margin: 0 !important;
               padding: 0 !important;
@@ -433,54 +553,108 @@ function criarHtmlImpressao({
               overflow: visible !important;
 
               background: #ffffff !important;
+
+              -webkit-print-color-adjust:
+                exact !important;
+
+              print-color-adjust:
+                exact !important;
             }
 
+            body {
+              padding-top: 0 !important;
+            }
+
+            /*
+             * Estes elementos existem apenas
+             * na tela e nunca serão impressos.
+             */
             .barra-impressao,
-            .aviso-mobile {
+            .aviso-mobile,
+            .aviso-configuracao {
               display: none !important;
             }
 
             .area-visualizacao {
               display: block !important;
 
-              width: ${LARGURA_ETIQUETA} !important;
+              width:
+                ${LARGURA_ETIQUETA} !important;
+
+              min-width:
+                ${LARGURA_ETIQUETA} !important;
 
               margin: 0 !important;
               padding: 0 !important;
 
               overflow: visible !important;
+
+              background: #ffffff !important;
             }
 
             .lista-etiquetas-impressao {
               display: block !important;
 
-              width: ${LARGURA_ETIQUETA} !important;
-              min-width: ${LARGURA_ETIQUETA} !important;
+              width:
+                ${LARGURA_ETIQUETA} !important;
+
+              min-width:
+                ${LARGURA_ETIQUETA} !important;
 
               margin: 0 !important;
               padding: 0 !important;
+
               gap: 0 !important;
 
               overflow: visible !important;
 
               background: #ffffff !important;
+
+              border: 0 !important;
               box-shadow: none !important;
             }
 
+            /*
+             * Cada etiqueta representa uma página.
+             *
+             * Não transformar esta lista em grade A4.
+             * A distribuição por folha será feita pelo
+             * navegador na opção "Páginas por folha".
+             */
             .pagina-etiqueta-rolo {
-              width: ${LARGURA_ETIQUETA} !important;
-              height: ${ALTURA_ETIQUETA} !important;
+              display: block !important;
+              position: relative !important;
 
-              min-width: ${LARGURA_ETIQUETA} !important;
-              max-width: ${LARGURA_ETIQUETA} !important;
+              width:
+                ${LARGURA_ETIQUETA} !important;
 
-              min-height: ${ALTURA_ETIQUETA} !important;
-              max-height: ${ALTURA_ETIQUETA} !important;
+              height:
+                ${ALTURA_ETIQUETA} !important;
+
+              min-width:
+                ${LARGURA_ETIQUETA} !important;
+
+              max-width:
+                ${LARGURA_ETIQUETA} !important;
+
+              min-height:
+                ${ALTURA_ETIQUETA} !important;
+
+              max-height:
+                ${ALTURA_ETIQUETA} !important;
 
               margin: 0 !important;
               padding: 0 !important;
 
               overflow: hidden !important;
+
+              background: #ffffff !important;
+
+              border: 0 !important;
+              border-radius: 0 !important;
+              box-shadow: none !important;
+
+              box-sizing: border-box !important;
 
               break-before: auto !important;
               page-break-before: auto !important;
@@ -496,6 +670,57 @@ function criarHtmlImpressao({
               break-after: auto !important;
               page-break-after: auto !important;
             }
+
+            .pagina-etiqueta-rolo >
+              .etiqueta,
+            .pagina-etiqueta-rolo >
+              .etiqueta-termica-37x58,
+            .etiqueta,
+            .etiqueta-termica-37x58 {
+              display: grid !important;
+
+              width:
+                ${LARGURA_ETIQUETA} !important;
+
+              height:
+                ${ALTURA_ETIQUETA} !important;
+
+              min-width:
+                ${LARGURA_ETIQUETA} !important;
+
+              max-width:
+                ${LARGURA_ETIQUETA} !important;
+
+              min-height:
+                ${ALTURA_ETIQUETA} !important;
+
+              max-height:
+                ${ALTURA_ETIQUETA} !important;
+
+              margin: 0 !important;
+
+              overflow: hidden !important;
+
+              background: #ffffff !important;
+
+              box-sizing: border-box !important;
+
+              break-inside: avoid !important;
+              page-break-inside: avoid !important;
+            }
+
+            .pagina-etiqueta-rolo img {
+              image-rendering: auto;
+            }
+
+            .pagina-etiqueta-rolo
+              img[alt="QR Code"] {
+              display: block !important;
+
+              margin: 0 auto !important;
+
+              object-fit: contain !important;
+            }
           }
         </style>
       </head>
@@ -506,7 +731,12 @@ function criarHtmlImpressao({
             <strong>Etiquetas K.Chic</strong>
 
             <span>
-              Use os botões ao lado para imprimir ou voltar.
+              ${quantidadeEtiquetas}
+              ${
+                quantidadeEtiquetas === 1
+                  ? "etiqueta preparada"
+                  : "etiquetas preparadas"
+              }.
             </span>
           </div>
 
@@ -530,9 +760,19 @@ function criarHtmlImpressao({
         </header>
 
         <div class="aviso-mobile">
-          No iPhone, toque em <strong>Imprimir</strong>.
-          Depois escolha a impressora ou use o menu de
-          compartilhamento do Safari.
+          No iPhone, toque em
+          <strong>Imprimir</strong>
+          e selecione a impressora desejada.
+        </div>
+
+        <div class="aviso-configuracao">
+          Para colocar várias etiquetas em uma folha,
+          selecione a quantidade desejada em
+          <strong>Páginas por folha</strong>.
+          Também selecione
+          <strong>Margens: nenhuma</strong>
+          e desative
+          <strong>Cabeçalhos e rodapés</strong>.
         </div>
 
         <div class="area-visualizacao">
@@ -544,13 +784,19 @@ function criarHtmlImpressao({
         <script>
           (() => {
             const imprimirAutomaticamente =
-              ${JSON.stringify(imprimirAutomaticamente)};
+              ${JSON.stringify(
+                imprimirAutomaticamente
+              )};
 
             const botaoImprimir =
-              document.getElementById("botao-imprimir");
+              document.getElementById(
+                "botao-imprimir"
+              );
 
             const botaoVoltar =
-              document.getElementById("botao-voltar");
+              document.getElementById(
+                "botao-voltar"
+              );
 
             let imprimindo = false;
 
@@ -602,28 +848,27 @@ function criarHtmlImpressao({
               voltarAoSistema
             );
 
-            window.addEventListener("afterprint", () => {
-              imprimindo = false;
+            window.addEventListener(
+              "afterprint",
+              () => {
+                imprimindo = false;
 
-              /*
-               * Em desktop, a aba normalmente pode ser fechada.
-               * No Safari móvel ela continuará aberta com o botão Voltar.
-               */
-              const dispositivoMovel =
-                /android|iphone|ipad|ipod|mobile/i.test(
-                  navigator.userAgent || ""
-                );
+                const mobile =
+                  /android|iphone|ipad|ipod|mobile/i.test(
+                    navigator.userAgent || ""
+                  );
 
-              if (!dispositivoMovel) {
-                window.setTimeout(() => {
-                  try {
-                    window.close();
-                  } catch (error) {
-                    console.error(error);
-                  }
-                }, 250);
+                if (!mobile) {
+                  window.setTimeout(() => {
+                    try {
+                      window.close();
+                    } catch (error) {
+                      console.error(error);
+                    }
+                  }, 250);
+                }
               }
-            });
+            );
 
             if (imprimirAutomaticamente) {
               window.setTimeout(
@@ -672,8 +917,8 @@ export default async function imprimirEtiquetas() {
   }
 
   /*
-   * Precisa ser chamado imediatamente após o clique.
-   * Isso reduz bloqueios de pop-up no Safari e Chrome.
+   * A janela é aberta imediatamente após o clique
+   * para reduzir o bloqueio de pop-up.
    */
   const janelaImpressao = window.open(
     "",
@@ -705,20 +950,28 @@ export default async function imprimirEtiquetas() {
     const html = criarHtmlImpressao({
       etiquetasHtml,
       imprimirAutomaticamente: !mobile,
+      quantidadeEtiquetas:
+        etiquetasOriginais.length,
     });
 
     janelaImpressao.document.open();
     janelaImpressao.document.write(html);
     janelaImpressao.document.close();
 
-    await aguardarDocumento(janelaImpressao);
-    await aguardarImagens(janelaImpressao);
+    await aguardarDocumento(
+      janelaImpressao
+    );
+
+    await aguardarImagens(
+      janelaImpressao
+    );
 
     janelaImpressao.focus();
 
     return {
       ok: true,
-      quantidade: etiquetasOriginais.length,
+      quantidade:
+        etiquetasOriginais.length,
       dispositivoMovel: mobile,
     };
   } catch (error) {

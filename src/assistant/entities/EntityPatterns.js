@@ -188,6 +188,82 @@ const EntityPatterns = {
     },
 
     {
+    id: "listar_pecas",
+    termos: [
+        "listar",
+        "liste",
+        "listar pecas",
+        "listar peças",
+        "listar produtos",
+        "mostrar",
+        "mostre",
+        "mostrar pecas",
+        "mostrar peças",
+        "mostrar produtos",
+        "quais sao",
+        "quais são",
+        "quero ver",
+        "ver pecas",
+        "ver peças",
+        "exibir",
+        "exiba",
+        "me mostre",
+        "me mostra",
+        "listar itens",
+        "mostrar itens",
+        "ver itens",
+        "quais itens",
+        "quais produtos",
+        "mostrar tudo",
+        "listar tudo"
+    ]
+},
+
+{
+    id: "listar_marcas",
+    termos: [
+        "quais marcas",
+        "listar marcas",
+        "mostrar marcas",
+        "marcas disponíveis",
+        "marcas disponiveis"
+    ]
+},
+
+{
+    id: "listar_categorias",
+    termos: [
+        "quais categorias",
+        "listar categorias",
+        "mostrar categorias",
+        "categorias disponiveis",
+        "categorias disponíveis"
+    ]
+},
+
+{
+    id: "listar_tamanhos",
+    termos: [
+        "quais tamanhos",
+        "listar tamanhos",
+        "mostrar tamanhos",
+        "tamanhos disponiveis",
+        "tamanhos disponíveis"
+    ]
+},
+
+{
+    id: "listar_cores",
+    termos: [
+        "quais cores",
+        "listar cores",
+        "mostrar cores",
+        "cores disponiveis",
+        "cores disponíveis"
+    ]
+},
+    
+    {
       id: "quantidade",
       termos: [
         "quantas",

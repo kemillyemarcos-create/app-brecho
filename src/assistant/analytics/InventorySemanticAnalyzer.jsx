@@ -128,6 +128,26 @@ const TERMOS_IGNORADOS = new Set([
   "temos",
 ]);
 
+const TAMANHOS = [
+  "PP",
+  "P",
+  "M",
+  "G",
+  "GG",
+  "XG",
+  "XGG",
+  "34",
+  "36",
+  "38",
+  "40",
+  "42",
+  "44",
+  "46",
+  "48",
+  "50",
+  "52",
+];
+
 function removerAcentos(valor = "") {
   return String(valor)
     .normalize("NFD")
@@ -215,8 +235,82 @@ function padronizarCategoria(categoria) {
   return (
     mapa[categoria] ||
     categoria.charAt(0).toUpperCase() +
-      categoria.slice(1)
+    categoria.slice(1)
   );
+}
+
+function padronizarCor(cor) {
+  if (!cor) {
+    return null;
+  }
+
+  const chave =
+    normalizarTextoEstoque(cor);
+
+  const mapa = {
+    amarela: "Amarelo",
+    amarelo: "Amarelo",
+
+    branca: "Branco",
+    branco: "Branco",
+
+    dourada: "Dourado",
+    dourado: "Dourado",
+
+    prata: "Prata",
+    prateada: "Prata",
+    prateado: "Prata",
+
+    preta: "Preto",
+    preto: "Preto",
+
+    roxa: "Roxo",
+    roxo: "Roxo",
+
+    vermelha: "Vermelho",
+    vermelho: "Vermelho",
+
+    azul: "Azul",
+    bege: "Bege",
+    bordo: "Bordô",
+    cinza: "Cinza",
+    coral: "Coral",
+    creme: "Creme",
+    laranja: "Laranja",
+    lilas: "Lilás",
+    marrom: "Marrom",
+    nude: "Nude",
+    "off white": "Off White",
+    rosa: "Rosa",
+    terracota: "Terracota",
+    verde: "Verde",
+    vinho: "Vinho",
+  };
+
+  return (
+    mapa[chave] ||
+    chave.charAt(0).toUpperCase() +
+    chave.slice(1)
+  );
+}
+
+function extrairTamanhoObservacao(observacao = "") {
+  const textoNormalizado =
+    normalizarTextoEstoque(observacao);
+
+  if (!textoNormalizado) {
+    return null;
+  }
+
+  const tamanhoEncontrado =
+    encontrarTermo(
+      textoNormalizado,
+      TAMANHOS
+    );
+
+  return tamanhoEncontrado
+    ? String(tamanhoEncontrado).toUpperCase()
+    : null;
 }
 
 function padronizarValor(valor) {
@@ -348,7 +442,7 @@ export function analisarNomePeca(
       ),
 
     cor:
-      padronizarValor(
+      padronizarCor(
         corEncontrada
       ),
 
@@ -379,11 +473,25 @@ export function analisarPecaEstoque(
     peca?.produto ||
     "";
 
+  const observacao =
+    peca?.observacao ||
+    peca?.obs ||
+    "";
+
+  const analiseNome =
+    analisarNomePeca(nome);
+
   return {
     ...peca,
 
-    analiseEstoque:
-      analisarNomePeca(nome),
+    analiseEstoque: {
+      ...analiseNome,
+
+      tamanho:
+        extrairTamanhoObservacao(
+          observacao
+        ),
+    },
   };
 }
 
@@ -399,6 +507,47 @@ export function analisarListaPecasEstoque(
   );
 }
 
+function normalizarListaFiltros(
+  valorSingular,
+  valoresPlurais
+) {
+  const lista = [
+    ...(Array.isArray(valoresPlurais) ? valoresPlurais : []),
+    ...(valorSingular ? [valorSingular] : []),
+  ].filter(Boolean);
+
+  return Array.from(new Set(lista));
+}
+
+/*
+ * Verifica se o valor da peça corresponde a pelo menos
+ * um dos valores informados no mesmo atributo.
+ *
+ * Regra:
+ * - OR dentro do mesmo atributo;
+ * - AND entre atributos diferentes.
+ */
+function correspondeAAlgumValor(
+  valorPeca,
+  valoresFiltro = [],
+  comparador = valoresCorrespondem
+) {
+  if (
+    !Array.isArray(valoresFiltro) ||
+    valoresFiltro.length === 0
+  ) {
+    return true;
+  }
+
+  return valoresFiltro.some(
+    (valorFiltro) =>
+      comparador(
+        valorPeca,
+        valorFiltro
+      )
+  );
+}
+
 export function pecaCorrespondeAosFiltros(
   peca = {},
   filtros = {}
@@ -411,50 +560,92 @@ export function pecaCorrespondeAosFiltros(
   const analise =
     analisada.analiseEstoque;
 
+  const tamanhos =
+    normalizarListaFiltros(
+      filtros?.tamanho,
+      filtros?.tamanhos
+    );
+
   if (
-    !marcaCorresponde(
+    !correspondeAAlgumValor(
+      analise.tamanho,
+      tamanhos
+    )
+  ) {
+    return false;
+  }
+
+  const marcas =
+    normalizarListaFiltros(
+      filtros?.marca,
+      filtros?.marcas
+    );
+
+  if (
+    !correspondeAAlgumValor(
       analise.marca,
-      filtros?.marca
+      marcas,
+      marcaCorresponde
     )
   ) {
     return false;
   }
 
+  const categorias =
+    normalizarListaFiltros(
+      filtros?.categoria,
+      filtros?.categorias
+    );
+
   if (
-    filtros?.categoria &&
-    !valoresCorrespondem(
+    !correspondeAAlgumValor(
       analise.categoria,
-      filtros.categoria
+      categorias
     )
   ) {
     return false;
   }
 
+  const cores =
+    normalizarListaFiltros(
+      filtros?.cor,
+      filtros?.cores
+    );
+
   if (
-    filtros?.cor &&
-    !valoresCorrespondem(
-      analise.cor,
-      filtros.cor
+    !correspondeAAlgumValor(
+      padronizarCor(analise.cor),
+      cores.map(padronizarCor)
     )
   ) {
     return false;
   }
 
+  const materiais =
+    normalizarListaFiltros(
+      filtros?.material,
+      filtros?.materiais
+    );
+
   if (
-    filtros?.material &&
-    !valoresCorrespondem(
+    !correspondeAAlgumValor(
       analise.material,
-      filtros.material
+      materiais
     )
   ) {
     return false;
   }
 
+  const generos =
+    normalizarListaFiltros(
+      filtros?.genero,
+      filtros?.generos
+    );
+
   if (
-    filtros?.genero &&
-    !valoresCorrespondem(
+    !correspondeAAlgumValor(
       analise.genero,
-      filtros.genero
+      generos
     )
   ) {
     return false;
@@ -469,12 +660,14 @@ export function pecaCorrespondeAosFiltros(
     .filter(Boolean);
 
   return filtrosLivres.every((termo) => {
-  return (
-    textoContemTermo(
-      analise.textoNormalizado,
-      termo
-    ) ||
-    analise.textoNormalizado.includes(termo)
+    return (
+      textoContemTermo(
+        analise.textoNormalizado,
+        termo
+      ) ||
+      analise.textoNormalizado.includes(
+        termo
+      )
     );
   });
 }
@@ -490,12 +683,12 @@ export function agruparPecasPorAtributo(
       pecaOriginal?.analiseEstoque
         ? pecaOriginal
         : analisarPecaEstoque(
-            pecaOriginal
-          );
+          pecaOriginal
+        );
 
     const valor =
       peca?.analiseEstoque?.[
-        atributo
+      atributo
       ];
 
     if (!valor) {

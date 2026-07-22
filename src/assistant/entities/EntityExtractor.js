@@ -67,16 +67,16 @@ function encontrarEntidade(
 
   return melhor
     ? {
-        encontrado: true,
-        id: melhor.id,
-        pontuacao:
-          maiorPontuacao,
-      }
+      encontrado: true,
+      id: melhor.id,
+      pontuacao:
+        maiorPontuacao,
+    }
     : {
-        encontrado: false,
-        id: null,
-        pontuacao: 0,
-      };
+      encontrado: false,
+      id: null,
+      pontuacao: 0,
+    };
 }
 
 function textoContemAlgumTermo(
@@ -229,16 +229,20 @@ function extrairObjetivoComparacao(
   return null;
 }
 
-function possuiFiltroEstoque(
-  filtros = {}
-) {
+function possuiFiltroEstoque(filtros = {}) {
   return Boolean(
     filtros?.marca ||
+    filtros?.marcas ||
     filtros?.categoria ||
+    filtros?.categorias ||
     filtros?.cor ||
+    filtros?.cores ||
     filtros?.material ||
+    filtros?.materiais ||
     filtros?.genero ||
+    filtros?.generos ||
     filtros?.tamanho ||
+    filtros?.tamanhos ||
     filtros?.statusEstoque
   );
 }
@@ -436,7 +440,7 @@ function resolverOperacaoPorContexto({
   if (
     (
       operacaoDetectada ===
-        "quantidade" ||
+      "quantidade" ||
       !operacaoDetectada
     ) &&
     indicaEstoque &&
@@ -458,9 +462,9 @@ function resolverOperacaoPorContexto({
    */
   if (
     operacaoDetectada ===
-      "quantidade" &&
+    "quantidade" &&
     dominioDetectado ===
-      "estoque" &&
+    "estoque" &&
     !indicaVenda
   ) {
     return "quantidade_estoque";
@@ -479,9 +483,9 @@ function resolverPeriodoComparativo({
 }) {
   if (
     operacao ===
-      "comparar_lives" &&
+    "comparar_lives" &&
     periodo?.tipo !==
-      "ultimas_lives"
+    "ultimas_lives"
   ) {
     return {
       encontrado: true,
@@ -549,7 +553,7 @@ function resolverDominioPorOperacao({
 
   return (
     dominiosPreferenciais[
-      operacao
+    operacao
     ] ||
     dominioDetectado ||
     null
@@ -642,13 +646,13 @@ class EntityExtractor {
 
     const objetivoComparacao =
       operacao ===
-      "comparar_lives"
+        "comparar_lives"
         ? (
-            extrairObjetivoComparacao(
-              texto
-            ) ||
-            "completo"
-          )
+          extrairObjetivoComparacao(
+            texto
+          ) ||
+          "completo"
+        )
         : null;
 
     const periodoComparativo =
@@ -671,11 +675,11 @@ class EntityExtractor {
 
     const limiteFinal =
       operacao ===
-      "comparar_lives"
+        "comparar_lives"
         ? (
-            limite ||
-            5
-          )
+          limite ||
+          5
+        )
         : limite;
 
     const dominio =
