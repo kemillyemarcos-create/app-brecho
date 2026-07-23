@@ -51,6 +51,7 @@ import {
   Truck,
   CreditCard,
   Sparkles,
+  NotebookPen,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import PreviewModal from "./components/layout/PreviewModal";
@@ -62,6 +63,7 @@ import ExpedicaoSection from "./components/sections/ExpedicaoSection";
 import PendenciasSection from "./components/sections/PendenciasSection";
 import VendasSection from "./components/sections/VendasSection";
 import LivesSection from "./components/sections/LivesSection";
+import NotesSection from "./components/sections/NotesSection";
 import FaturamentoSection from "./components/sections/FaturamentoSection";
 import AssistenteVirtual from "./components/assistant/AssistenteVirtual";
 import PortalCliente from "./components/portalcliente/PortalCliente";
@@ -598,7 +600,7 @@ Qualquer dúvida, é só nos chamar! 💕`;
       let sacolinha = (sacolinhasLive || []).find(
         (item) =>
           String(item?.cliente_nome || "").trim().toLowerCase() ===
-            nomeCliente.toLowerCase() &&
+          nomeCliente.toLowerCase() &&
           String(item?.live_id || "") === String(liveEmVisualizacao.id)
       );
 
@@ -2813,6 +2815,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     { id: "vendas", label: "Vendas", icon: ShoppingBag, adminOnly: false },
     { id: "lives", label: "Lives", icon: Radio, adminOnly: false },
     { id: "clientes", label: "Clientes", icon: Users, adminOnly: false },
+    { id: "notes", label: "Notas", icon: NotebookPen, adminOnly: false, },
     { id: "expedicao", label: "Expedição", icon: Truck, adminOnly: false },
     { id: "pendencias", label: "Pendências", icon: CreditCard, adminOnly: false },
     { id: "faturamento", label: "Faturamento", icon: BarChart3, adminOnly: true },
@@ -2826,10 +2829,12 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     if (aba === "vendas") return "Vendas";
     if (aba === "lives") return "Lives";
     if (aba === "clientes") return "Clientes";
+    if (aba === "notes") return "Notas";
     if (aba === "expedicao") return "Expedição";
     if (aba === "pendencias") return "Pendências";
     if (aba === "assistente") return "Assistente Virtual";
     if (aba === "faturamento") return "Faturamento";
+
     return "Painel";
   }
 
@@ -3597,6 +3602,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                   {abaAtiva === "vendas" && "Registro de Vendas"}
                   {abaAtiva === "lives" && "Controle de Lives"}
                   {abaAtiva === "clientes" && "Cadastro de Clientes"}
+                  {abaAtiva === "notes" && "Notas"}
                   {abaAtiva === "expedicao" && "Expedição"}
                   {abaAtiva === "pendencias" && "Pendências de Pagamento"}
                   {abaAtiva === "assistente" && "Assistente Virtual"}
@@ -3840,6 +3846,10 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 clientesExpandidos={clientesExpandidos}
                 toggleExpandirCliente={toggleExpandirCliente}
               />
+            )}
+
+            {abaAtiva === "notes" && (
+              <NotesSection />
             )}
 
             {abaAtiva === "lives" && (
