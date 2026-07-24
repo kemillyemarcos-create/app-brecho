@@ -341,12 +341,60 @@ export default function VendasSection({
         });
 
     return (
-        <div style={{ display: "grid", gap: 24 }}>
-            <div style={boxGrande}>
-                <h2 style={tituloSecao}>Registro de Vendas</h2>
+        <div style={{ display: "grid", gap: isMobile ? 14 : 18 }}>
+            <div
+                style={{
+                    ...boxGrande,
+                    padding: isMobile ? 14 : 20,
+                }}
+            >
+                <div
+                    style={{
+                        display: "grid",
+                        gap: 4,
+                        marginBottom: isMobile ? 14 : 18,
+                    }}
+                >
+                    <h2
+                        style={{
+                            ...tituloSecao,
+                            margin: 0,
+                        }}
+                    >
+                        Gestão de vendas
+                    </h2>
 
-                <div className="grid-vendas" style={gridVendas}>
-                    <div style={gridForm}>
+                    <p
+                        style={{
+                            margin: 0,
+                            color: "#8d727b",
+                            fontSize: isMobile ? 12 : 13,
+                            lineHeight: 1.4,
+                        }}
+                    >
+                        Registre vendas e acompanhe a operação em tempo real.
+                    </p>
+                </div>
+
+                <div
+                    className="grid-vendas"
+                    style={{
+                        ...gridVendas,
+                        gap: isMobile ? 14 : 18,
+                        alignItems: "start",
+                    }}
+                >
+                    <div
+                        style={{
+                            ...gridForm,
+                            display: "grid",
+                            gap: 12,
+                            padding: isMobile ? 12 : 14,
+                            border: "1px solid #f1dce4",
+                            borderRadius: 16,
+                            background: "#fffafb",
+                        }}
+                    >
                         <div
                             style={{
                                 display: "grid",
@@ -355,7 +403,24 @@ export default function VendasSection({
                                 width: "100%",
                             }}
                         >
-                            <div style={{ position: "relative", width: "100%" }}>
+                            <label
+                                style={{
+                                    position: "relative",
+                                    width: "100%",
+                                    display: "grid",
+                                    gap: 6,
+                                }}
+                            >
+                                <span
+                                    style={{
+                                        fontSize: 12,
+                                        fontWeight: 800,
+                                        color: "#64748b",
+                                    }}
+                                >
+                                    Código da peça
+                                </span>
+
                                 <input
                                     style={input}
                                     placeholder="Código da peça"
@@ -433,17 +498,51 @@ export default function VendasSection({
                                         })}
                                     </div>
                                 )}
-                            </div>
+                            </label>
 
-                            <input
+                            <label
+                                style={{
+                                    display: "grid",
+                                    gap: 6,
+                                }}
+                            >
+                                <span
+                                    style={{
+                                        fontSize: 12,
+                                        fontWeight: 800,
+                                        color: "#64748b",
+                                    }}
+                                >
+                                    Valor com desconto
+                                </span>
+
+                                <input
                                 style={input}
-                                placeholder="Valor com desconto (opcional)"
+                                placeholder="Opcional"
                                 value={valorDesconto}
                                 onChange={(e) => setValorDesconto(formatarValorDescontoInput(e.target.value))}
                                 inputMode="numeric"
                             />
+                            </label>
 
-                            <div style={{ position: "relative", width: "100%" }}>
+                            <label
+                                style={{
+                                    position: "relative",
+                                    width: "100%",
+                                    display: "grid",
+                                    gap: 6,
+                                }}
+                            >
+                                <span
+                                    style={{
+                                        fontSize: 12,
+                                        fontWeight: 800,
+                                        color: "#64748b",
+                                    }}
+                                >
+                                    Cliente
+                                </span>
+
                                 <input
                                     style={input}
                                     placeholder="Nome da cliente"
@@ -513,9 +612,26 @@ export default function VendasSection({
                                         })}
                                     </div>
                                 )}
-                            </div>
+                            </label>
 
-                            <div style={{ position: "relative", width: "100%" }}>
+                            <label
+                                style={{
+                                    position: "relative",
+                                    width: "100%",
+                                    display: "grid",
+                                    gap: 6,
+                                }}
+                            >
+                                <span
+                                    style={{
+                                        fontSize: 12,
+                                        fontWeight: 800,
+                                        color: "#64748b",
+                                    }}
+                                >
+                                    Fila de espera
+                                </span>
+
                                 <input
                                     style={input}
                                     placeholder="Fila (opcional)"
@@ -585,7 +701,7 @@ export default function VendasSection({
                                         })}
                                     </div>
                                 )}
-                            </div>
+                            </label>
                         </div>
 
                         <div
@@ -623,10 +739,19 @@ export default function VendasSection({
                         style={{
                             ...previewBox,
                             minHeight: isMobile ? "auto" : undefined,
-                            padding: isMobile ? 16 : previewBox.padding,
+                            padding: isMobile ? 14 : 16,
+                            borderRadius: 16,
+                            background: "#fffafb",
                         }}
                     >
-                        <h3 style={{ marginTop: 0, marginBottom: 12 }}>Scanner</h3>
+                        <h3
+                            style={{
+                                margin: "0 0 12px",
+                                fontSize: 16,
+                            }}
+                        >
+                            Scanner
+                        </h3>
 
                         {scannerAtivo ? (
                             <div>
@@ -664,9 +789,26 @@ export default function VendasSection({
                 </div>
             </div>
 
-            <div style={boxGrande}>
-                <div style={cabecalhoSecao}>
-                    <h2 style={tituloSecao}>
+            <div
+                style={{
+                    ...boxGrande,
+                    padding: isMobile ? 14 : 20,
+                }}
+            >
+                <div
+                    style={{
+                        ...cabecalhoSecao,
+                        display: "grid",
+                        gap: 12,
+                        marginBottom: isMobile ? 14 : 18,
+                    }}
+                >
+                    <h2
+                        style={{
+                            ...tituloSecao,
+                            margin: 0,
+                        }}
+                    >
                         {liveEmVisualizacao
                             ? `Resumo por Clientes - ${liveEmVisualizacao.nome}`
                             : "Resumo por Clientes"}
@@ -730,21 +872,68 @@ export default function VendasSection({
                 </div>
 
                 {liveEmVisualizacao && (
-                    <div className="linha-resumo" style={linhaResumo}>
-                        <div style={cardResumo}>
-                            <strong>Peças da live</strong>
-                            <div style={valorResumo}>{totalPecasLive}</div>
-                        </div>
+                    <div
+                        className="linha-resumo"
+                        style={{
+                            ...linhaResumo,
+                            display: "grid",
+                            gridTemplateColumns: isMobile
+                                ? "1fr"
+                                : "repeat(3, minmax(0, 1fr))",
+                            gap: 10,
+                            marginBottom: 16,
+                        }}
+                    >
+                        {[
+                            {
+                                label: "Peças da live",
+                                value: totalPecasLive,
+                            },
+                            {
+                                label: "Faturamento",
+                                value: formatarBRL(faturamentoLive),
+                            },
+                            {
+                                label: "Lucro estimado",
+                                value: formatarBRL(lucroEstimadoLive),
+                            },
+                        ].map((resumo) => (
+                            <div
+                                key={resumo.label}
+                                style={{
+                                    ...cardResumo,
+                                    minWidth: 0,
+                                    padding: isMobile ? 13 : 15,
+                                    borderRadius: 16,
+                                    boxShadow: "none",
+                                    display: "grid",
+                                    gap: 4,
+                                }}
+                            >
+                                <span
+                                    style={{
+                                        color: "#8d727b",
+                                        fontSize: 11,
+                                        fontWeight: 800,
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.04em",
+                                    }}
+                                >
+                                    {resumo.label}
+                                </span>
 
-                        <div style={cardResumo}>
-                            <strong>Faturamento da live</strong>
-                            <div style={valorResumo}>{formatarBRL(faturamentoLive)}</div>
-                        </div>
-
-                        <div style={cardResumo}>
-                            <strong>Lucro estimado da live</strong>
-                            <div style={valorResumo}>{formatarBRL(lucroEstimadoLive)}</div>
-                        </div>
+                                <div
+                                    style={{
+                                        ...valorResumo,
+                                        margin: 0,
+                                        fontSize: isMobile ? 22 : 26,
+                                        lineHeight: 1.1,
+                                    }}
+                                >
+                                    {resumo.value}
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
 
@@ -766,7 +955,15 @@ export default function VendasSection({
                                 const expandido = !!clientesExpandidos[c.nome];
 
                                 return (
-                                    <div key={c.nome} style={{ ...cardCliente, padding: isMobile ? 13 : cardCliente.padding }}>
+                                    <div
+                                        key={c.nome}
+                                        style={{
+                                            ...cardCliente,
+                                            padding: isMobile ? 12 : 14,
+                                            borderRadius: 16,
+                                            boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
+                                        }}
+                                    >
                                         <div
                                             style={
                                                 isMobile
@@ -895,7 +1092,15 @@ export default function VendasSection({
                                         {expandido && (
                                             <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
                                                 {c.itens.map((item, index) => (
-                                                    <div key={`${item.codigo}-${index}`} style={itemCliente}>
+                                                    <div
+                                                        key={`${item.codigo}-${index}`}
+                                                        style={{
+                                                            ...itemCliente,
+                                                            padding: isMobile ? 10 : 12,
+                                                            borderRadius: 12,
+                                                            background: "#fffafb",
+                                                        }}
+                                                    >
                                                         <div>
                                                             <strong>Peça:</strong> {item.nomePeca}
                                                         </div>

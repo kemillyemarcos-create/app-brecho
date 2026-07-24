@@ -9,12 +9,12 @@ import {
   NOTE_CATEGORIES,
   NOTE_TYPES,
   NOTES_MESSAGES,
-} from "../constants/notesConstants";
+} from "../constants/notesConstants.js";
 
 import {
   createTemporaryItem,
   normalizeNote,
-} from "../utils/notesUtils";
+} from "../utils/notesUtils.js";
 
 import NoteList from "./NoteList.jsx";
 
@@ -251,6 +251,7 @@ export default function NoteEditor({
 
   return (
     <div
+      className="note-editor-overlay"
       style={styles.overlay}
       role="presentation"
       onMouseDown={(event) => {
@@ -263,7 +264,101 @@ export default function NoteEditor({
         }
       }}
     >
+      <style>{`
+        @media (max-width: 767px) {
+          .note-editor-overlay {
+            align-items: flex-end !important;
+            padding: 0 !important;
+          }
+
+          .note-editor-modal {
+            width: 100% !important;
+            max-height: 94dvh !important;
+            border-radius: 22px 22px 0 0 !important;
+          }
+
+          .note-editor-form {
+            gap: 15px !important;
+            padding: 18px 18px max(18px, env(safe-area-inset-bottom)) !important;
+          }
+
+          .note-editor-header {
+            gap: 14px !important;
+          }
+
+          .note-editor-title {
+            font-size: 22px !important;
+            line-height: 1.25 !important;
+          }
+
+          .note-editor-close {
+            width: 40px !important;
+            height: 40px !important;
+            border-radius: 11px !important;
+          }
+
+          .note-editor-grid {
+            grid-template-columns: minmax(0, 1fr) !important;
+          }
+
+          .note-editor-input {
+            min-height: 46px !important;
+            font-size: 16px !important;
+          }
+
+          .note-editor-textarea {
+            min-height: 120px !important;
+            font-size: 16px !important;
+          }
+
+          .note-editor-flags {
+            flex-direction: column !important;
+            gap: 10px !important;
+          }
+
+          .note-editor-checkbox-label {
+            width: 100% !important;
+            min-height: 42px !important;
+            white-space: nowrap !important;
+          }
+
+          .note-editor-checkbox-label input {
+            flex-shrink: 0 !important;
+            width: 22px !important;
+            height: 22px !important;
+            margin: 0 !important;
+          }
+
+          .note-editor-items-header {
+            flex-direction: column !important;
+          }
+
+          .note-editor-add-item {
+            width: 100% !important;
+            min-height: 44px !important;
+          }
+
+          .note-editor-footer {
+            position: sticky !important;
+            bottom: 0 !important;
+            z-index: 2 !important;
+            flex-direction: column-reverse !important;
+            flex-wrap: nowrap !important;
+            margin: 0 -18px -18px !important;
+            padding: 14px 18px max(18px, env(safe-area-inset-bottom)) !important;
+            background: #fff !important;
+          }
+
+          .note-editor-footer button {
+            width: 100% !important;
+            min-height: 46px !important;
+            font-size: 15px !important;
+          }
+        }
+      `}</style>
+
       <div
+        className="note-editor-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="note-editor-title"
@@ -271,10 +366,14 @@ export default function NoteEditor({
         style={styles.modal}
       >
         <form
+          className="note-editor-form"
           onSubmit={handleSubmit}
           style={styles.form}
         >
-          <header style={styles.header}>
+          <header
+            className="note-editor-header"
+            style={styles.header}
+          >
             <div style={styles.headerText}>
               <span style={styles.eyebrow}>
                 {draft.id
@@ -284,6 +383,7 @@ export default function NoteEditor({
 
               <h2
                 id="note-editor-title"
+                className="note-editor-title"
                 style={styles.title}
               >
                 {draft.id
@@ -305,6 +405,7 @@ export default function NoteEditor({
               type="button"
               onClick={handleClose}
               disabled={saving}
+              className="note-editor-close"
               style={{
                 ...styles.closeButton,
                 ...(saving
@@ -318,7 +419,10 @@ export default function NoteEditor({
             </button>
           </header>
 
-          <div style={styles.grid}>
+          <div
+            className="note-editor-grid"
+            style={styles.grid}
+          >
             <label style={styles.field}>
               <span style={styles.label}>
                 Título
@@ -335,6 +439,7 @@ export default function NoteEditor({
                     event.target.value
                   )
                 }
+                className="note-editor-input"
                 style={styles.input}
                 placeholder="Ex.: Entregas da semana"
                 maxLength={150}
@@ -355,6 +460,7 @@ export default function NoteEditor({
                     event.target.value
                   )
                 }
+                className="note-editor-input"
                 style={styles.input}
               >
                 {categories.map(
@@ -385,13 +491,18 @@ export default function NoteEditor({
                   event.target.value
                 )
               }
+              className="note-editor-textarea"
               style={styles.textarea}
               placeholder="Adicione informações gerais sobre esta nota..."
             />
           </label>
 
-          <div style={styles.flags}>
+          <div
+            className="note-editor-flags"
+            style={styles.flags}
+          >
             <label
+              className="note-editor-checkbox-label"
               style={styles.checkboxLabel}
             >
               <input
@@ -410,6 +521,7 @@ export default function NoteEditor({
             </label>
 
             <label
+              className="note-editor-checkbox-label"
               style={styles.checkboxLabel}
             >
               <input
@@ -429,7 +541,10 @@ export default function NoteEditor({
           </div>
 
           <section style={styles.itemsSection}>
-            <div style={styles.itemsHeader}>
+            <div
+              className="note-editor-items-header"
+              style={styles.itemsHeader}
+            >
               <div>
                 <span style={styles.label}>
                   Lista de itens
@@ -445,6 +560,7 @@ export default function NoteEditor({
                 type="button"
                 onClick={addItem}
                 disabled={saving}
+                className="note-editor-add-item"
                 style={{
                   ...styles.secondaryButton,
                   ...(saving
@@ -474,7 +590,10 @@ export default function NoteEditor({
             </div>
           ) : null}
 
-          <footer style={styles.footer}>
+          <footer
+            className="note-editor-footer"
+            style={styles.footer}
+          >
             <button
               type="button"
               onClick={handleClose}

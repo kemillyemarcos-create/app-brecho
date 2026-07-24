@@ -48,7 +48,7 @@ function BotaoIcone({
         minWidth: full ? "100%" : 40,
         width: full ? "100%" : "auto",
         padding: full ? "9px 13px" : "9px 12px",
-        borderRadius: 14,
+        borderRadius: 13,
         border: active ? `1px solid ${color}` : "1px solid #e2e8f0",
         background: active ? color : "#fff",
         color: active ? "#fff" : "#334155",
@@ -72,36 +72,64 @@ function BotaoIcone({
   );
 }
 
-function ResumoCard({ icon, label, value, accent = "#8f2745", cardResumo, valorResumo }) {
+function ResumoCard({ icon, label, value, accent = "#8f2745", cardResumo }) {
   return (
     <div
       style={{
         ...cardResumo,
+        padding: 12,
+        borderRadius: 18,
+        border: "1px solid #eef2f7",
+        background: "#fff",
+        boxShadow: "0 2px 10px rgba(15,23,42,0.04)",
         display: "grid",
-        gridTemplateColumns: "auto 1fr",
-        gap: 12,
-        alignItems: "center",
+        gap: 6,
       }}
     >
       <div
         style={{
-          width: 38,
-          height: 38,
-          borderRadius: 14,
-          background: `${accent}14`,
-          color: accent,
           display: "flex",
+          justifyContent: "space-between",
           alignItems: "center",
-          justifyContent: "center",
+          gap: 8,
         }}
       >
-        {icon}
+        <strong
+          style={{
+            fontSize: 26,
+            lineHeight: 1,
+            color: "#243746",
+          }}
+        >
+          {value}
+        </strong>
+
+        <span
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: 12,
+            background: `${accent}12`,
+            color: accent,
+            border: `1px solid ${accent}26`,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {icon}
+        </span>
       </div>
 
-      <div>
-        <strong>{label}</strong>
-        <div style={valorResumo}>{value}</div>
-      </div>
+      <span
+        style={{
+          color: "#64748b",
+          fontSize: 12.5,
+          fontWeight: 800,
+        }}
+      >
+        {label}
+      </span>
     </div>
   );
 }
@@ -253,7 +281,7 @@ export default function PendenciasSection({
     ...input,
     width: "100%",
     maxWidth: "100%",
-    minHeight: 42,
+    minHeight: 40,
     borderRadius: 14,
     boxShadow: "none",
     paddingLeft: 42,
@@ -261,11 +289,11 @@ export default function PendenciasSection({
 
   const cardPendente = {
     ...cardCliente,
-    padding: isMobile ? 14 : 18,
+    padding: isMobile ? 11 : 13,
     display: "grid",
-    gap: 12,
-    borderRadius: 20,
-    boxShadow: "0 4px 16px rgba(15,23,42,0.06)",
+    gap: 8,
+    borderRadius: 18,
+    boxShadow: "0 3px 12px rgba(15,23,42,0.05)",
     border: "1px solid #eef2f7",
   };
 
@@ -274,7 +302,7 @@ export default function PendenciasSection({
     gridTemplateColumns: isMobile
       ? "1fr"
       : "minmax(240px, 1.3fr) minmax(150px, 0.8fr) minmax(240px, 1fr) auto",
-    gap: 14,
+    gap: 10,
     alignItems: "center",
     cursor: "pointer",
   };
@@ -295,14 +323,14 @@ export default function PendenciasSection({
   });
 
   return (
-    <div style={{ display: "grid", gap: 24 }}>
+    <div style={{ display: "grid", gap: 6 }}>
       <div style={boxGrande}>
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "flex-start",
-            gap: 12,
+            gap: 8,
             flexWrap: "wrap",
           }}
         >
@@ -323,7 +351,8 @@ export default function PendenciasSection({
           className="linha-resumo"
           style={{
             ...linhaResumo,
-            marginTop: 18,
+            marginTop: 12,
+            gap: 8,
           }}
         >
           <ResumoCard
@@ -356,11 +385,16 @@ export default function PendenciasSection({
 
         <div
           style={{
+            marginTop: 12,
+            padding: isMobile ? 9 : 10,
+            border: "1px solid #eef2f7",
+            borderRadius: 16,
+            background: "#fcfdff",
+            boxShadow: "0 2px 10px rgba(15,23,42,0.04)",
             display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "minmax(280px, 420px) auto auto auto",
-            gap: 10,
+            gridTemplateColumns: isMobile ? "1fr" : "minmax(280px, 1fr) auto auto auto",
+            gap: 8,
             alignItems: "center",
-            marginTop: 18,
           }}
         >
           <div style={{ position: "relative" }}>
@@ -421,10 +455,10 @@ export default function PendenciasSection({
             alignItems: "center",
             gap: 12,
             flexWrap: "wrap",
-            marginBottom: 14,
+            marginBottom: 10,
           }}
         >
-          <h3 style={{ margin: 0, fontSize: isMobile ? 17 : 20 }}>
+          <h3 style={{ margin: 0, fontSize: isMobile ? 17 : 19 }}>
             Clientes pendentes
           </h3>
 
@@ -437,8 +471,8 @@ export default function PendenciasSection({
           <div
             style={{
               border: "1px dashed #cbd5e1",
-              borderRadius: 18,
-              padding: 22,
+              borderRadius: 16,
+              padding: 16,
               background: "#f8fafc",
               color: "#64748b",
               textAlign: "center",
@@ -464,7 +498,7 @@ export default function PendenciasSection({
                     onClick={() => toggleExpandirCliente(clienteResumo.nome)}
                   >
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                         <button
                           type="button"
                           onClick={(e) => {
@@ -508,7 +542,7 @@ export default function PendenciasSection({
                       </div>
                     </div>
 
-                    <div style={{ display: "grid", gap: 4 }}>
+                    <div style={{ display: "grid", gap: 3 }}>
                       <strong style={{ color: "#b45309", fontSize: isMobile ? 18 : 21 }}>
                         {formatarBRL(clienteResumo.total)}
                       </strong>
@@ -546,7 +580,7 @@ export default function PendenciasSection({
                   </div>
 
                   {expandido && (
-                    <div style={{ display: "grid", gap: 10, marginTop: 4 }}>
+                    <div style={{ display: "grid", gap: 8, marginTop: 2 }}>
                       <div style={{ display: "grid", gap: 8 }}>
                         {clienteResumo.itens.map((item, index) => (
                           <div

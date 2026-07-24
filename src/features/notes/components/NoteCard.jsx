@@ -1,3 +1,8 @@
+import {
+  useEffect,
+  useState,
+} from "react";
+
 import NoteList from "./NoteList.jsx";
 
 import {
@@ -5,6 +10,47 @@ import {
   getNoteProgress,
   normalizeNote,
 } from "../utils/notesUtils.js";
+
+function useIsMobile(maxWidth = 767) {
+  const getMatches = () => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    return window.matchMedia(
+      `(max-width: ${maxWidth}px)`
+    ).matches;
+  };
+
+  const [isMobile, setIsMobile] =
+    useState(getMatches);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(
+      `(max-width: ${maxWidth}px)`
+    );
+
+    const handleChange = (event) => {
+      setIsMobile(event.matches);
+    };
+
+    setIsMobile(mediaQuery.matches);
+
+    mediaQuery.addEventListener(
+      "change",
+      handleChange
+    );
+
+    return () => {
+      mediaQuery.removeEventListener(
+        "change",
+        handleChange
+      );
+    };
+  }, [maxWidth]);
+
+  return isMobile;
+}
 
 export default function NoteCard({
   note,
@@ -15,6 +61,8 @@ export default function NoteCard({
   onToggleArchive,
   onToggleItem,
 }) {
+  const isMobile = useIsMobile();
+
   const normalizedNote = normalizeNote(note);
 
   const progress = getNoteProgress(
@@ -55,6 +103,9 @@ export default function NoteCard({
     <article
       style={{
         ...styles.card,
+        ...(isMobile
+          ? styles.cardMobile
+          : {}),
         ...(normalizedNote.fixada
           ? styles.pinnedCard
           : {}),
@@ -85,7 +136,14 @@ export default function NoteCard({
             ) : null}
           </div>
 
-          <h3 style={styles.title}>
+          <h3
+            style={{
+              ...styles.title,
+              ...(isMobile
+                ? styles.titleMobile
+                : {}),
+            }}
+          >
             {normalizedNote.titulo ||
               "Nota sem título"}
           </h3>
@@ -101,6 +159,9 @@ export default function NoteCard({
           }
           style={{
             ...styles.iconButton,
+            ...(isMobile
+              ? styles.iconButtonMobile
+              : {}),
             ...(busy
               ? styles.disabledButton
               : {}),
@@ -123,7 +184,14 @@ export default function NoteCard({
       </header>
 
       {normalizedNote.conteudo ? (
-        <p style={styles.content}>
+        <p
+          style={{
+            ...styles.content,
+            ...(isMobile
+              ? styles.contentMobile
+              : {}),
+          }}
+        >
           {normalizedNote.conteudo}
         </p>
       ) : null}
@@ -167,18 +235,46 @@ export default function NoteCard({
         </div>
       ) : null}
 
-      <footer style={styles.footer}>
+      <footer
+        style={{
+          ...styles.footer,
+          ...(isMobile
+            ? styles.footerMobile
+            : {}),
+        }}
+      >
         {formattedDate ? (
-          <span style={styles.date}>
+          <span
+            style={{
+              ...styles.date,
+              ...(isMobile
+                ? styles.dateMobile
+                : {}),
+            }}
+          >
             {dateLabel} {formattedDate}
           </span>
         ) : (
-          <span style={styles.date}>
+          <span
+            style={{
+              ...styles.date,
+              ...(isMobile
+                ? styles.dateMobile
+                : {}),
+            }}
+          >
             Data não disponível
           </span>
         )}
 
-        <div style={styles.actions}>
+        <div
+          style={{
+            ...styles.actions,
+            ...(isMobile
+              ? styles.actionsMobile
+              : {}),
+          }}
+        >
           <button
             type="button"
             onClick={() =>
@@ -189,6 +285,9 @@ export default function NoteCard({
             }
             style={{
               ...styles.actionButton,
+              ...(isMobile
+                ? styles.actionButtonMobile
+                : {}),
               ...(busy
                 ? styles.disabledButton
                 : {}),
@@ -209,6 +308,9 @@ export default function NoteCard({
             }
             style={{
               ...styles.actionButton,
+              ...(isMobile
+                ? styles.actionButtonMobile
+                : {}),
               ...(busy
                 ? styles.disabledButton
                 : {}),
@@ -231,6 +333,9 @@ export default function NoteCard({
             }
             style={{
               ...styles.deleteButton,
+              ...(isMobile
+                ? styles.actionButtonMobile
+                : {}),
               ...(busy
                 ? styles.disabledButton
                 : {}),
@@ -255,6 +360,11 @@ const styles = {
     background: "#ffffff",
     boxShadow:
       "0 2px 10px rgba(38, 28, 20, 0.05)",
+  },
+
+  cardMobile: {
+    gap: 12,
+    padding: 14,
   },
 
   pinnedCard: {
@@ -307,6 +417,10 @@ const styles = {
     overflowWrap: "anywhere",
   },
 
+  titleMobile: {
+    fontSize: 17,
+  },
+
   iconButton: {
     flexShrink: 0,
     width: 34,
@@ -318,12 +432,22 @@ const styles = {
     fontSize: 19,
   },
 
+  iconButtonMobile: {
+    width: 38,
+    height: 38,
+  },
+
   content: {
     margin: 0,
     fontSize: 14,
     lineHeight: 1.5,
     whiteSpace: "pre-wrap",
     overflowWrap: "anywhere",
+  },
+
+  contentMobile: {
+    fontSize: 14,
+    lineHeight: 1.4,
   },
 
   progressArea: {
@@ -363,15 +487,32 @@ const styles = {
     paddingTop: 4,
   },
 
+  footerMobile: {
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: 9,
+  },
+
   date: {
     fontSize: 11,
     opacity: 0.6,
+  },
+
+  dateMobile: {
+    width: "100%",
+    fontSize: 11,
   },
 
   actions: {
     display: "flex",
     flexWrap: "wrap",
     gap: 7,
+  },
+
+  actionsMobile: {
+    width: "100%",
+    flexWrap: "nowrap",
+    gap: 6,
   },
 
   actionButton: {
@@ -390,6 +531,15 @@ const styles = {
     padding: "7px 10px",
     cursor: "pointer",
     fontSize: 12,
+  },
+
+  actionButtonMobile: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 40,
+    padding: "8px 6px",
+    fontSize: 12,
+    whiteSpace: "nowrap",
   },
 
   disabledButton: {

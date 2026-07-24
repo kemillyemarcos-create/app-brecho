@@ -204,7 +204,7 @@ function SectionHeader({ titulo, quantidade, aberto, onToggle, extra, icon: Icon
                 width: "100%",
                 border: "none",
                 background: "transparent",
-                padding: isMobile ? "12px 0" : "16px 0",
+                padding: isMobile ? "10px 0" : "13px 0",
                 display: "grid",
                 gridTemplateColumns: "1fr auto",
                 gap: 12,
@@ -213,7 +213,7 @@ function SectionHeader({ titulo, quantidade, aberto, onToggle, extra, icon: Icon
                 textAlign: "left",
             }}
         >
-            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                 <span
                     style={{
                         width: isMobile ? 34 : 38,
@@ -222,8 +222,8 @@ function SectionHeader({ titulo, quantidade, aberto, onToggle, extra, icon: Icon
                         display: "inline-flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        background: "#f8fafc",
-                        border: "1px solid #e2e8f0",
+                        background: "#f7dce6",
+                        border: "1px solid #ead1da",
                         color: "#8f2745",
                         flexShrink: 0,
                     }}
@@ -271,9 +271,9 @@ function EmptyState({ children }) {
     return (
         <div
             style={{
-                padding: 16,
+                padding: 14,
                 border: "1px dashed #cbd5e1",
-                borderRadius: 18,
+                borderRadius: 16,
                 background: "#f8fafc",
                 color: "#64748b",
                 textAlign: "center",
@@ -373,10 +373,10 @@ function BlocoInfo({ titulo, icon: Icon, children }) {
             style={{
                 background: "#f8fafc",
                 border: "1px solid #e2e8f0",
-                borderRadius: 18,
-                padding: 14,
+                borderRadius: 16,
+                padding: 12,
                 display: "grid",
-                gap: 10,
+                gap: 8,
             }}
         >
             <strong style={{ display: "flex", alignItems: "center", gap: 8, color: "#111827" }}>
@@ -408,8 +408,8 @@ function SacolinhaCard({
     return (
         <div
             style={{
-                padding: isMobile ? 12 : 16,
-                borderRadius: 20,
+                padding: isMobile ? 11 : 14,
+                borderRadius: 18,
                 border: vencida ? "1px solid #fecaca" : "1px solid #e5e7eb",
                 background: vencida ? "#fff7f7" : "#fff",
                 boxShadow: "0 4px 16px rgba(15,23,42,0.05)",
@@ -419,18 +419,18 @@ function SacolinhaCard({
                 style={{
                     display: "grid",
                     gridTemplateColumns: isMobile ? "1fr" : "1fr auto",
-                    gap: 12,
+                    gap: 8,
                     alignItems: "center",
                 }}
             >
-                <div style={{ display: "grid", gap: 10, minWidth: 0 }}>
+                <div style={{ display: "grid", gap: 6, minWidth: 0 }}>
                     <div style={{ display: "flex", gap: 9, alignItems: "center", minWidth: 0 }}>
                         <ExpandButton expandido={expandido} onClick={onExpandir} />
                         <div style={{ minWidth: 0 }}>
                             <strong
                                 style={{
                                     display: "block",
-                                    fontSize: isMobile ? 15 : 17,
+                                    fontSize: isMobile ? 15 : 16.5,
                                     color: "#111827",
                                     lineHeight: 1.15,
                                     wordBreak: "break-word",
@@ -444,7 +444,7 @@ function SacolinhaCard({
                         </div>
                     </div>
 
-                    <div style={{ display: "flex", gap: 7, flexWrap: "wrap", alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
                         <Badge tone={statusTone}>{statusLabel}</Badge>
                         <Badge tone="muted" icon={Boxes}>{sacolinha.quantidade || 0} peça(s)</Badge>
                         <Badge tone="primary" icon={Wallet}>{formatarBRL(sacolinha.valorTotal || 0)}</Badge>
@@ -473,7 +473,7 @@ function SacolinhaCard({
             </div>
 
             {expandido ? (
-                <div style={{ marginTop: 14 }}>
+                <div style={{ marginTop: 10 }}>
                     <ListaItensSacolinha
                         itens={itens}
                         mapaPecasPorId={mapaPecasPorId}
@@ -662,12 +662,16 @@ export default function ExpedicaoSection({
                         }
                         placeholder="Código de rastreio"
                         style={{
-                            minHeight: 40,
-                            borderRadius: 12,
-                            border: "1px solid #e2e8f0",
-                            padding: "0 12px",
+                            width: "100%",
+                            minHeight: isMobile ? 40 : 42,
+                            borderRadius: 13,
+                            border: "1px solid #dfe6ee",
+                            padding: "0 13px",
                             outline: "none",
-                            fontSize: 14,
+                            fontSize: isMobile ? 13 : 14,
+                            color: "#243746",
+                            background: "#fff",
+                            boxSizing: "border-box",
                         }}
                     />
 
@@ -681,12 +685,16 @@ export default function ExpedicaoSection({
                         }
                         placeholder="Transportadora / Correios"
                         style={{
-                            minHeight: 40,
-                            borderRadius: 12,
-                            border: "1px solid #e2e8f0",
-                            padding: "0 12px",
+                            width: "100%",
+                            minHeight: isMobile ? 40 : 42,
+                            borderRadius: 13,
+                            border: "1px solid #dfe6ee",
+                            padding: "0 13px",
                             outline: "none",
-                            fontSize: 14,
+                            fontSize: isMobile ? 13 : 14,
+                            color: "#243746",
+                            background: "#fff",
+                            boxSizing: "border-box",
                         }}
                     />
 
@@ -700,12 +708,16 @@ export default function ExpedicaoSection({
                         }
                         placeholder="Link de rastreio (opcional)"
                         style={{
-                            minHeight: 40,
-                            borderRadius: 12,
-                            border: "1px solid #e2e8f0",
-                            padding: "0 12px",
+                            width: "100%",
+                            minHeight: isMobile ? 40 : 42,
+                            borderRadius: 13,
+                            border: "1px solid #dfe6ee",
+                            padding: "0 13px",
                             outline: "none",
-                            fontSize: 14,
+                            fontSize: isMobile ? 13 : 14,
+                            color: "#243746",
+                            background: "#fff",
+                            boxSizing: "border-box",
                         }}
                     />
 
@@ -718,13 +730,14 @@ export default function ExpedicaoSection({
                                 salvarRastreioPedido(pedido.id);
                             }}
                             style={{
-                                minHeight: 40,
-                                border: "none",
-                                borderRadius: 12,
+                                minHeight: isMobile ? 40 : 42,
+                                border: "1px solid #15803d",
+                                borderRadius: 14,
                                 padding: "0 14px",
                                 background: "#15803d",
                                 color: "#fff",
                                 fontWeight: 800,
+                                boxShadow: "0 6px 14px rgba(21,128,61,0.16)",
                                 cursor: salvando ? "not-allowed" : "pointer",
                                 opacity: salvando ? 0.7 : 1,
                             }}
@@ -739,13 +752,14 @@ export default function ExpedicaoSection({
                                 cancelarEdicaoRastreioPedido();
                             }}
                             style={{
-                                minHeight: 40,
-                                border: "1px solid #e2e8f0",
-                                borderRadius: 12,
+                                minHeight: isMobile ? 40 : 42,
+                                border: "1px solid #dfe6ee",
+                                borderRadius: 14,
                                 padding: "0 14px",
                                 background: "#fff",
-                                color: "#475569",
+                                color: "#243746",
                                 fontWeight: 800,
+                                boxShadow: "0 2px 8px rgba(15,23,42,0.04)",
                                 cursor: "pointer",
                             }}
                         >
@@ -788,9 +802,9 @@ export default function ExpedicaoSection({
                         abrirEdicaoRastreioPedido(pedido);
                     }}
                     style={{
-                        minHeight: 40,
+                        minHeight: isMobile ? 40 : 42,
                         border: "1px solid #bfdbfe",
-                        borderRadius: 12,
+                        borderRadius: 14,
                         padding: "0 14px",
                         background: "#eff6ff",
                         color: "#1d4ed8",
@@ -822,27 +836,27 @@ export default function ExpedicaoSection({
     const container = {
         ...boxGrande,
         display: "grid",
-        gap: 18,
+        gap: 6,
     };
 
     const painel = {
         border: "1px solid #f2dfe5",
-        borderRadius: 28,
-        padding: isMobile ? 14 : 22,
+        borderRadius: 22,
+        padding: isMobile ? 10 : 14,
         background: "linear-gradient(180deg, #ffffff 0%, #fffafa 100%)",
         boxShadow: "0 8px 24px rgba(15,23,42,0.04)",
     };
 
     const lista = {
-        marginTop: 8,
+        marginTop: 6,
         display: "grid",
-        gap: 10,
+        gap: 8,
     };
 
     const divisoria = {
         height: 1,
         background: "#f1e3e8",
-        margin: isMobile ? "6px 0" : "8px 0",
+        margin: "4px 0",
     };
 
     return (
@@ -857,8 +871,8 @@ export default function ExpedicaoSection({
             >
                 <div>
                     <h2 style={{ ...tituloSecao, marginBottom: 4 }}>Expedição</h2>
-                    <div style={{ color: "#64748b", fontSize: 13 }}>
-                        Organização das sacolinhas, conferência e envio dos pedidos.
+                    <div style={{ color: "#64748b", fontSize: isMobile ? 13 : 14 }}>
+                        Gerencie separação, conferência, rastreamento e envio das sacolinhas.
                     </div>
                 </div>
 
@@ -875,27 +889,66 @@ export default function ExpedicaoSection({
                 style={{
                     display: "grid",
                     gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))",
-                    gap: 10,
+                    gap: 8,
                 }}
             >
                 {resumoCards.map((card) => (
                     <div
                         key={card.label}
                         style={{
-                            border: "1px solid #e5e7eb",
-                            borderRadius: 20,
+                            border: "1px solid #eef2f7",
+                            borderRadius: 18,
                             background: "#fff",
-                            padding: isMobile ? 12 : 14,
+                            padding: isMobile ? 10 : 12,
                             display: "grid",
-                            gap: 8,
-                            boxShadow: "0 3px 12px rgba(15,23,42,0.04)",
+                            gap: 6,
+                            boxShadow: "0 2px 10px rgba(15,23,42,0.04)",
                         }}
                     >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                            <span style={{ color: "#64748b", fontSize: 12, fontWeight: 800 }}>{card.label}</span>
-                            <span style={{ color: "#8f2745" }}><card.icon size={17} /></span>
+                        <div
+                            style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                gap: 8,
+                            }}
+                        >
+                            <strong
+                                style={{
+                                    fontSize: isMobile ? 23 : 28,
+                                    color: "#243746",
+                                    lineHeight: 1,
+                                }}
+                            >
+                                {card.value}
+                            </strong>
+
+                            <span
+                                style={{
+                                    width: 34,
+                                    height: 34,
+                                    borderRadius: 12,
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    background: "#fff7fa",
+                                    border: "1px solid #ead1da",
+                                    color: "#8f2745",
+                                }}
+                            >
+                                <card.icon size={17} />
+                            </span>
                         </div>
-                        <strong style={{ fontSize: isMobile ? 22 : 26, color: "#111827", lineHeight: 1 }}>{card.value}</strong>
+
+                        <span
+                            style={{
+                                color: "#64748b",
+                                fontSize: 12.5,
+                                fontWeight: 800,
+                            }}
+                        >
+                            {card.label}
+                        </span>
                     </div>
                 ))}
             </div>
@@ -1064,8 +1117,8 @@ export default function ExpedicaoSection({
                                         <div
                                             key={pedido.id}
                                             style={{
-                                                padding: isMobile ? 12 : 16,
-                                                borderRadius: 20,
+                                                padding: isMobile ? 11 : 14,
+                                                borderRadius: 18,
                                                 border: "1px solid #e5e7eb",
                                                 background: "#fff",
                                                 boxShadow: "0 4px 16px rgba(15,23,42,0.05)",
@@ -1121,7 +1174,7 @@ export default function ExpedicaoSection({
                                             </div>
 
                                             {expandido ? (
-                                                <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
+                                                <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
                                                     <BlocoInfo titulo="Sacolinhas incluídas" icon={Archive}>
                                                         {!pedido.sacolinhas || pedido.sacolinhas.length === 0 ? (
                                                             <EmptyState>Nenhuma sacolinha vinculada.</EmptyState>
@@ -1213,8 +1266,8 @@ export default function ExpedicaoSection({
                                         <div
                                             key={pedido.id}
                                             style={{
-                                                padding: isMobile ? 12 : 16,
-                                                borderRadius: 20,
+                                                padding: isMobile ? 11 : 14,
+                                                borderRadius: 18,
                                                 border: "1px solid #d1fae5",
                                                 background: "#f7fffb",
                                                 boxShadow: "0 4px 16px rgba(15,23,42,0.04)",
@@ -1236,7 +1289,7 @@ export default function ExpedicaoSection({
                                             </div>
 
                                             {expandido ? (
-                                                <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
+                                                <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
                                                     <BlocoInfo titulo="Sacolinhas enviadas" icon={Archive}>
                                                         {!pedido.sacolinhas || pedido.sacolinhas.length === 0 ? (
                                                             <EmptyState>Nenhuma sacolinha vinculada.</EmptyState>

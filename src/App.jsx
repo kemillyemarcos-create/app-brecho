@@ -54,8 +54,12 @@ import {
   NotebookPen,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
+import SidebarERP from "./components/layout/SidebarERP";
+import HeaderERP from "./components/layout/HeaderERP";
+import MainLayout from "./components/layout/MainLayout";
 import PreviewModal from "./components/layout/PreviewModal";
 import EtiquetaPrint from "./components/print/EtiquetaPrint";
+import CadastroSection from "./components/sections/CadastroSection";
 import ClientesSection from "./components/sections/ClientesSection";
 import CadastroPublicoCliente from "./components/CadastroPublicoCliente";
 import EstoqueSection from "./components/sections/EstoqueSection";
@@ -3465,132 +3469,29 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   `}
       </style>
 
-      {isMobile && (
-        <div className="topo-mobile" style={topoMobileNovo}>
-          <div
-            style={{
-              minWidth: 0,
-              overflow: "hidden",
-            }}
-          >
-            <strong
-              style={{
-                display: "block",
-                fontSize: "clamp(16px, 4vw, 18px)",
-                color: CORES_APP.rosaPrincipal,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {getTituloAba(abaAtiva)}
-            </strong>
-
-            <span
-              style={{
-                display: "block",
-                marginTop: 2,
-                fontSize: 12,
-                color: CORES_APP.textoSuave,
-              }}
-            >
-              Painel operacional do brechó
-            </span>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setMenuMobileAberto((prev) => !prev)}
-            style={botaoMenuMobileNovo}
-            aria-label={menuMobileAberto ? "Fechar menu" : "Abrir menu"}
-          >
-            {menuMobileAberto ? <X size={20} /> : <Menu size={20} />}
-          </button>
-        </div>
-      )}
+      <HeaderERP
+        isMobile={isMobile}
+        abaAtiva={abaAtiva}
+        getTituloAba={getTituloAba}
+        menuMobileAberto={menuMobileAberto}
+        setMenuMobileAberto={setMenuMobileAberto}
+        cores={CORES_APP}
+      />
 
       <div className="layout-app" style={layoutApp}>
-        <aside
-          className="sidebar-app"
-          style={{
-            ...sidebarNova,
-            display: isMobile ? (menuMobileAberto ? "flex" : "none") : "flex",
-          }}
-        >
-          <div style={sidebarTopoNovo}>
-            <div style={logoWrapNovo}>
-              <img src={logoKchic} alt="K.chic" style={logoImagemNovo} />
-            </div>
-
-            <div style={marcaBadgeNova}>Painel de gestão</div>
-
-            <p style={sidebarSubtituloNovo}>
-              Estoque, vendas, clientes e lives em um só lugar.
-            </p>
-
-            <button
-              type="button"
-              style={assistenteTopoBotao}
-              onClick={() => trocarAba("assistente")}
-            >
-              <Sparkles size={20} strokeWidth={2.2} />
-              <span>Assistente Virtual</span>
-              <span style={assistenteSelo}>NOVO</span>
-            </button>
-
-            <hr style={linhaDivisoriaNova} />
-          </div>
-
-          <div className="menu-lista" style={menuListaNovo}>
-            {menuVisivel.map((item) => {
-              const Icone = item.icon;
-              const ativo = abaAtiva === item.id;
-
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  style={ativo ? menuBotaoAtivoNovo : menuBotaoNovo}
-                  onMouseEnter={(e) => {
-                    if (!ativo) e.currentTarget.style.background = CORES_APP.rosaHover;
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!ativo) e.currentTarget.style.background = "transparent";
-                  }}
-                  onClick={() => trocarAba(item.id)}
-                >
-                  <Icone size={20} strokeWidth={2} />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gap: 8,
-              marginTop: "auto",
-            }}
-          >
-            <button
-              type="button"
-              onClick={sairDoApp}
-              style={{
-                ...menuBotaoNovo,
-                color: "#b91c1c",
-                borderColor: "rgba(185,28,28,0.16)",
-              }}
-            >
-              <X size={18} strokeWidth={2} />
-              <span>Sair</span>
-            </button>
-
-            <div style={sidebarRodapeNovo}>
-              {carregando ? "Carregando dados..." : `${usuarioSistema?.apelido || usuarioSistema?.nome || session?.user?.email || "admin"} • ${usuarioSistema?.perfil || "ADMIN"}`}
-            </div>
-          </div>
-        </aside>
+        <SidebarERP
+          isMobile={isMobile}
+          menuMobileAberto={menuMobileAberto}
+          abaAtiva={abaAtiva}
+          menuVisivel={menuVisivel}
+          trocarAba={trocarAba}
+          sairDoApp={sairDoApp}
+          carregando={carregando}
+          usuarioSistema={usuarioSistema}
+          session={session}
+          logoKchic={logoKchic}
+          cores={CORES_APP}
+        />
 
         <main className="area-principal" style={areaPrincipal}>
           <div className="painel-principal" style={painelPrincipal}>
@@ -3618,97 +3519,16 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
             </div>
 
             {abaAtiva === "cadastro" && (
-              <div style={boxGrande}>
-                <h2 style={tituloSecao}>Cadastro de Peças</h2>
-
-                <div className="grid-cadastro" style={gridCadastro}>
-                  <div style={gridForm}>
-                    <input
-                      style={input}
-                      placeholder="Nome da peça"
-                      value={form.nome}
-                      onChange={(e) => setForm({ ...form, nome: e.target.value })}
-                    />
-
-                    <input
-                      style={input}
-                      placeholder="Valor de compra"
-                      value={form.custo}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          custo: formatarMoeda(e.target.value),
-                        })
-                      }
-                    />
-
-                    <input
-                      style={input}
-                      placeholder="Valor de venda"
-                      value={form.venda}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          venda: formatarMoeda(e.target.value),
-                        })
-                      }
-                    />
-
-                    <input
-                      style={input}
-                      placeholder="Observações"
-                      value={form.obs}
-                      onChange={(e) => setForm({ ...form, obs: e.target.value })}
-                    />
-
-                    <div>
-                      <label style={{ display: "block", marginBottom: 8 }}>
-                        Foto da peça
-                      </label>
-                      <input type="file" accept="image/*" onChange={handleFoto} />
-                    </div>
-
-                    <button style={botao} onClick={adicionarPeca}>
-                      Adicionar peça
-                    </button>
-                  </div>
-
-                  <div style={previewBox}>
-                    <h3 style={{ marginTop: 0 }}>Pré-visualização</h3>
-                    {form.foto ? (
-                      <img
-                        src={form.foto}
-                        alt="Prévia"
-                        style={{
-                          width: "100%",
-                          maxWidth: 280,
-                          height: 280,
-                          objectFit: "cover",
-                          borderRadius: 12,
-                          border: "1px solid #ddd",
-                        }}
-                      />
-                    ) : (
-                      <div style={semFoto}>Sem foto selecionada</div>
-                    )}
-
-                    <div style={{ marginTop: 16 }}>
-                      <p style={{ margin: "6px 0" }}>
-                        <strong>Peça:</strong> {form.nome || "-"}
-                      </p>
-                      <p style={{ margin: "6px 0" }}>
-                        <strong>Compra:</strong> {form.custo || "R$ 0,00"}
-                      </p>
-                      <p style={{ margin: "6px 0" }}>
-                        <strong>Venda:</strong> {form.venda || "R$ 0,00"}
-                      </p>
-                      <p style={{ margin: "6px 0" }}>
-                        <strong>Obs:</strong> {form.obs || "-"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <CadastroSection
+                form={form}
+                setForm={setForm}
+                handleFoto={handleFoto}
+                adicionarPeca={adicionarPeca}
+                formatarMoeda={formatarMoeda}
+                formatarBRL={formatarBRL}
+                isMobile={isMobile}
+                cores={CORES_APP}
+              />
             )}
 
             {abaAtiva === "pecas" && (
@@ -4412,7 +4232,7 @@ const topoPainel = {
   alignItems: "flex-start",
   gap: 16,
   flexWrap: "wrap",
-  marginBottom: 24,
+  marginBottom: 14,
 };
 
 const topoPainelTitulo = {

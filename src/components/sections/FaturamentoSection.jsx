@@ -80,34 +80,21 @@ function BotaoIcone({ icon, children, onClick, ativo = false, background = "#fff
 
 function CardResumoFaturamento({ icon, label, value, helper, destaque = false }) {
   return (
-    <div
-      style={{
-        border: destaque ? "1px solid #f2dfe5" : "1px solid #e8edf2",
-        borderRadius: 20,
-        background: destaque ? "linear-gradient(135deg, #fff7fa 0%, #ffffff 70%)" : "#fff",
-        padding: 16,
-        display: "grid",
-        gap: 10,
-        boxShadow: "0 8px 24px rgba(15,23,42,0.05)",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+    <div style={{
+      border:"1px solid #eef2f7",
+      borderRadius:18,
+      background:"#fff",
+      padding:12,
+      display:"grid",
+      gap:6,
+      boxShadow:"0 2px 10px rgba(15,23,42,.04)"
+    }}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+        <strong style={{fontSize:26,fontWeight:900,color:destaque?"#8f2745":"#243746",lineHeight:1}}>{value}</strong>
         {icon}
-        <strong style={{ color: "#475569", fontSize: 13 }}>{label}</strong>
       </div>
-
-      <div
-        style={{
-          fontSize: 24,
-          fontWeight: 900,
-          color: destaque ? "#8f2745" : "#111827",
-          lineHeight: 1.1,
-        }}
-      >
-        {value}
-      </div>
-
-      {helper ? <div style={{ color: "#64748b", fontSize: 12 }}>{helper}</div> : null}
+      <span style={{fontSize:12.5,fontWeight:800,color:"#64748b"}}>{label}</span>
+      {helper ? <span style={{fontSize:11.5,color:"#94a3b8"}}>{helper}</span>:null}
     </div>
   );
 }
@@ -155,7 +142,7 @@ export default function FaturamentoSection({
   const periodoSelecionado = dataInicialFiltro || dataFinalFiltro;
 
   return (
-    <div style={{ display: "grid", gap: 22 }}>
+    <div style={{ display: "grid", gap: 12 }}>
       <div style={boxGrande}>
         <div
           style={{
@@ -185,10 +172,10 @@ export default function FaturamentoSection({
 
         <div
           style={{
-            marginTop: 18,
+            marginTop: 12,
             display: "grid",
             gridTemplateColumns: isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
-            gap: 12,
+            gap: 8,
           }}
         >
           <CardResumoFaturamento
@@ -239,13 +226,13 @@ export default function FaturamentoSection({
 
         <div
           style={{
-            marginTop: 18,
-            padding: isMobile ? 12 : 14,
-            borderRadius: 18,
+            marginTop: 12,
+            padding: isMobile ? 10 : 12,
+            borderRadius: 16,
             background: "#f8fafc",
             border: "1px solid #e2e8f0",
             display: "grid",
-            gap: 12,
+            gap: 8,
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#334155", fontWeight: 800 }}>
@@ -257,7 +244,7 @@ export default function FaturamentoSection({
             style={{
               display: "grid",
               gridTemplateColumns: isMobile ? "1fr" : "minmax(150px, 190px) minmax(150px, 190px) 1fr",
-              gap: 10,
+              gap: 8,
               alignItems: "end",
             }}
           >
@@ -324,9 +311,9 @@ export default function FaturamentoSection({
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              gap: 12,
+              gap: 8,
               flexWrap: "wrap",
-              marginBottom: 14,
+              marginBottom: 10,
             }}
           >
             <h3 style={{ margin: 0, color: "#111827" }}>Resumo por Live</h3>
@@ -337,8 +324,8 @@ export default function FaturamentoSection({
             <div
               style={{
                 border: "1px dashed #cbd5e1",
-                borderRadius: 18,
-                padding: 22,
+                borderRadius: 16,
+                padding: 16,
                 background: "#f8fafc",
                 color: "#64748b",
               }}
@@ -357,11 +344,11 @@ export default function FaturamentoSection({
                     key={live.id}
                     style={{
                       border: "1px solid #e8edf2",
-                      borderRadius: 20,
+                      borderRadius: 18,
                       background: "#fff",
-                      padding: isMobile ? 14 : 16,
+                      padding: isMobile ? 11 : 13,
                       display: "grid",
-                      gap: 12,
+                      gap: 8,
                       boxShadow: "0 6px 20px rgba(15,23,42,0.04)",
                     }}
                   >
@@ -369,7 +356,7 @@ export default function FaturamentoSection({
                       style={{
                         display: "grid",
                         gridTemplateColumns: isMobile ? "1fr" : "1fr auto",
-                        gap: 12,
+                        gap: 8,
                         alignItems: "start",
                       }}
                     >
@@ -418,7 +405,7 @@ export default function FaturamentoSection({
                       style={{
                         display: "grid",
                         gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, minmax(0, 1fr))",
-                        gap: 10,
+                        gap: 8,
                       }}
                     >
                       <div style={{ background: "#f8fafc", borderRadius: 14, padding: 10 }}>
@@ -450,7 +437,7 @@ export default function FaturamentoSection({
         </div>
 
         <div style={boxGrande}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
             <IconeCard background="#fff8e6" color="#b45309">
               <Trophy size={18} />
             </IconeCard>

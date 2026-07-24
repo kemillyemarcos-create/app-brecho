@@ -3,8 +3,8 @@ import {
     ChevronRight,
     Copy,
     Edit3,
-    ExternalLink,
     Save,
+    Search,
     Send,
     Share2,
     Trash2,
@@ -40,191 +40,241 @@ export default function ClientesSection({
     clientesExpandidos,
     toggleExpandirCliente,
 }) {
-    const isMobile = typeof window !== "undefined" ? window.innerWidth <= 767 : false;
+    const isMobile =
+        typeof window !== "undefined" ? window.innerWidth <= 767 : false;
 
-    const cardClienteMinimalista = {
-        ...cardCliente,
-        padding: isMobile ? 14 : 16,
-        borderRadius: 20,
-        boxShadow: "0 2px 10px rgba(15,23,42,0.05)",
-        background: "#fff",
+    const corPrincipal = "#8f2745";
+    const corPrincipalClara = "#f7dce6";
+    const corBorda = "#ead1da";
+    const corTexto = "#243746";
+    const corSuave = "#64748b";
+    const corFundoSuave = "#fff7fa";
+
+    const cardBase = {
         border: "1px solid #eef2f7",
+        borderRadius: 18,
+        background: "#fff",
+        boxShadow: "0 2px 10px rgba(15,23,42,0.04)",
     };
 
-    const topoLista = {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        gap: 10,
-        flexWrap: "wrap",
-        marginBottom: 10,
-    };
-
-    const nomeClienteStyle = {
-        margin: 0,
-        fontSize: isMobile ? 15 : 16,
-        fontWeight: 800,
-        color: "#243746",
-        lineHeight: 1.2,
-        wordBreak: "break-word",
-    };
-
-    const infoClienteStyle = {
-        margin: "2px 0",
-        color: "#5b6b79",
-        fontSize: isMobile ? 12.5 : 13.5,
-        lineHeight: 1.35,
-        wordBreak: "break-word",
-    };
-
-    const secaoFormulario = {
-        display: "grid",
-        gap: 8,
-        marginBottom: 18,
-        padding: isMobile ? 12 : 14,
-        border: "1px solid #e8edf2",
-        borderRadius: 20,
-        background: "#fcfdff",
-    };
-
-    const secaoBusca = {
-        display: "grid",
-        gap: 8,
-        marginBottom: 14,
-    };
-
-    const listaClientes = {
-        display: "grid",
-        gap: 10,
-    };
-
-    const inputCompacto = {
-        ...inputCliente,
-        minHeight: isMobile ? 36 : 38,
-        height: isMobile ? 36 : 38,
-        padding: isMobile ? "7px 12px" : "7px 13px",
+    const miniIcone = {
+        width: 34,
+        height: 34,
         borderRadius: 12,
+        border: `1px solid ${corBorda}`,
+        background: "#fff",
+        color: corPrincipal,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+    };
+
+    const inputPadrao = {
+        ...inputCliente,
+        width: "100%",
+        minHeight: isMobile ? 40 : 42,
+        padding: isMobile ? "9px 12px" : "10px 13px",
+        borderRadius: 13,
+        border: "1px solid #dfe6ee",
+        background: "#fff",
+        color: corTexto,
         fontSize: isMobile ? 13 : 14,
-        lineHeight: 1.1,
+        lineHeight: 1.2,
         boxShadow: "none",
+        outline: "none",
+    };
+
+    const botaoBase = {
+        minHeight: isMobile ? 40 : 42,
+        padding: isMobile ? "9px 12px" : "10px 14px",
+        borderRadius: 14,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        cursor: "pointer",
+        fontWeight: 800,
+        fontSize: isMobile ? 12.5 : 13.5,
+        lineHeight: 1,
+        whiteSpace: "nowrap",
     };
 
     const botaoPrincipal = {
         ...botao,
+        ...botaoBase,
         width: "100%",
-        minHeight: isMobile ? 38 : 40,
-        padding: isMobile ? "8px 12px" : "8px 14px",
-        borderRadius: 12,
-        fontSize: isMobile ? 13 : 14,
-        boxShadow: "none",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
+        border: `1px solid ${corPrincipal}`,
+        background: corPrincipal,
+        color: "#fff",
+        boxShadow: "0 8px 18px rgba(143,39,69,0.18)",
     };
 
     const botaoSecundario = {
         ...botaoPequeno,
+        ...botaoBase,
         width: "100%",
-        minHeight: isMobile ? 34 : 36,
-        padding: isMobile ? "7px 10px" : "7px 12px",
-        borderRadius: 10,
-        fontSize: isMobile ? 12 : 13,
-        boxShadow: "none",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 7,
+        border: "1px solid #dfe6ee",
+        background: "#fff",
+        color: corTexto,
+        boxShadow: "0 2px 8px rgba(15,23,42,0.04)",
     };
 
-    const botaoIcone = {
-        width: isMobile ? 38 : 42,
-        height: isMobile ? 38 : 42,
-        borderRadius: 14,
+    const botaoMensagem = {
+        ...botaoSecundario,
+        border: "1px solid #bbf7d0",
+        background: "#ecfdf5",
+        color: "#15803d",
+    };
+
+    const botaoLink = {
+        ...botaoSecundario,
+        border: "1px solid #bfdbfe",
+        background: "#eff6ff",
+        color: "#1d4ed8",
+    };
+
+    const botaoCancelar = {
+        ...botaoSecundario,
         border: "1px solid #e2e8f0",
         background: "#f8fafc",
-        color: "#243746",
+        color: "#475569",
+    };
+
+    const botaoIcone = ({
+        ativo = false,
+        danger = false,
+        success = false,
+        info = false,
+    } = {}) => ({
+        width: isMobile ? 36 : 38,
+        height: isMobile ? 36 : 38,
+        borderRadius: 12,
+        border: ativo
+            ? `1px solid ${corPrincipal}`
+            : danger
+            ? "1px solid #fecaca"
+            : success
+            ? "1px solid #bbf7d0"
+            : info
+            ? "1px solid #bfdbfe"
+            : "1px solid #e2e8f0",
+        background: ativo
+            ? corPrincipal
+            : danger
+            ? "#fff1f2"
+            : success
+            ? "#ecfdf5"
+            : info
+            ? "#eff6ff"
+            : "#fff",
+        color: ativo
+            ? "#fff"
+            : danger
+            ? "#b91c1c"
+            : success
+            ? "#15803d"
+            : info
+            ? "#1d4ed8"
+            : corTexto,
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
         cursor: "pointer",
-        boxShadow: "0 2px 6px rgba(15,23,42,0.05)",
         padding: 0,
         flexShrink: 0,
-    };
+        boxShadow: ativo
+            ? "0 6px 14px rgba(143,39,69,0.16)"
+            : "0 2px 8px rgba(15,23,42,0.04)",
+    });
 
-    const botaoIconePrimario = {
-        ...botaoIcone,
-        background: "#8f2745",
-        border: "1px solid #8f2745",
-        color: "#fff",
-    };
-
-    const botaoIconeAzul = {
-        ...botaoIcone,
-        background: "#2563eb",
-        border: "1px solid #2563eb",
-        color: "#fff",
-    };
-
-    const botaoIconeVerde = {
-        ...botaoIcone,
-        background: "#16a34a",
-        border: "1px solid #16a34a",
-        color: "#fff",
-    };
-
-    const botaoIconeVermelho = {
-        ...botaoIcone,
-        background: "#dc2626",
-        border: "1px solid #dc2626",
-        color: "#fff",
-    };
-
-    const gridCamposEndereco = {
+    const labelStyle = {
         display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.5fr) minmax(100px, 130px)",
-        gap: 8,
+        gap: 6,
+        color: corTexto,
+        fontSize: 12.5,
+        fontWeight: 800,
+    };
+
+    const gridDoisCampos = {
+        display: "grid",
+        gridTemplateColumns: isMobile
+            ? "1fr"
+            : "repeat(2, minmax(0, 1fr))",
+        gap: 10,
+    };
+
+    const gridEndereco = {
+        display: "grid",
+        gridTemplateColumns: isMobile
+            ? "1fr"
+            : "minmax(0, 1.5fr) minmax(110px, 140px)",
+        gap: 10,
     };
 
     const gridAcoesFormulario = {
         display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : clienteEditandoId ? "repeat(2, minmax(0, 1fr))" : "1fr",
-        gap: 8,
+        gridTemplateColumns: isMobile
+            ? "1fr"
+            : clienteEditandoId
+            ? "repeat(2, minmax(0, 1fr))"
+            : "1fr",
+        gap: 10,
     };
 
-    const gridAcoesCadastro = {
+    const gridAcoesCompartilhamento = {
         display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
-        gap: 8,
+        gridTemplateColumns: isMobile
+            ? "1fr"
+            : "repeat(2, minmax(0, 1fr))",
+        gap: 10,
     };
 
     return (
-        <div style={boxGrande}>
+        <div
+            style={{
+                ...boxGrande,
+                display: "grid",
+                gap: isMobile ? 14 : 16,
+            }}
+        >
             <div
                 style={{
                     display: "flex",
-                    alignItems: "center",
                     justifyContent: "space-between",
+                    alignItems: "flex-start",
                     gap: 12,
                     flexWrap: "wrap",
-                    marginBottom: 12,
                 }}
             >
-                <h2 style={{ ...tituloSecao, margin: 0 }}>Cadastro de Clientes</h2>
+                <div>
+                    <h2 style={{ ...tituloSecao, marginBottom: 4 }}>
+                        Cadastro de clientes
+                    </h2>
+
+                    <div
+                        style={{
+                            color: corSuave,
+                            fontSize: isMobile ? 13 : 14,
+                        }}
+                    >
+                        Cadastre, edite e compartilhe os dados das clientes.
+                    </div>
+                </div>
 
                 <div
                     style={{
+                        minHeight: 38,
+                        padding: "8px 12px",
+                        borderRadius: 999,
+                        border: `1px solid ${corBorda}`,
+                        background: corFundoSuave,
+                        color: corPrincipal,
                         display: "inline-flex",
                         alignItems: "center",
                         gap: 8,
-                        padding: "8px 12px",
-                        borderRadius: 999,
-                        background: "#f8fafc",
-                        border: "1px solid #e2e8f0",
-                        color: "#475569",
                         fontSize: isMobile ? 12 : 13,
-                        fontWeight: 700,
+                        fontWeight: 900,
                     }}
                 >
                     <UserRound size={16} />
@@ -232,109 +282,190 @@ export default function ClientesSection({
                 </div>
             </div>
 
-            <div style={secaoFormulario}>
-                <input
-                    style={inputCompacto}
-                    placeholder="Nome completo"
-                    value={formCliente.nome}
-                    onChange={(e) =>
-                        setFormCliente((prev) => ({ ...prev, nome: e.target.value }))
-                    }
-                />
-
-                <input
-                    style={inputCompacto}
-                    placeholder="CPF"
-                    value={formCliente.cpf}
-                    onChange={(e) =>
-                        setFormCliente((prev) => ({
-                            ...prev,
-                            cpf: formatarCPF(e.target.value),
-                        }))
-                    }
-                />
-
-                <input
-                    style={inputCompacto}
-                    placeholder="Telefone"
-                    value={formCliente.telefone}
-                    onChange={(e) =>
-                        setFormCliente((prev) => ({
-                            ...prev,
-                            telefone: formatarTelefone(e.target.value),
-                        }))
-                    }
-                />
-
-                <input
-                    style={inputCompacto}
-                    placeholder="CEP"
-                    value={formCliente.cep}
-                    onChange={(e) => {
-                        const cepFormatado = formatarCEP(e.target.value);
-
-                        setFormCliente((prev) => ({
-                            ...prev,
-                            cep: cepFormatado,
-                        }));
-
-                        const cepLimpo = cepFormatado.replace(/\D/g, "");
-                        if (cepLimpo.length === 8) {
-                            buscarCep(cepLimpo);
-                        }
+            <div
+                style={{
+                    ...cardBase,
+                    padding: isMobile ? 13 : 16,
+                    display: "grid",
+                    gap: 14,
+                    background: "#fcfdff",
+                }}
+            >
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
                     }}
-                />
+                >
+                    <span
+                        style={{
+                            ...miniIcone,
+                            background: corPrincipalClara,
+                        }}
+                    >
+                        <UserRound size={17} />
+                    </span>
 
-                <div style={gridCamposEndereco}>
-                    <input
-                        style={inputCompacto}
-                        placeholder="Endereço"
-                        value={formCliente.endereco}
-                        onChange={(e) =>
-                            setFormCliente((prev) => ({
-                                ...prev,
-                                endereco: e.target.value,
-                            }))
-                        }
-                    />
+                    <div>
+                        <strong
+                            style={{
+                                display: "block",
+                                color: corTexto,
+                                fontSize: isMobile ? 15 : 16,
+                            }}
+                        >
+                            {clienteEditandoId
+                                ? "Editar cliente"
+                                : "Nova cliente"}
+                        </strong>
 
-                    <input
-                        style={inputCompacto}
-                        placeholder="Número"
-                        value={formCliente.numero}
-                        onChange={(e) =>
-                            setFormCliente((prev) => ({
-                                ...prev,
-                                numero: e.target.value,
-                            }))
-                        }
-                    />
+                        <span
+                            style={{
+                                color: corSuave,
+                                fontSize: 12.5,
+                            }}
+                        >
+                            Preencha os dados principais e o endereço.
+                        </span>
+                    </div>
                 </div>
 
-                <input
-                    style={inputCompacto}
-                    placeholder="Complemento"
-                    value={formCliente.complemento}
-                    onChange={(e) =>
-                        setFormCliente((prev) => ({
-                            ...prev,
-                            complemento: e.target.value,
-                        }))
-                    }
-                />
+                <div style={gridDoisCampos}>
+                    <label style={labelStyle}>
+                        Nome completo
+                        <input
+                            style={inputPadrao}
+                            placeholder="Digite o nome completo"
+                            value={formCliente.nome}
+                            onChange={(e) =>
+                                setFormCliente((prev) => ({
+                                    ...prev,
+                                    nome: e.target.value,
+                                }))
+                            }
+                        />
+                    </label>
+
+                    <label style={labelStyle}>
+                        CPF
+                        <input
+                            style={inputPadrao}
+                            placeholder="000.000.000-00"
+                            value={formCliente.cpf}
+                            onChange={(e) =>
+                                setFormCliente((prev) => ({
+                                    ...prev,
+                                    cpf: formatarCPF(e.target.value),
+                                }))
+                            }
+                        />
+                    </label>
+                </div>
+
+                <div style={gridDoisCampos}>
+                    <label style={labelStyle}>
+                        Telefone
+                        <input
+                            style={inputPadrao}
+                            placeholder="(00) 00000-0000"
+                            value={formCliente.telefone}
+                            onChange={(e) =>
+                                setFormCliente((prev) => ({
+                                    ...prev,
+                                    telefone: formatarTelefone(e.target.value),
+                                }))
+                            }
+                        />
+                    </label>
+
+                    <label style={labelStyle}>
+                        CEP
+                        <input
+                            style={inputPadrao}
+                            placeholder="00000-000"
+                            value={formCliente.cep}
+                            onChange={(e) => {
+                                const cepFormatado = formatarCEP(
+                                    e.target.value
+                                );
+
+                                setFormCliente((prev) => ({
+                                    ...prev,
+                                    cep: cepFormatado,
+                                }));
+
+                                const cepLimpo = cepFormatado.replace(
+                                    /\D/g,
+                                    ""
+                                );
+
+                                if (cepLimpo.length === 8) {
+                                    buscarCep(cepLimpo);
+                                }
+                            }}
+                        />
+                    </label>
+                </div>
+
+                <div style={gridEndereco}>
+                    <label style={labelStyle}>
+                        Endereço
+                        <input
+                            style={inputPadrao}
+                            placeholder="Rua, avenida ou travessa"
+                            value={formCliente.endereco}
+                            onChange={(e) =>
+                                setFormCliente((prev) => ({
+                                    ...prev,
+                                    endereco: e.target.value,
+                                }))
+                            }
+                        />
+                    </label>
+
+                    <label style={labelStyle}>
+                        Número
+                        <input
+                            style={inputPadrao}
+                            placeholder="Nº"
+                            value={formCliente.numero}
+                            onChange={(e) =>
+                                setFormCliente((prev) => ({
+                                    ...prev,
+                                    numero: e.target.value,
+                                }))
+                            }
+                        />
+                    </label>
+                </div>
+
+                <label style={labelStyle}>
+                    Complemento
+                    <input
+                        style={inputPadrao}
+                        placeholder="Apartamento, bloco ou referência"
+                        value={formCliente.complemento}
+                        onChange={(e) =>
+                            setFormCliente((prev) => ({
+                                ...prev,
+                                complemento: e.target.value,
+                            }))
+                        }
+                    />
+                </label>
 
                 <div style={gridAcoesFormulario}>
                     <button style={botaoPrincipal} onClick={salvarCliente}>
                         <Save size={16} />
-                        {clienteEditandoId ? "Atualizar cliente" : "Salvar cliente"}
+                        {clienteEditandoId
+                            ? "Atualizar cliente"
+                            : "Salvar cliente"}
                     </button>
 
                     {clienteEditandoId ? (
                         <button
-                            style={{
-                                ...botaoSecundario,
-                                background: "#6b7280",
-                            }}
+                            style={botaoCancelar}
                             onClick={cancelarEdicaoCliente}
                         >
                             <X size={15} />
@@ -343,12 +474,9 @@ export default function ClientesSection({
                     ) : null}
                 </div>
 
-                <div style={gridAcoesCadastro}>
+                <div style={gridAcoesCompartilhamento}>
                     <button
-                        style={{
-                            ...botaoSecundario,
-                            background: "#2563eb",
-                        }}
+                        style={botaoLink}
                         onClick={copiarLinkCadastroCliente}
                     >
                         <Copy size={15} />
@@ -356,10 +484,7 @@ export default function ClientesSection({
                     </button>
 
                     <button
-                        style={{
-                            ...botaoSecundario,
-                            background: "#16a34a",
-                        }}
+                        style={botaoMensagem}
                         onClick={copiarMensagemWhatsAppCadastroCliente}
                     >
                         <Send size={15} />
@@ -368,31 +493,89 @@ export default function ClientesSection({
                 </div>
             </div>
 
-            <div style={secaoBusca}>
-                <div style={topoLista}>
-                    <strong style={{ color: "#334155", fontSize: isMobile ? 15 : 16 }}>
-                        Clientes cadastradas
-                    </strong>
-                    <span style={{ color: "#64748b", fontSize: isMobile ? 12 : 13 }}>
-                        Busca e gerenciamento
+            <div
+                style={{
+                    ...cardBase,
+                    padding: isMobile ? 13 : 16,
+                    display: "grid",
+                    gap: 12,
+                }}
+            >
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 10,
+                        flexWrap: "wrap",
+                    }}
+                >
+                    <div>
+                        <strong
+                            style={{
+                                display: "block",
+                                color: corTexto,
+                                fontSize: isMobile ? 15 : 16,
+                            }}
+                        >
+                            Clientes cadastradas
+                        </strong>
+
+                        <span
+                            style={{
+                                color: corSuave,
+                                fontSize: 12.5,
+                            }}
+                        >
+                            Busque e gerencie os cadastros existentes.
+                        </span>
+                    </div>
+
+                    <span style={miniIcone}>
+                        <Search size={16} />
                     </span>
                 </div>
 
-                <input
-                    style={inputCompacto}
-                    placeholder="Buscar cliente por nome, CPF ou telefone"
-                    value={buscaClienteCadastro}
-                    onChange={(e) => setBuscaClienteCadastro(e.target.value)}
-                />
+                <div style={{ position: "relative" }}>
+                    <Search
+                        size={16}
+                        style={{
+                            position: "absolute",
+                            left: 12,
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            color: "#94a3b8",
+                            pointerEvents: "none",
+                        }}
+                    />
+
+                    <input
+                        style={{
+                            ...inputPadrao,
+                            paddingLeft: 38,
+                        }}
+                        placeholder="Buscar por nome, CPF ou telefone"
+                        value={buscaClienteCadastro}
+                        onChange={(e) =>
+                            setBuscaClienteCadastro(e.target.value)
+                        }
+                    />
+                </div>
             </div>
 
-            <div style={listaClientes}>
+            <div
+                style={{
+                    display: "grid",
+                    gap: 10,
+                }}
+            >
                 {clientesFiltradosCadastro.length === 0 ? (
                     <div
                         style={{
-                            ...cardClienteMinimalista,
+                            ...cardBase,
+                            padding: isMobile ? 18 : 22,
                             textAlign: "center",
-                            color: "#64748b",
+                            color: corSuave,
                         }}
                     >
                         Nenhuma cliente encontrada.
@@ -400,91 +583,147 @@ export default function ClientesSection({
                 ) : (
                     [...clientesFiltradosCadastro]
                         .sort((a, b) =>
-                            (a.nome || "").localeCompare(b.nome || "", "pt-BR", {
-                                sensitivity: "base",
-                            })
+                            (a.nome || "").localeCompare(
+                                b.nome || "",
+                                "pt-BR",
+                                {
+                                    sensitivity: "base",
+                                }
+                            )
                         )
                         .map((cliente) => {
-                            const expandido = !!clientesExpandidos[cliente.nome];
+                            const expandido =
+                                !!clientesExpandidos[cliente.nome];
 
                             return (
-                                <div key={cliente.id || cliente.nome} style={cardClienteMinimalista}>
+                                <div
+                                    key={cliente.id || cliente.nome}
+                                    style={{
+                                        ...cardCliente,
+                                        ...cardBase,
+                                        padding: isMobile ? 11 : 13,
+                                    }}
+                                >
                                     <div
                                         style={{
                                             display: "grid",
-                                            gridTemplateColumns: "auto 1fr auto",
-                                            gap: 10,
+                                            gridTemplateColumns:
+                                                "auto minmax(0, 1fr) auto",
+                                            gap: isMobile ? 8 : 10,
                                             alignItems: "center",
                                         }}
                                     >
                                         <button
                                             type="button"
-                                            style={expandido ? botaoIconePrimario : botaoIcone}
-                                            onClick={() => toggleExpandirCliente(cliente.nome)}
-                                            aria-label={expandido ? "Minimizar cliente" : "Expandir cliente"}
-                                            title={expandido ? "Minimizar" : "Expandir"}
+                                            style={botaoIcone({
+                                                ativo: expandido,
+                                            })}
+                                            onClick={() =>
+                                                toggleExpandirCliente(
+                                                    cliente.nome
+                                                )
+                                            }
+                                            aria-label={
+                                                expandido
+                                                    ? "Minimizar cliente"
+                                                    : "Expandir cliente"
+                                            }
+                                            title={
+                                                expandido
+                                                    ? "Minimizar"
+                                                    : "Expandir"
+                                            }
                                         >
                                             {expandido ? (
-                                                <ChevronDown size={18} />
+                                                <ChevronDown size={17} />
                                             ) : (
-                                                <ChevronRight size={18} />
+                                                <ChevronRight size={17} />
                                             )}
                                         </button>
 
                                         <div style={{ minWidth: 0 }}>
-                                            <p style={nomeClienteStyle}>{cliente.nome || "Sem nome"}</p>
+                                            <strong
+                                                style={{
+                                                    display: "block",
+                                                    color: corTexto,
+                                                    fontSize: isMobile
+                                                        ? 14.5
+                                                        : 15.5,
+                                                    lineHeight: 1.2,
+                                                    wordBreak: "break-word",
+                                                }}
+                                            >
+                                                {cliente.nome || "Sem nome"}
+                                            </strong>
 
-                                            {!expandido ? (
-                                                <p
-                                                    style={{
-                                                        ...infoClienteStyle,
-                                                        marginTop: 3,
-                                                        whiteSpace: "nowrap",
-                                                        overflow: "hidden",
-                                                        textOverflow: "ellipsis",
-                                                    }}
-                                                >
-                                                    {cliente.telefone || cliente.cpf || "Sem telefone/CPF"}
-                                                </p>
-                                            ) : null}
+                                            <div
+                                                style={{
+                                                    color: corSuave,
+                                                    fontSize: isMobile
+                                                        ? 12
+                                                        : 12.5,
+                                                    marginTop: 3,
+                                                    whiteSpace: "nowrap",
+                                                    overflow: "hidden",
+                                                    textOverflow: "ellipsis",
+                                                }}
+                                            >
+                                                {cliente.telefone ||
+                                                    cliente.cpf ||
+                                                    "Sem telefone ou CPF"}
+                                            </div>
                                         </div>
 
                                         <div
                                             style={{
                                                 display: "inline-flex",
-                                                gap: 6,
-                                                justifyContent: "flex-end",
                                                 alignItems: "center",
+                                                justifyContent: "flex-end",
+                                                gap: 6,
                                             }}
                                         >
                                             <button
                                                 type="button"
-                                                style={botaoIconeAzul}
-                                                onClick={() => editarCliente(cliente)}
+                                                style={botaoIcone({
+                                                    info: true,
+                                                })}
+                                                onClick={() =>
+                                                    editarCliente(cliente)
+                                                }
                                                 aria-label={`Editar ${cliente.nome}`}
                                                 title="Editar"
                                             >
-                                                <Edit3 size={17} />
+                                                <Edit3 size={16} />
                                             </button>
 
                                             <button
                                                 type="button"
-                                                style={botaoIconeVerde}
-                                                onClick={() => compartilharCliente(cliente)}
+                                                style={botaoIcone({
+                                                    success: true,
+                                                })}
+                                                onClick={() =>
+                                                    compartilharCliente(
+                                                        cliente
+                                                    )
+                                                }
                                                 aria-label={`Compartilhar ${cliente.nome}`}
                                                 title="Compartilhar"
                                             >
-                                                <Share2 size={17} />
+                                                <Share2 size={16} />
                                             </button>
 
                                             <button
                                                 type="button"
-                                                style={botaoIconeVermelho}
-                                                onClick={() => excluirCliente(cliente.id)}
+                                                style={botaoIcone({
+                                                    danger: true,
+                                                })}
+                                                onClick={() =>
+                                                    excluirCliente(cliente.id)
+                                                }
                                                 aria-label={`Excluir ${cliente.nome}`}
                                                 title="Excluir"
                                             >
-                                                <Trash2 size={17} />
+                                                <Trash2 size={16} />
                                             </button>
                                         </div>
                                     </div>
@@ -492,31 +731,81 @@ export default function ClientesSection({
                                     {expandido ? (
                                         <div
                                             style={{
-                                                marginTop: 10,
-                                                paddingTop: 10,
-                                                borderTop: "1px solid #eef2f7",
+                                                marginTop: 11,
+                                                paddingTop: 11,
+                                                borderTop:
+                                                    "1px solid #eef2f7",
                                                 display: "grid",
-                                                gap: 3,
+                                                gridTemplateColumns: isMobile
+                                                    ? "1fr"
+                                                    : "repeat(2, minmax(0, 1fr))",
+                                                gap: 8,
                                             }}
                                         >
-                                            <p style={infoClienteStyle}>
-                                                <strong>CPF:</strong> {cliente.cpf || "-"}
-                                            </p>
-                                            <p style={infoClienteStyle}>
-                                                <strong>Telefone:</strong> {cliente.telefone || "-"}
-                                            </p>
-                                            <p style={infoClienteStyle}>
-                                                <strong>CEP:</strong> {cliente.cep || "-"}
-                                            </p>
-                                            <p style={infoClienteStyle}>
-                                                <strong>Endereço:</strong> {cliente.endereco || "-"}
-                                            </p>
-                                            <p style={infoClienteStyle}>
-                                                <strong>Número:</strong> {cliente.numero || "-"}
-                                            </p>
-                                            <p style={infoClienteStyle}>
-                                                <strong>Complemento:</strong> {cliente.complemento || "-"}
-                                            </p>
+                                            {[
+                                                ["CPF", cliente.cpf],
+                                                [
+                                                    "Telefone",
+                                                    cliente.telefone,
+                                                ],
+                                                ["CEP", cliente.cep],
+                                                [
+                                                    "Endereço",
+                                                    cliente.endereco,
+                                                ],
+                                                ["Número", cliente.numero],
+                                                [
+                                                    "Complemento",
+                                                    cliente.complemento,
+                                                ],
+                                            ].map(([label, value]) => (
+                                                <div
+                                                    key={label}
+                                                    style={{
+                                                        padding:
+                                                            isMobile
+                                                                ? "9px 10px"
+                                                                : "10px 11px",
+                                                        borderRadius: 12,
+                                                        border:
+                                                            "1px solid #eef2f7",
+                                                        background:
+                                                            corFundoSuave,
+                                                    }}
+                                                >
+                                                    <div
+                                                        style={{
+                                                            color:
+                                                                corSuave,
+                                                            fontSize: 11,
+                                                            fontWeight: 800,
+                                                            textTransform:
+                                                                "uppercase",
+                                                            letterSpacing:
+                                                                "0.04em",
+                                                        }}
+                                                    >
+                                                        {label}
+                                                    </div>
+
+                                                    <div
+                                                        style={{
+                                                            color:
+                                                                corTexto,
+                                                            fontSize:
+                                                                isMobile
+                                                                    ? 12.5
+                                                                    : 13,
+                                                            fontWeight: 700,
+                                                            marginTop: 3,
+                                                            wordBreak:
+                                                                "break-word",
+                                                        }}
+                                                    >
+                                                        {value || "-"}
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
                                     ) : null}
                                 </div>

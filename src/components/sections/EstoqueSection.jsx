@@ -357,34 +357,115 @@ export default function EstoqueSection({
     };
 
     return (
-        <div style={boxGrande}>
-            <div style={cabecalhoSecao}>
-                <h2 style={tituloSecao}>Peças</h2>
+        <div
+            style={{
+                ...boxGrande,
+                padding: isMobile ? 10 : 12,
+            }}
+        >
+            <div
+                style={{
+                    ...cabecalhoSecao,
+                    display: "grid",
+                    gap: isMobile ? 10 : 12,
+                    marginBottom: isMobile ? 10 : 12,
+                }}
+            >
+                <div>
+                    <h2
+                        style={{
+                            ...tituloSecao,
+                            marginBottom: 5,
+                        }}
+                    >
+                        Gestão de estoque
+                    </h2>
 
-                <div style={linhaResumoHorizontal}>
-                    <div style={cardResumo}>
-                        <strong>Total de peças</strong>
-                        <div style={valorResumo}>{totalPecas}</div>
-                    </div>
+                    <p
+                        style={{
+                            margin: 0,
+                            color: "#8d727b",
+                            fontSize: isMobile ? 12 : 13,
+                            lineHeight: 1.4,
+                        }}
+                    >
+                        Pesquise, filtre e gerencie todas as peças cadastradas.
+                    </p>
+                </div>
 
-                    <div style={cardResumo}>
-                        <strong>Disponíveis</strong>
-                        <div style={valorResumo}>{totalDisponiveis}</div>
-                    </div>
+                <div
+                    style={{
+                        ...linhaResumoHorizontal,
+                        display: "grid",
+                        gridTemplateColumns: isMobile
+                            ? "1fr"
+                            : "repeat(3, minmax(0, 1fr))",
+                        gap: 8,
+                        margin: 0,
+                    }}
+                >
+                    {[
+                        {
+                            label: "Total de peças",
+                            value: totalPecas,
+                        },
+                        {
+                            label: "Disponíveis",
+                            value: totalDisponiveis,
+                        },
+                        {
+                            label: "Vendidas",
+                            value: totalVendidas,
+                        },
+                    ].map((resumo) => (
+                        <div
+                            key={resumo.label}
+                            style={{
+                                ...cardResumo,
+                                minWidth: 0,
+                                padding: isMobile ? 10 : 12,
+                                borderRadius: 16,
+                                boxShadow: "none",
+                                display: "grid",
+                                gap: 4,
+                            }}
+                        >
+                            <span
+                                style={{
+                                    color: "#8d727b",
+                                    fontSize: 11,
+                                    fontWeight: 800,
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.04em",
+                                }}
+                            >
+                                {resumo.label}
+                            </span>
 
-                    <div style={cardResumo}>
-                        <strong>Vendidas</strong>
-                        <div style={valorResumo}>{totalVendidas}</div>
-                    </div>
+                            <div
+                                style={{
+                                    ...valorResumo,
+                                    margin: 0,
+                                    fontSize: isMobile ? 24 : 28,
+                                    lineHeight: 1,
+                                }}
+                            >
+                                {resumo.value}
+                            </div>
+                        </div>
+                    ))}
                 </div>
 
                 <div
                     style={{
                         ...linhaFiltros,
                         display: "grid",
-                        gridTemplateColumns: isMobile ? "1fr" : "minmax(260px, 420px) auto auto auto",
-                        gap: isMobile ? 8 : 10,
+                        gridTemplateColumns: isMobile
+                            ? "1fr"
+                            : "minmax(300px, 1fr) auto auto auto",
+                        gap: 8,
                         alignItems: "center",
+                        marginBottom: 0,
                     }}
                 >
                     <input
@@ -421,10 +502,10 @@ export default function EstoqueSection({
                         display: "grid",
                         gridTemplateColumns: isMobile
                             ? "1fr"
-                            : "minmax(240px, 340px) auto auto",
-                        gap: 10,
+                            : "minmax(250px, 330px) auto auto",
+                        gap: 8,
                         alignItems: "center",
-                        marginTop: 10,
+                        marginTop: 0,
                     }}
                 >
                     <div
@@ -485,10 +566,10 @@ export default function EstoqueSection({
                 {mostrarFiltrosAvancados ? (
                     <div
                         style={{
-                            marginTop: 12,
+                            marginTop: 8,
                             padding: isMobile ? 12 : 16,
                             border: "1px solid #f1dce4",
-                            borderRadius: 18,
+                            borderRadius: 16,
                             background: "#fffafb",
                             display: "grid",
                             gap: 14,
@@ -663,7 +744,7 @@ export default function EstoqueSection({
                                 display: "flex",
                                 justifyContent: "space-between",
                                 alignItems: "center",
-                                gap: 10,
+                                gap: 8,
                                 flexWrap: "wrap",
                             }}
                         >
@@ -687,11 +768,15 @@ export default function EstoqueSection({
 
             <div
                 style={{
-                    marginBottom: isMobile ? 10 : 14,
+                    marginBottom: isMobile ? 10 : 12,
+                    padding: isMobile ? 8 : 10,
                     display: "grid",
-                    gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(3, minmax(0, 1fr))",
-                    gap: isMobile ? 8 : 10,
+                    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                    gap: 8,
                     alignItems: "stretch",
+                    border: "1px solid #f1dce4",
+                    borderRadius: 14,
+                    background: "#fffafb",
                 }}
             >
                 <IconButton
@@ -742,10 +827,11 @@ export default function EstoqueSection({
                                 style={{
                                     ...cardPeca,
                                     display: "grid",
-                                    gap: isMobile ? 10 : 14,
+                                    gap: isMobile ? 7 : 8,
                                     alignContent: "start",
-                                    padding: isMobile ? 10 : 16,
-                                    borderRadius: isMobile ? 16 : 20,
+                                    padding: isMobile ? 9 : 11,
+                                    borderRadius: isMobile ? 13 : 15,
+                                    boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
                                 }}
                             >
                                 <div
@@ -819,39 +905,86 @@ export default function EstoqueSection({
                                             }}
                                         >
                                             <div style={{ display: "grid", gap: isMobile ? 3 : 4 }}>
-                                                <p style={textoCompacto}>Código: {codigo}</p>
-                                                <p style={textoCompacto}>Compra: {custo}</p>
-                                                <p style={textoCompacto}>Venda: {venda}</p>
-                                                <p style={textoCompacto}>Obs: {obs}</p>
-                                                <p style={textoCompacto}>Cadastro: {cadastro}</p>
+                                                <div
+                                                    style={{
+                                                        display: "grid",
+                                                        gridTemplateColumns: isMobile
+                                                            ? "1fr"
+                                                            : "repeat(2, minmax(0, 1fr))",
+                                                        gap: isMobile
+                                                            ? 3
+                                                            : "4px 12px",
+                                                    }}
+                                                >
+                                                    <p style={textoCompacto}>
+                                                        Código: {codigo}
+                                                    </p>
+
+                                                    <p style={textoCompacto}>
+                                                        Cadastro: {cadastro}
+                                                    </p>
+
+                                                    <p style={textoCompacto}>
+                                                        Compra: {custo}
+                                                    </p>
+
+                                                    <p style={textoCompacto}>
+                                                        Venda: {venda}
+                                                    </p>
+                                                </div>
 
                                                 <p style={textoCompacto}>
-                                                    Status: {" "}
-                                                    <strong style={{ color: vendido ? "#15803d" : "#334155" }}>
-                                                        {vendido ? `Vendido para ${clienteNome}` : "Disponível"}
+                                                    Status:{" "}
+                                                    <strong
+                                                        style={{
+                                                            color: vendido
+                                                                ? "#15803d"
+                                                                : "#334155",
+                                                        }}
+                                                    >
+                                                        {vendido
+                                                            ? `Vendido para ${clienteNome}`
+                                                            : "Disponível"}
                                                     </strong>
                                                 </p>
 
                                                 {vendido ? (
-                                                    <p style={textoCompacto}>Data da venda: {dataVenda}</p>
+                                                    <p style={textoCompacto}>
+                                                        Data da venda: {dataVenda}
+                                                    </p>
+                                                ) : null}
+
+                                                {obs && obs !== "-" ? (
+                                                    <p
+                                                        style={{
+                                                            ...textoCompacto,
+                                                            paddingTop: 4,
+                                                            borderTop: "1px solid #f1f5f9",
+                                                        }}
+                                                    >
+                                                        Obs.: {obs}
+                                                    </p>
                                                 ) : null}
                                             </div>
 
                                             <div
                                                 style={{
                                                     border: "1px solid #e5e7eb",
-                                                    borderRadius: isMobile ? 12 : 14,
-                                                    padding: isMobile ? 6 : 10,
+                                                    borderRadius: isMobile ? 10 : 12,
+                                                    padding: isMobile ? 5 : 8,
                                                     background: "#fff",
                                                     display: "flex",
                                                     justifyContent: "center",
                                                     alignItems: "center",
-                                                    minHeight: isMobile ? 68 : 104,
-                                                    minWidth: isMobile ? "100%" : 104,
+                                                    minHeight: isMobile ? 58 : 82,
+                                                    minWidth: isMobile ? "100%" : 82,
                                                     marginTop: isMobile ? 2 : 0,
                                                 }}
                                             >
-                                                <QRCodeCanvas value={codigo} size={isMobile ? 54 : 84} />
+                                                <QRCodeCanvas
+                                                    value={codigo}
+                                                    size={isMobile ? 44 : 64}
+                                                />
                                             </div>
                                         </div>
                                     </div>
@@ -932,8 +1065,8 @@ export default function EstoqueSection({
                             maxHeight: "90vh",
                             overflow: "auto",
                             background: "#fff",
-                            borderRadius: 22,
-                            padding: isMobile ? 16 : 20,
+                            borderRadius: 18,
+                            padding: isMobile ? 14 : 16,
                             boxShadow: "0 24px 60px rgba(15, 23, 42, 0.28)",
                             display: "grid",
                             gap: 12,
@@ -1025,7 +1158,7 @@ export default function EstoqueSection({
                             style={{
                                 display: "grid",
                                 gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
-                                gap: 10,
+                                gap: 8,
                                 marginTop: 4,
                             }}
                         >
