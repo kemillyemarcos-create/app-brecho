@@ -108,6 +108,38 @@ const marcas = [
       "ralph",
     ],
   },
+
+  {
+    id: "puma",
+    nome: "Puma",
+    aliases: [
+      "puma",
+    ],
+  },
+
+  {
+    id: "guess",
+    nome: "Guess",
+    aliases: [
+      "guess",
+    ],
+  },
+
+  {
+    id: "mango",
+    nome: "Mango",
+    aliases: [
+      "mango",
+    ],
+  },
+
+  {
+    id: "gap",
+    nome: "Gap",
+    aliases: [
+      "gap",
+    ],
+  },
 ];
 
 function normalizarTexto(valor) {

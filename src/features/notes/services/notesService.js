@@ -395,43 +395,116 @@ export async function sincronizarItensNota(
     throw new Error("O ID da nota é obrigatório.");
   }
 
-  const sanitizedItems = sanitizeItems(items);
+  const sourceItems = Array.isArray(items)
+    ? items
+    : [];
 
-  const { error: deleteError } = await supabase
-    .from(NOTE_ITEMS_TABLE)
-    .delete()
-    .eq("nota_id", noteId);
+  const preparedItems = sourceItems
+    .map((item, index) => ({
+      originalId:
+        item?.id &&
+        !String(item.id).startsWith("temp-")
+          ? item.id
+          : null,
+      payload: sanitizeNoteItemPayload(
+        item,
+        index
+      ),
+    }))
+    .filter(({ payload }) => payload.texto);
+
+  const { data: currentItems, error: loadError } =
+    await supabase
+      .from(NOTE_ITEMS_TABLE)
+      .select("id")
+      .eq("nota_id", noteId);
 
   throwServiceError(
-    deleteError,
-    "Não foi possível atualizar os itens da nota."
+    loadError,
+    "Não foi possível carregar os itens atuais da nota."
   );
 
-  if (sanitizedItems.length === 0) {
-    return [];
+  const currentIds = new Set(
+    (currentItems ?? []).map((item) => item.id)
+  );
+
+  const itemsToUpdate = preparedItems.filter(
+    ({ originalId }) =>
+      originalId && currentIds.has(originalId)
+  );
+
+  const itemsToCreate = preparedItems.filter(
+    ({ originalId }) =>
+      !originalId || !currentIds.has(originalId)
+  );
+
+  for (const { originalId, payload } of itemsToUpdate) {
+    const { error: updateError } = await supabase
+      .from(NOTE_ITEMS_TABLE)
+      .update({
+        ...payload,
+        nota_id: noteId,
+      })
+      .eq("id", originalId)
+      .eq("nota_id", noteId);
+
+    throwServiceError(
+      updateError,
+      "Não foi possível atualizar um dos itens da nota."
+    );
   }
 
-  const payload = sanitizedItems.map(
-    (item, index) => ({
-      ...item,
-      nota_id: noteId,
-      ordem: index,
-    })
+  if (itemsToCreate.length > 0) {
+    const newItemsPayload = itemsToCreate.map(
+      ({ payload }) => ({
+        ...payload,
+        nota_id: noteId,
+      })
+    );
+
+    const { error: insertError } = await supabase
+      .from(NOTE_ITEMS_TABLE)
+      .insert(newItemsPayload);
+
+    throwServiceError(
+      insertError,
+      "Não foi possível adicionar os novos itens da nota."
+    );
+  }
+
+  const retainedIds = new Set(
+    itemsToUpdate.map(({ originalId }) => originalId)
   );
+
+  const removedIds = [...currentIds].filter(
+    (itemId) => !retainedIds.has(itemId)
+  );
+
+  if (removedIds.length > 0) {
+    const { error: deleteError } = await supabase
+      .from(NOTE_ITEMS_TABLE)
+      .delete()
+      .eq("nota_id", noteId)
+      .in("id", removedIds);
+
+    throwServiceError(
+      deleteError,
+      "Não foi possível remover os itens excluídos da nota."
+    );
+  }
 
   const { data, error } = await supabase
     .from(NOTE_ITEMS_TABLE)
-    .insert(payload)
-    .select("*");
+    .select("*")
+    .eq("nota_id", noteId)
+    .order("ordem", {
+      ascending: true,
+    });
 
   throwServiceError(
     error,
-    "Não foi possível salvar os itens da nota."
+    "Não foi possível carregar os itens atualizados da nota."
   );
 
-  return (data ?? []).sort(
-    (firstItem, secondItem) =>
-      Number(firstItem.ordem ?? 0) -
-      Number(secondItem.ordem ?? 0)
-  );
+  return data ?? [];
 }
