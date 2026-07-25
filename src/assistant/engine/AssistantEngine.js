@@ -3,7 +3,7 @@ import skills from "../skills";
 import intentEngine from "../intents/IntentEngine";
 import plannerEngine from "../planner/PlannerEngine";
 import planExecutor from "../planner/PlanExecutor";
-import { normalizarTexto } from "../utils/TextUtils";
+import SkillRegistry from "../SkillRegistry";
 import knowledgeExecutor from "./KnowledgeExecutor";
 import skillExecutor from "./SkillExecutor";
 
@@ -14,73 +14,24 @@ import {
 
 class AssistantEngine {
   constructor() {
-    this.skills = Array.isArray(skills) ? skills : [];
+    this.skillRegistry =
+      new SkillRegistry(
+        Array.isArray(skills)
+          ? skills
+          : []
+      );
   }
 
   buscarSkill(id) {
-    if (!id) {
-      return null;
-    }
-
-    const idNormalizado = normalizarTexto(id);
-
-    return (
-      this.skills.find(
-        (skill) =>
-          normalizarTexto(skill?.id) === idNormalizado
-      ) || null
+    return this.skillRegistry.buscarPorId(
+      id
     );
   }
 
   encontrarSkillPorAlias(pergunta) {
-    const texto = normalizarTexto(pergunta);
-
-    if (!texto) {
-      return null;
-    }
-
-    let melhorSkill = null;
-    let maiorPontuacao = 0;
-
-    for (const skill of this.skills) {
-      const termos = [
-        ...(skill?.aliases || []),
-        ...(skill?.patterns || []),
-      ];
-
-      let pontuacaoSkill = 0;
-
-      for (const termoOriginal of termos) {
-        const termo = normalizarTexto(termoOriginal);
-
-        if (!termo) {
-          continue;
-        }
-
-        let pontuacao = 0;
-
-        if (texto === termo) {
-          pontuacao = 100;
-        } else if (texto.includes(termo)) {
-          pontuacao =
-            termo
-              .split(" ")
-              .filter(Boolean)
-              .length * 10;
-        }
-
-        if (pontuacao > pontuacaoSkill) {
-          pontuacaoSkill = pontuacao;
-        }
-      }
-
-      if (pontuacaoSkill > maiorPontuacao) {
-        maiorPontuacao = pontuacaoSkill;
-        melhorSkill = skill;
-      }
-    }
-
-    return melhorSkill;
+    return this.skillRegistry.encontrarPorAlias(
+      pergunta
+    );
   }
 
   async executarSkill(
@@ -264,13 +215,11 @@ class AssistantEngine {
   }
 
   listarSkills() {
-    return this.skills.map((skill) => ({
-      id: skill.id,
-      nome: skill.nome,
-      categoria: skill.categoria,
-      tipo: skill.tipo,
-      aliases: skill.aliases || [],
-    }));
+    return this.skillRegistry.listarResumo();
+  }
+
+  diagnosticarSkills() {
+    return this.skillRegistry.diagnosticar();
   }
 
   listarIntencoes() {
