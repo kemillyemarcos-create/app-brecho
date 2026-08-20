@@ -1,7 +1,10 @@
-import { useState } from "react";
-import { Eye, EyeOff, Lock, Mail } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Eye, EyeOff, Lock, Mail, ShieldCheck } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import logoKchic from "../../assets/logo-kchic.png";
+
+const HCAPTCHA_SCRIPT_ID = "kchic-hcaptcha-script";
+const HCAPTCHA_SCRIPT_URL = "https://js.hcaptcha.com/1/api.js?render=explicit";
 
 export default function LoginAdmin() {
   const [email, setEmail] = useState("");
@@ -9,6 +12,112 @@ export default function LoginAdmin() {
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaPronto, setCaptchaPronto] = useState(false);
+
+  const captchaContainerRef = useRef(null);
+  const captchaWidgetIdRef = useRef(null);
+  const captchaRenderizadoRef = useRef(false);
+
+  const hcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY;
+
+  useEffect(() => {
+    if (!hcaptchaSiteKey) return undefined;
+
+    let ativo = true;
+
+    function renderizarCaptcha() {
+      if (
+        !ativo ||
+        captchaRenderizadoRef.current ||
+        !captchaContainerRef.current ||
+        !window.hcaptcha
+      ) {
+        return;
+      }
+
+      captchaWidgetIdRef.current = window.hcaptcha.render(
+        captchaContainerRef.current,
+        {
+          sitekey: hcaptchaSiteKey,
+          callback: (token) => {
+            if (!ativo) return;
+            setCaptchaToken(token || "");
+            setErro("");
+          },
+          "expired-callback": () => {
+            if (!ativo) return;
+            setCaptchaToken("");
+          },
+          "error-callback": () => {
+            if (!ativo) return;
+            setCaptchaToken("");
+            setErro("Não foi possível validar o CAPTCHA. Tente novamente.");
+          },
+        }
+      );
+
+      captchaRenderizadoRef.current = true;
+      setCaptchaPronto(true);
+    }
+
+    if (window.hcaptcha) {
+      renderizarCaptcha();
+      return () => {
+        ativo = false;
+      };
+    }
+
+    let script = document.getElementById(HCAPTCHA_SCRIPT_ID);
+
+    if (!script) {
+      script = document.createElement("script");
+      script.id = HCAPTCHA_SCRIPT_ID;
+      script.src = HCAPTCHA_SCRIPT_URL;
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+
+    const aoCarregar = () => renderizarCaptcha();
+    const aoFalhar = () => {
+      if (!ativo) return;
+      setErro("Não foi possível carregar a verificação de segurança.");
+    };
+
+    script.addEventListener("load", aoCarregar);
+    script.addEventListener("error", aoFalhar);
+
+    const intervalo = window.setInterval(() => {
+      if (window.hcaptcha) {
+        window.clearInterval(intervalo);
+        renderizarCaptcha();
+      }
+    }, 250);
+
+    return () => {
+      ativo = false;
+      window.clearInterval(intervalo);
+      script?.removeEventListener("load", aoCarregar);
+      script?.removeEventListener("error", aoFalhar);
+    };
+  }, [hcaptchaSiteKey]);
+
+  function resetarCaptcha() {
+    setCaptchaToken("");
+
+    if (
+      window.hcaptcha &&
+      captchaWidgetIdRef.current !== null &&
+      captchaWidgetIdRef.current !== undefined
+    ) {
+      try {
+        window.hcaptcha.reset(captchaWidgetIdRef.current);
+      } catch {
+        // Se o widget já tiver sido desmontado, não há nada a resetar.
+      }
+    }
+  }
 
   async function entrar(e) {
     e.preventDefault();
@@ -20,6 +129,16 @@ export default function LoginAdmin() {
       return;
     }
 
+    if (!hcaptchaSiteKey) {
+      setErro("CAPTCHA não configurado. Informe VITE_HCAPTCHA_SITE_KEY.");
+      return;
+    }
+
+    if (!captchaToken) {
+      setErro("Confirme que você não é um robô antes de entrar.");
+      return;
+    }
+
     try {
       setCarregando(true);
       setErro("");
@@ -27,18 +146,31 @@ export default function LoginAdmin() {
       const { error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: senha,
+        options: {
+          captchaToken,
+        },
       });
 
       if (error) {
-        setErro("E-mail ou senha inválidos.");
+        setErro("E-mail, senha ou verificação de segurança inválidos.");
+        resetarCaptcha();
         return;
       }
     } catch {
       setErro("Não foi possível entrar. Tente novamente.");
+      resetarCaptcha();
     } finally {
       setCarregando(false);
     }
   }
+
+  const podeEntrar =
+    !carregando &&
+    !!email.trim() &&
+    !!senha.trim() &&
+    !!hcaptchaSiteKey &&
+    captchaPronto &&
+    !!captchaToken;
 
   return (
     <div
@@ -207,6 +339,58 @@ export default function LoginAdmin() {
           </div>
         </label>
 
+        <div
+          style={{
+            display: "grid",
+            gap: 9,
+            padding: 12,
+            border: "1px solid #e2e8f0",
+            borderRadius: 16,
+            background: "#f8fafc",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              color: "#475569",
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          >
+            <ShieldCheck size={16} color="#8f2745" />
+            Verificação de segurança
+          </div>
+
+          {hcaptchaSiteKey ? (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                minHeight: 78,
+                overflow: "hidden",
+              }}
+            >
+              <div ref={captchaContainerRef} />
+            </div>
+          ) : (
+            <div
+              style={{
+                color: "#b45309",
+                background: "#fffbeb",
+                border: "1px solid #fde68a",
+                borderRadius: 12,
+                padding: "10px 12px",
+                fontSize: 12,
+                lineHeight: 1.4,
+              }}
+            >
+              Configure a variável VITE_HCAPTCHA_SITE_KEY para ativar o CAPTCHA.
+            </div>
+          )}
+        </div>
+
         {erro ? (
           <div
             style={{
@@ -225,17 +409,19 @@ export default function LoginAdmin() {
 
         <button
           type="submit"
-          disabled={carregando}
+          disabled={!podeEntrar}
           style={{
             height: 46,
             border: "none",
             borderRadius: 14,
-            background: carregando ? "#94a3b8" : "#8f2745",
+            background: podeEntrar ? "#8f2745" : "#94a3b8",
             color: "#fff",
             fontWeight: 800,
             fontSize: 15,
-            cursor: carregando ? "not-allowed" : "pointer",
-            boxShadow: "0 10px 22px rgba(143,39,69,0.22)",
+            cursor: podeEntrar ? "pointer" : "not-allowed",
+            boxShadow: podeEntrar
+              ? "0 10px 22px rgba(143,39,69,0.22)"
+              : "none",
           }}
         >
           {carregando ? "Entrando..." : "Entrar"}
