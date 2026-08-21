@@ -24,6 +24,7 @@ import {
 import {
   montarPayloadCliente,
   buscarClientePorCpf,
+  cadastrarClientePublico,
   formatarCPF,
   formatarTelefone,
   formatarCEP,
@@ -1160,18 +1161,16 @@ Qualquer dúvida, é só nos chamar! 💕`;
       setSalvandoCadastroPublico(true);
 
       const payload = montarPayloadCliente(formCliente, { exigirCpf: true });
-      const clienteExistente = await buscarClientePorCpf(payload.cpf);
+      const resultado = await cadastrarClientePublico(payload);
 
-      if (clienteExistente) {
-        alert(`Já existe cadastro com este CPF: ${clienteExistente.nome}`);
+      if (!resultado?.ok && resultado?.code === "CPF_JA_CADASTRADO") {
+        alert(
+          resultado.nome
+            ? `Já existe cadastro com este CPF: ${resultado.nome}`
+            : "Já existe cadastro com este CPF."
+        );
         return;
       }
-
-      await inserirCliente({
-        id: gerarCodigo("CLI"),
-        ...payload,
-        criado_em: agoraIso(),
-      });
 
       setFormCliente(FORM_INICIAL_CLIENTE);
       setCadastroPublicoConcluido(true);

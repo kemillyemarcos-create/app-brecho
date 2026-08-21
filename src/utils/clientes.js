@@ -97,6 +97,38 @@ export async function buscarClientePorCpf(cpf, idIgnorar = null) {
     return Array.isArray(data) && data.length > 0 ? data[0] : null;
 }
 
+
+export async function cadastrarClientePublico(payload) {
+    const { data, error } = await supabase.rpc("cadastrar_cliente_publico", {
+        p_nome: String(payload?.nome || "").trim(),
+        p_cpf: normalizarCPF(payload?.cpf),
+        p_telefone: normalizarTelefone(payload?.telefone),
+        p_cep: String(payload?.cep || "").replace(/\D/g, "").slice(0, 8),
+        p_endereco: String(payload?.endereco || "").trim(),
+        p_numero: String(payload?.numero || "").trim(),
+        p_complemento: String(payload?.complemento || "").trim(),
+    });
+
+    if (error) {
+        console.error("ERRO NO RPC DE CADASTRO PÚBLICO:", error);
+        throw new Error("Não foi possível concluir o cadastro agora.");
+    }
+
+    if (!data?.ok) {
+        if (data?.code === "CPF_JA_CADASTRADO") {
+            return {
+                ok: false,
+                code: data.code,
+                nome: data.nome || "",
+            };
+        }
+
+        throw new Error("Não foi possível concluir o cadastro agora.");
+    }
+
+    return data;
+}
+
 export async function buscarEnderecoPorCep(cep) {
     const cepLimpo = String(cep || "").replace(/\D/g, "");
 
