@@ -43,6 +43,16 @@ function getParametroUrl(nome) {
   return params.get(nome) || "";
 }
 
+function normalizarRespostaPortal(data) {
+  return {
+    lives: Array.isArray(data?.lives) ? data.lives : [],
+    sacolinha: data?.sacolinha || null,
+    vendas: Array.isArray(data?.vendas) ? data.vendas : [],
+    pecas: Array.isArray(data?.pecas) ? data.pecas : [],
+    pedidoEnvio: data?.pedido_envio || null,
+  };
+}
+
 export default function PortalCliente() {
   const tokenInicial =
     normalizarCodigo(getParametroUrl("t")) ||
@@ -67,185 +77,108 @@ export default function PortalCliente() {
     lives.find((live) => String(live.id) === String(liveDaSacolinhaId)) ||
     lives.find((live) => String(live.id) === String(liveId));
 
+  function aplicarLives(livesRecebidas) {
+    const lista = Array.isArray(livesRecebidas) ? livesRecebidas : [];
+    setLives(lista);
+
+    const aberta = lista.find((live) => live.status === "aberta") || null;
+    setTemLiveAberta(Boolean(aberta));
+
+    if (aberta) {
+      setLiveId(aberta.id);
+      return;
+    }
+
+    if (lista.length) {
+      setLiveId((atual) => atual || lista[0].id);
+    }
+  }
+
+  function aplicarDadosSacolinha(payload) {
+    const resposta = normalizarRespostaPortal(payload);
+    aplicarLives(resposta.lives);
+
+    setSacolinhaAtual(resposta.sacolinha);
+    setVendas(resposta.vendas);
+    setPedidoEnvio(resposta.pedidoEnvio);
+
+    const mapa = {};
+    resposta.pecas.forEach((peca) => {
+      mapa[String(peca.id)] = peca;
+    });
+    setPecas(mapa);
+
+    if (resposta.sacolinha?.live_id) {
+      setLiveId(resposta.sacolinha.live_id);
+    }
+
+    return resposta;
+  }
+
   async function carregarLives() {
     try {
       setCarregandoLives(true);
       setErro("");
 
-      const { data: liveAberta, error: erroAberta } = await supabase
-        .from("lives")
-        .select("*")
-        .eq("status", "aberta")
-        .order("criado_em", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc("portal_cliente_dados", {
+        p_codigo: null,
+      });
 
-      if (erroAberta) {
-        console.error("ERRO AO CARREGAR LIVE ABERTA DO PORTAL:", erroAberta);
-        setErro("Não foi possível carregar a live atual. Tente novamente em instantes.");
-        return;
-      }
+      if (error) throw error;
 
-      if (liveAberta) {
-        setTemLiveAberta(true);
-        setLives([liveAberta]);
-        setLiveId(liveAberta.id);
-        return;
-      }
-
-      setTemLiveAberta(false);
-
-      const { data, error } = await supabase
-        .from("lives")
-        .select("*")
-        .order("criado_em", { ascending: false })
-        .limit(3);
-
-      if (error) {
-        console.error("ERRO AO CARREGAR ÚLTIMAS LIVES DO PORTAL:", error);
-        setErro("Não foi possível carregar as lives. Tente novamente em instantes.");
-        return;
-      }
-
-      setLives(data || []);
-
-      if (!liveId && data?.length) {
-        setLiveId(data[0].id);
-      }
+      aplicarLives(normalizarRespostaPortal(data).lives);
+    } catch (error) {
+      console.error("ERRO AO CARREGAR LIVES DO PORTAL:", error);
+      setErro("Não foi possível carregar as lives. Tente novamente em instantes.");
     } finally {
       setCarregandoLives(false);
     }
   }
 
-  async function buscarSacolinhaPorCodigo(codigo) {
-    const token = normalizarCodigo(codigo);
-    if (!token) return null;
-
-    const { data: porToken, error: erroToken } = await supabase
-      .from("sacolinhas_live")
-      .select("*")
-      .eq("portal_token", token)
-      .maybeSingle();
-
-    if (erroToken) throw erroToken;
-    if (porToken) return porToken;
-
-    // Compatibilidade temporária: permite consultar pelo ID antigo da sacolinha.
-    const { data: porId, error: erroId } = await supabase
-      .from("sacolinhas_live")
-      .select("*")
-      .eq("id", codigo)
-      .maybeSingle();
-
-    if (erroId) throw erroId;
-    return porId || null;
-  }
-
-  async function buscarPedidoEnvioDaSacolinha(sacolinhaId) {
-    if (!sacolinhaId) return null;
-
-    const { data: vinculos, error: erroVinculos } = await supabase
-      .from("pedido_envio_sacolinhas")
-      .select("pedido_envio_id")
-      .eq("sacolinha_id", sacolinhaId);
-
-    if (erroVinculos) throw erroVinculos;
-
-    const pedidoIds = [
-      ...new Set((vinculos || []).map((item) => item.pedido_envio_id).filter(Boolean)),
-    ];
-
-    if (pedidoIds.length === 0) return null;
-
-    const { data: pedidos, error: erroPedidos } = await supabase
-      .from("pedidos_envio")
-      .select("*")
-      .in("id", pedidoIds)
-      .order("criado_em", { ascending: false });
-
-    if (erroPedidos) throw erroPedidos;
-
-    return pedidos?.[0] || null;
-  }
-
-  async function consultarSacolinha(codigoManual = codigoPortal) {
+  async function consultarSacolinha(
+    codigoManual = codigoPortal,
+    { silencioso = false } = {}
+  ) {
     const codigo = normalizarCodigo(codigoManual);
 
     if (!codigo) {
-      alert("Digite o código da sua sacolinha.");
+      if (!silencioso) alert("Digite o código da sua sacolinha.");
       return;
     }
 
     try {
-      setErro("");
-      setCarregandoConsulta(true);
-      setConsultado(true);
+      if (!silencioso) {
+        setErro("");
+        setCarregandoConsulta(true);
+        setConsultado(true);
+      }
 
-      const sacolinha = await buscarSacolinhaPorCodigo(codigo);
+      const { data, error } = await supabase.rpc("portal_cliente_dados", {
+        p_codigo: codigo,
+      });
 
-      if (!sacolinha) {
+      if (error) throw error;
+
+      const resposta = aplicarDadosSacolinha(data);
+
+      if (!resposta.sacolinha) {
         setSacolinhaAtual(null);
         setVendas([]);
         setPecas({});
         setPedidoEnvio(null);
-        setErro("Não encontramos uma sacolinha com esse código.");
-        return;
+        if (!silencioso) {
+          setErro("Não encontramos uma sacolinha com esse código.");
+        }
+      } else if (!silencioso) {
+        setErro("");
       }
-
-      setSacolinhaAtual(sacolinha);
-
-      const pedidoDaSacolinha = await buscarPedidoEnvioDaSacolinha(sacolinha.id);
-      setPedidoEnvio(pedidoDaSacolinha);
-
-      if (sacolinha.live_id) {
-        setLiveId(sacolinha.live_id);
-      }
-
-      const { data, error } = await supabase
-        .from("vendas_live")
-        .select("*")
-        .eq("sacolinha_id", sacolinha.id)
-        .order("data_hora", { ascending: false });
-
-      if (error) {
-        console.error("ERRO AO CONSULTAR SACOLINHA:", error);
-        setErro("Não foi possível consultar sua sacolinha agora.");
-        return;
-      }
-
-      const vendasDaSacolinha = data || [];
-      setVendas(vendasDaSacolinha);
-
-      const idsPecas = [
-        ...new Set(vendasDaSacolinha.map((venda) => venda.peca_id).filter(Boolean)),
-      ];
-
-      if (idsPecas.length === 0) {
-        setPecas({});
-        return;
-      }
-
-      const { data: pecasData, error: erroPecas } = await supabase
-        .from("pecas")
-        .select("*")
-        .in("id", idsPecas);
-
-      if (erroPecas) {
-        console.error("ERRO AO BUSCAR PEÇAS DO PORTAL:", erroPecas);
-        return;
-      }
-
-      const mapa = {};
-      (pecasData || []).forEach((peca) => {
-        mapa[String(peca.id)] = peca;
-      });
-
-      setPecas(mapa);
     } catch (error) {
       console.error("ERRO AO CONSULTAR PORTAL:", error);
-      setErro("Não foi possível consultar sua sacolinha agora.");
+      if (!silencioso) {
+        setErro("Não foi possível consultar sua sacolinha agora.");
+      }
     } finally {
-      setCarregandoConsulta(false);
+      if (!silencioso) setCarregandoConsulta(false);
     }
   }
 
@@ -260,61 +193,17 @@ export default function PortalCliente() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // O portal público não assina mais diretamente tabelas do banco.
+  // Enquanto a sacolinha estiver aberta na tela, atualizamos via RPC controlada.
   useEffect(() => {
-    if (!sacolinhaAtual?.id || !consultado) return undefined;
+    if (!sacolinhaAtual?.id || !consultado || !codigoPortal) return undefined;
 
-    const canalVendas = supabase
-      .channel(`portal-cliente-vendas-${sacolinhaAtual.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "vendas_live",
-          filter: `sacolinha_id=eq.${sacolinhaAtual.id}`,
-        },
-        () => {
-          consultarSacolinha(codigoPortal);
-        }
-      )
-      .subscribe();
+    const intervalo = window.setInterval(() => {
+      consultarSacolinha(codigoPortal, { silencioso: true });
+    }, 15000);
 
-    const canalVinculos = supabase
-      .channel(`portal-cliente-pedido-vinculos-${sacolinhaAtual.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "pedido_envio_sacolinhas",
-          filter: `sacolinha_id=eq.${sacolinhaAtual.id}`,
-        },
-        () => {
-          consultarSacolinha(codigoPortal);
-        }
-      )
-      .subscribe();
-
-    const canalPedidos = supabase
-      .channel("portal-cliente-pedidos-envio")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "pedidos_envio",
-        },
-        () => {
-          consultarSacolinha(codigoPortal);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(canalVendas);
-      supabase.removeChannel(canalVinculos);
-      supabase.removeChannel(canalPedidos);
-    };
+    return () => window.clearInterval(intervalo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sacolinhaAtual?.id, codigoPortal, consultado]);
 
   const resumo = useMemo(() => {
