@@ -422,6 +422,13 @@ function AppContent() {
     motivoBloqueio,
     isAdmin,
   } = useUser();
+  const podeAcessarDadosAdministrativos =
+    !rotaPublica &&
+    !carregandoAuth &&
+    !!session &&
+    !carregandoUsuario &&
+    acessoLiberado;
+
   const [abaAtiva, setAbaAtiva] = useState("cadastro");
   const [carregando, setCarregando] = useState(true);
 
@@ -872,10 +879,17 @@ Qualquer dúvida, é só nos chamar! 💕`;
       return;
     }
 
+    if (!podeAcessarDadosAdministrativos) {
+      setCarregando(false);
+      return;
+    }
+
     carregarTudoInicial();
-  }, [rotaPublica]);
+  }, [rotaPublica, podeAcessarDadosAdministrativos]);
 
   useEffect(() => {
+    if (!podeAcessarDadosAdministrativos) return undefined;
+
     let ativo = true;
 
     async function sincronizarLiveAtual() {
@@ -899,10 +913,12 @@ Qualquer dúvida, é só nos chamar! 💕`;
     return () => {
       ativo = false;
     };
-  }, [liveAtual]);
+  }, [liveAtual, podeAcessarDadosAdministrativos]);
 
 
   useEffect(() => {
+    if (!podeAcessarDadosAdministrativos) return undefined;
+
     const channelPecas = supabase
       .channel("pecas-realtime")
       .on(
@@ -968,10 +984,12 @@ Qualquer dúvida, é só nos chamar! 💕`;
       supabase.removeChannel(channelPedidosEnvio);
       supabase.removeChannel(channelPedidoEnvioSacolinhas);
     };
-  }, []);
+  }, [podeAcessarDadosAdministrativos]);
 
   useEffect(() => {
-    if (!liveEmVisualizacao?.id) return;
+    if (!podeAcessarDadosAdministrativos || !liveEmVisualizacao?.id) {
+      return undefined;
+    }
 
     const channelVendasLive = supabase
       .channel("vendas-live-realtime")
@@ -996,7 +1014,7 @@ Qualquer dúvida, é só nos chamar! 💕`;
     return () => {
       supabase.removeChannel(channelVendasLive);
     };
-  }, [liveEmVisualizacao?.id]);
+  }, [liveEmVisualizacao?.id, podeAcessarDadosAdministrativos]);
 
 
   useEffect(() => {
