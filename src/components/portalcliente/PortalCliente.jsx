@@ -77,12 +77,23 @@ export default function PortalCliente() {
     lives.find((live) => String(live.id) === String(liveDaSacolinhaId)) ||
     lives.find((live) => String(live.id) === String(liveId));
 
-  function aplicarLives(livesRecebidas) {
+  function aplicarLives(livesRecebidas, livePreferidaId = "") {
     const lista = Array.isArray(livesRecebidas) ? livesRecebidas : [];
     setLives(lista);
 
     const aberta = lista.find((live) => live.status === "aberta") || null;
     setTemLiveAberta(Boolean(aberta));
+
+    if (livePreferidaId) {
+      const existe = lista.some(
+        (live) => String(live.id) === String(livePreferidaId)
+      );
+
+      if (existe) {
+        setLiveId(livePreferidaId);
+        return;
+      }
+    }
 
     if (aberta) {
       setLiveId(aberta.id);
@@ -94,9 +105,22 @@ export default function PortalCliente() {
     }
   }
 
-  function aplicarDadosSacolinha(payload) {
+  function aplicarDadosSacolinha(payload, livePreferidaId = "") {
     const resposta = normalizarRespostaPortal(payload);
-    aplicarLives(resposta.lives);
+
+    // Quando a cliente escolhe uma live manualmente,
+    // essa seleção tem prioridade e deve permanecer na tela,
+    // mesmo que ela não possua sacolinha naquela live.
+    const liveAlvoId =
+      livePreferidaId ||
+      resposta.sacolinha?.live_id ||
+      "";
+
+    aplicarLives(resposta.lives, liveAlvoId);
+
+    if (liveAlvoId) {
+      setLiveId(liveAlvoId);
+    }
 
     setSacolinhaAtual(resposta.sacolinha);
     setVendas(resposta.vendas);
@@ -107,10 +131,6 @@ export default function PortalCliente() {
       mapa[String(peca.id)] = peca;
     });
     setPecas(mapa);
-
-    if (resposta.sacolinha?.live_id) {
-      setLiveId(resposta.sacolinha.live_id);
-    }
 
     return resposta;
   }
@@ -137,7 +157,7 @@ export default function PortalCliente() {
 
   async function consultarSacolinha(
     codigoManual = codigoPortal,
-    { silencioso = false } = {}
+    { silencioso = false, liveIdSelecionada = "" } = {}
   ) {
     const codigo = normalizarCodigo(codigoManual);
 
@@ -155,11 +175,12 @@ export default function PortalCliente() {
 
       const { data, error } = await supabase.rpc("portal_cliente_dados", {
         p_codigo: codigo,
+        p_live_id: liveIdSelecionada || null,
       });
 
       if (error) throw error;
 
-      const resposta = aplicarDadosSacolinha(data);
+      const resposta = aplicarDadosSacolinha(data, liveIdSelecionada);
 
       if (!resposta.sacolinha) {
         setSacolinhaAtual(null);
@@ -167,7 +188,11 @@ export default function PortalCliente() {
         setPecas({});
         setPedidoEnvio(null);
         if (!silencioso) {
-          setErro("Não encontramos uma sacolinha com esse código.");
+          setErro(
+            liveIdSelecionada
+              ? "Não encontramos uma sacolinha sua nessa live."
+              : "Não encontramos uma sacolinha com esse código."
+          );
         }
       } else if (!silencioso) {
         setErro("");
@@ -199,12 +224,15 @@ export default function PortalCliente() {
     if (!sacolinhaAtual?.id || !consultado || !codigoPortal) return undefined;
 
     const intervalo = window.setInterval(() => {
-      consultarSacolinha(codigoPortal, { silencioso: true });
+      consultarSacolinha(codigoPortal, {
+        silencioso: true,
+        liveIdSelecionada: liveId,
+      });
     }, 15000);
 
     return () => window.clearInterval(intervalo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sacolinhaAtual?.id, codigoPortal, consultado]);
+  }, [sacolinhaAtual?.id, codigoPortal, consultado, liveId]);
 
   const resumo = useMemo(() => {
     const total = vendas.reduce(
@@ -362,7 +390,16 @@ export default function PortalCliente() {
               style={{ ...input, textTransform: "none" }}
               value={liveId}
               disabled={carregandoLives || lives.length === 0}
-              onChange={(e) => setLiveId(e.target.value)}
+              onChange={(e) => {
+                const novaLiveId = e.target.value;
+                setLiveId(novaLiveId);
+
+                if (consultado && codigoPortal) {
+                  consultarSacolinha(codigoPortal, {
+                    liveIdSelecionada: novaLiveId,
+                  });
+                }
+              }}
             >
               {lives.length === 0 ? (
                 <option value="">
@@ -479,32 +516,32 @@ export default function PortalCliente() {
                 resumo.statusOperacional === "pedido_enviado"
                   ? "#ecfdf5"
                   : resumo.statusOperacional === "pedido_em_montagem"
-                  ? "#eff6ff"
-                  : resumo.statusOperacional === "aguardando_envio"
-                  ? "#f0fdf4"
-                  : resumo.statusOperacional === "aguardando_pagamento"
-                  ? "#fff7ed"
-                  : "#f8fafc",
+                    ? "#eff6ff"
+                    : resumo.statusOperacional === "aguardando_envio"
+                      ? "#f0fdf4"
+                      : resumo.statusOperacional === "aguardando_pagamento"
+                        ? "#fff7ed"
+                        : "#f8fafc",
               border:
                 resumo.statusOperacional === "pedido_enviado"
                   ? "1px solid #bbf7d0"
                   : resumo.statusOperacional === "pedido_em_montagem"
-                  ? "1px solid #bfdbfe"
-                  : resumo.statusOperacional === "aguardando_envio"
-                  ? "1px solid #bbf7d0"
-                  : resumo.statusOperacional === "aguardando_pagamento"
-                  ? "1px solid #fed7aa"
-                  : "1px solid #e2e8f0",
+                    ? "1px solid #bfdbfe"
+                    : resumo.statusOperacional === "aguardando_envio"
+                      ? "1px solid #bbf7d0"
+                      : resumo.statusOperacional === "aguardando_pagamento"
+                        ? "1px solid #fed7aa"
+                        : "1px solid #e2e8f0",
               color:
                 resumo.statusOperacional === "pedido_enviado"
                   ? "#15803d"
                   : resumo.statusOperacional === "pedido_em_montagem"
-                  ? "#1d4ed8"
-                  : resumo.statusOperacional === "aguardando_envio"
-                  ? "#15803d"
-                  : resumo.statusOperacional === "aguardando_pagamento"
-                  ? "#b45309"
-                  : "#64748b",
+                    ? "#1d4ed8"
+                    : resumo.statusOperacional === "aguardando_envio"
+                      ? "#15803d"
+                      : resumo.statusOperacional === "aguardando_pagamento"
+                        ? "#b45309"
+                        : "#64748b",
             }}
           >
             {resumo.statusTexto}
