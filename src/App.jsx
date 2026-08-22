@@ -1663,9 +1663,21 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
     const novaData = agoraIso();
 
+    const clientesFilaEncontradas = (clientes || []).filter(
+      (item) =>
+        String(item?.nome || "").trim().toLowerCase() ===
+        proximaCliente.toLowerCase()
+    );
+
+    const proximaClienteId =
+      clientesFilaEncontradas.length === 1
+        ? clientesFilaEncontradas[0]?.id || null
+        : null;
+
     const novaSacolinhaId = await obterOuCriarSacolinha(
       proximaCliente,
-      liveEmVisualizacao.id
+      liveEmVisualizacao.id,
+      proximaClienteId
     );
 
     if (!novaSacolinhaId) {
