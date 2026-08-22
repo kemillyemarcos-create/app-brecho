@@ -1,9 +1,8 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
     Banknote,
     CheckCircle2,
     ChevronRight,
-    ClipboardList,
     FileSpreadsheet,
     Link2,
     QrCode,
@@ -12,7 +11,6 @@ import {
     Save,
     Search,
     Send,
-    UserCheck,
     Users,
     XCircle,
 } from "lucide-react";
@@ -27,8 +25,6 @@ export default function VendasSection({
     valorResumo,
     cardCliente,
     itemCliente,
-    botao,
-    botaoPequeno,
     input,
     gridVendas,
     gridForm,
@@ -45,6 +41,7 @@ export default function VendasSection({
     setMostrarSugestoesVenda,
     cliente,
     setCliente,
+    setClienteId,
     filaEspera,
     setFilaEspera,
     valorDesconto,
@@ -61,6 +58,7 @@ export default function VendasSection({
     faturamentoLive,
     lucroEstimadoLive,
     clientesFiltrados,
+    clientes,
     clientesExpandidos,
     toggleExpandirCliente,
     exportarClienteCSV,
@@ -79,30 +77,34 @@ export default function VendasSection({
 
     const sugestoesClientesLive = useMemo(() => {
         const termo = String(cliente || "").trim().toLowerCase();
+
         if (termo.length < 1) return [];
 
-        const mapaNomes = new Map();
+        return (clientes || [])
+            .filter((clienteCadastro) => {
+                const nome = String(clienteCadastro?.nome || "")
+                    .trim()
+                    .toLowerCase();
 
-        (clientesFiltrados || []).forEach((clienteResumo) => {
-            const nomeOriginal = String(clienteResumo?.nome || "").trim();
-            const nomeNormalizado = nomeOriginal.toLowerCase();
+                if (!nome) return false;
 
-            if (!nomeOriginal) return;
-            if (!nomeNormalizado.startsWith(termo)) return;
-
-            if (!mapaNomes.has(nomeNormalizado)) {
-                mapaNomes.set(nomeNormalizado, nomeOriginal);
-            }
-        });
-
-        return [...mapaNomes.values()]
+                return nome.includes(termo);
+            })
             .sort((a, b) =>
-                a.localeCompare(b, "pt-BR", {
-                    sensitivity: "base",
-                })
+                String(a?.nome || "").localeCompare(
+                    String(b?.nome || ""),
+                    "pt-BR",
+                    {
+                        sensitivity: "base",
+                    }
+                )
             )
-            .slice(0, 8);
-    }, [cliente, clientesFiltrados]);
+            .slice(0, 8)
+            .map((clienteCadastro) => ({
+                id: clienteCadastro?.id || null,
+                nome: String(clienteCadastro?.nome || "").trim(),
+            }));
+    }, [cliente, clientes]);
 
     const sugestoesFilaLive = useMemo(() => {
         const termo = String(filaEspera || "").trim().toLowerCase();
@@ -131,32 +133,9 @@ export default function VendasSection({
             .slice(0, 8);
     }, [filaEspera, clientesFiltrados]);
 
-    useEffect(() => {
-        if (mostrarSugestoesCliente && sugestoesClientesLive.length > 0) {
-            setIndiceSugestaoClienteAtiva(0);
-        } else {
-            setIndiceSugestaoClienteAtiva(-1);
-        }
-    }, [mostrarSugestoesCliente, sugestoesClientesLive]);
-
-    useEffect(() => {
-        if (mostrarSugestoesVenda && sugestoesPecasVenda.length > 0) {
-            setIndiceSugestaoPecaAtiva(0);
-        } else {
-            setIndiceSugestaoPecaAtiva(-1);
-        }
-    }, [mostrarSugestoesVenda, sugestoesPecasVenda]);
-
-    useEffect(() => {
-        if (mostrarSugestoesFila && sugestoesFilaLive.length > 0) {
-            setIndiceSugestaoFilaAtiva(0);
-        } else {
-            setIndiceSugestaoFilaAtiva(-1);
-        }
-    }, [mostrarSugestoesFila, sugestoesFilaLive]);
-
-    function selecionarSugestaoCliente(nomeSugestao) {
-        setCliente(nomeSugestao);
+    function selecionarSugestaoCliente(clienteSugestao) {
+        setCliente(clienteSugestao?.nome || "");
+        setClienteId(clienteSugestao?.id || null);
         setMostrarSugestoesCliente(false);
         setIndiceSugestaoClienteAtiva(-1);
     }
@@ -275,6 +254,19 @@ export default function VendasSection({
         }
     }
 
+    function formatarNomeClienteVenda(nomeCompleto) {
+        const partes = String(nomeCompleto || "")
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+
+        if (partes.length <= 2) {
+            return partes.join(" ");
+        }
+
+        return `${partes[0]} ${partes[partes.length - 1]}`;
+    }
+
     const iconeBotao = ({ ativo = false, danger = false, warning = false, success = false, width = "auto" } = {}) => ({
         minHeight: isMobile ? 36 : 40,
         width,
@@ -283,21 +275,21 @@ export default function VendasSection({
         border: ativo
             ? "1px solid rgba(221, 83, 116, 0.35)"
             : danger
-            ? "1px solid rgba(185, 28, 28, 0.22)"
-            : warning
-            ? "1px solid rgba(180, 83, 9, 0.22)"
-            : success
-            ? "1px solid rgba(21, 128, 61, 0.22)"
-            : "1px solid #ead8df",
+                ? "1px solid rgba(185, 28, 28, 0.22)"
+                : warning
+                    ? "1px solid rgba(180, 83, 9, 0.22)"
+                    : success
+                        ? "1px solid rgba(21, 128, 61, 0.22)"
+                        : "1px solid #ead8df",
         background: ativo
             ? "#f8dce6"
             : danger
-            ? "#fff1f2"
-            : warning
-            ? "#fffbeb"
-            : success
-            ? "#ecfdf5"
-            : "#fff",
+                ? "#fff1f2"
+                : warning
+                    ? "#fffbeb"
+                    : success
+                        ? "#ecfdf5"
+                        : "#fff",
         color: danger ? "#b91c1c" : warning ? "#b45309" : success ? "#15803d" : "#8f2745",
         display: "inline-flex",
         alignItems: "center",
@@ -318,10 +310,10 @@ export default function VendasSection({
         border: danger
             ? "1px solid rgba(185, 28, 28, 0.22)"
             : warning
-            ? "1px solid rgba(180, 83, 9, 0.22)"
-            : success
-            ? "1px solid rgba(21, 128, 61, 0.22)"
-            : "1px solid #ead8df",
+                ? "1px solid rgba(180, 83, 9, 0.22)"
+                : success
+                    ? "1px solid rgba(21, 128, 61, 0.22)"
+                    : "1px solid #ead8df",
         background: danger ? "#fff1f2" : warning ? "#fffbeb" : success ? "#ecfdf5" : "#fff",
         color: danger ? "#b91c1c" : warning ? "#b45309" : success ? "#15803d" : "#8f2745",
         display: "inline-flex",
@@ -431,13 +423,16 @@ export default function VendasSection({
 
                                         if (valor.trim().length >= 4) {
                                             setMostrarSugestoesVenda(true);
+                                            setIndiceSugestaoPecaAtiva(0);
                                         } else {
                                             setMostrarSugestoesVenda(false);
+                                            setIndiceSugestaoPecaAtiva(-1);
                                         }
                                     }}
                                     onFocus={() => {
                                         if (String(vendaId || "").trim().length >= 4) {
                                             setMostrarSugestoesVenda(true);
+                                            setIndiceSugestaoPecaAtiva(0);
                                         }
                                     }}
                                     onBlur={() => {
@@ -517,12 +512,12 @@ export default function VendasSection({
                                 </span>
 
                                 <input
-                                style={input}
-                                placeholder="Opcional"
-                                value={valorDesconto}
-                                onChange={(e) => setValorDesconto(formatarValorDescontoInput(e.target.value))}
-                                inputMode="numeric"
-                            />
+                                    style={input}
+                                    placeholder="Opcional"
+                                    value={valorDesconto}
+                                    onChange={(e) => setValorDesconto(formatarValorDescontoInput(e.target.value))}
+                                    inputMode="numeric"
+                                />
                             </label>
 
                             <label
@@ -549,12 +544,22 @@ export default function VendasSection({
                                     value={cliente}
                                     onChange={(e) => {
                                         const valor = e.target.value;
+
                                         setCliente(valor);
-                                        setMostrarSugestoesCliente(valor.trim().length > 0);
+                                        setClienteId(null);
+
+                                        if (valor.trim().length > 0) {
+                                            setMostrarSugestoesCliente(true);
+                                            setIndiceSugestaoClienteAtiva(0);
+                                        } else {
+                                            setMostrarSugestoesCliente(false);
+                                            setIndiceSugestaoClienteAtiva(-1);
+                                        }
                                     }}
                                     onFocus={() => {
                                         if (String(cliente || "").trim().length > 0) {
                                             setMostrarSugestoesCliente(true);
+                                            setIndiceSugestaoClienteAtiva(0);
                                         }
                                     }}
                                     onBlur={() => {
@@ -584,15 +589,15 @@ export default function VendasSection({
                                             overflowY: "auto",
                                         }}
                                     >
-                                        {sugestoesClientesLive.map((nomeSugestao, index) => {
+                                        {sugestoesClientesLive.map((clienteSugestao, index) => {
                                             const ativo = index === indiceSugestaoClienteAtiva;
 
                                             return (
                                                 <button
-                                                    key={nomeSugestao}
+                                                    key={clienteSugestao.id || `${clienteSugestao.nome}-${index}`}
                                                     type="button"
                                                     onMouseDown={(e) => e.preventDefault()}
-                                                    onClick={() => selecionarSugestaoCliente(nomeSugestao)}
+                                                    onClick={() => selecionarSugestaoCliente(clienteSugestao)}
                                                     onMouseEnter={() => setIndiceSugestaoClienteAtiva(index)}
                                                     style={{
                                                         width: "100%",
@@ -606,7 +611,7 @@ export default function VendasSection({
                                                         fontWeight: 600,
                                                     }}
                                                 >
-                                                    {nomeSugestao}
+                                                    {clienteSugestao.nome}
                                                 </button>
                                             );
                                         })}
@@ -639,11 +644,19 @@ export default function VendasSection({
                                     onChange={(e) => {
                                         const valor = e.target.value;
                                         setFilaEspera(valor);
-                                        setMostrarSugestoesFila(valor.trim().length > 0);
+
+                                        if (valor.trim().length > 0) {
+                                            setMostrarSugestoesFila(true);
+                                            setIndiceSugestaoFilaAtiva(0);
+                                        } else {
+                                            setMostrarSugestoesFila(false);
+                                            setIndiceSugestaoFilaAtiva(-1);
+                                        }
                                     }}
                                     onFocus={() => {
                                         if (String(filaEspera || "").trim().length > 0) {
                                             setMostrarSugestoesFila(true);
+                                            setIndiceSugestaoFilaAtiva(0);
                                         }
                                     }}
                                     onBlur={() => {
@@ -968,16 +981,16 @@ export default function VendasSection({
                                             style={
                                                 isMobile
                                                     ? {
-                                                          display: "grid",
-                                                          gap: 12,
-                                                          alignItems: "start",
-                                                      }
+                                                        display: "grid",
+                                                        gap: 12,
+                                                        alignItems: "start",
+                                                    }
                                                     : {
-                                                          display: "grid",
-                                                          gridTemplateColumns: "minmax(220px, 1.2fr) auto minmax(180px, auto)",
-                                                          gap: 16,
-                                                          alignItems: "center",
-                                                      }
+                                                        display: "grid",
+                                                        gridTemplateColumns: "minmax(220px, 1.2fr) auto minmax(180px, auto)",
+                                                        gap: 16,
+                                                        alignItems: "center",
+                                                    }
                                             }
                                         >
                                             <div
@@ -1014,7 +1027,7 @@ export default function VendasSection({
                                                         }}
                                                         title={c.nome}
                                                     >
-                                                        {c.nome}
+                                                        {formatarNomeClienteVenda(c.nome)}
                                                     </strong>
                                                     <span style={{ color: "#64748b", fontSize: 13 }}>
                                                         {c.pecas} peça(s) • {formatarBRL(c.total)}

@@ -460,6 +460,7 @@ function AppContent() {
   const [filaEspera, setFilaEspera] = useState("");
   const [mostrarSugestoesVenda, setMostrarSugestoesVenda] = useState(false);
   const [cliente, setCliente] = useState("");
+  const [clienteId, setClienteId] = useState(null);
   const [valorDesconto, setValorDesconto] = useState("");
   const [salvandoVenda, setSalvandoVenda] = useState(false);
 
@@ -504,23 +505,93 @@ function AppContent() {
 
   const liveEmVisualizacao = liveSelecionada || liveAtual;
 
-  const obterOuCriarSacolinha = async (clienteNome, liveId) => {
+  const obterOuCriarSacolinha = async (
+    clienteNome,
+    liveId,
+    clienteId = null
+  ) => {
     try {
-      const { data: existente, error: erroBusca } = await supabase
-        .from("sacolinhas_live")
-        .select("*")
-        .eq("cliente_nome", clienteNome)
-        .eq("live_id", liveId)
-        .eq("status", "aberta")
-        .maybeSingle();
+      let existente = null;
 
-      if (erroBusca) throw erroBusca;
+      // 1. Cliente identificada:
+      // procura primeiro pela identidade oficial.
+      if (clienteId) {
+        const { data, error } = await supabase
+          .from("sacolinhas_live")
+          .select("*")
+          .eq("live_id", liveId)
+          .eq("status", "aberta")
+          .eq("cliente_id", clienteId)
+          .order("criado_em", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        existente = data;
+
+        // 2. Compatibilidade com sacolinhas antigas:
+        // se ainda não encontrou pelo ID, procura somente uma
+        // sacolinha sem cliente_id com o mesmo nome.
+        if (!existente) {
+          const { data: legada, error: erroLegada } = await supabase
+            .from("sacolinhas_live")
+            .select("*")
+            .eq("live_id", liveId)
+            .eq("status", "aberta")
+            .eq("cliente_nome", clienteNome)
+            .is("cliente_id", null)
+            .order("criado_em", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (erroLegada) throw erroLegada;
+
+          if (legada) {
+            const { error: erroVinculo } = await supabase
+              .from("sacolinhas_live")
+              .update({
+                cliente_id: clienteId,
+                cliente_nome: clienteNome,
+              })
+              .eq("id", legada.id);
+
+            if (erroVinculo) throw erroVinculo;
+
+            existente = {
+              ...legada,
+              cliente_id: clienteId,
+              cliente_nome: clienteNome,
+            };
+          }
+        }
+      } else {
+        // 3. Cliente nova/não identificada:
+        // nunca reutiliza uma sacolinha que já pertence
+        // oficialmente a outra cliente cadastrada.
+        const { data, error } = await supabase
+          .from("sacolinhas_live")
+          .select("*")
+          .eq("live_id", liveId)
+          .eq("status", "aberta")
+          .eq("cliente_nome", clienteNome)
+          .is("cliente_id", null)
+          .order("criado_em", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        existente = data;
+      }
 
       if (existente) {
         await garantirPortalTokenSacolinha(existente);
         return existente.id;
       }
 
+      // 4. Nenhuma sacolinha encontrada:
+      // cria uma nova.
       const novaId = `SAC-${Date.now()}`;
 
       const { error: erroCriar } = await supabase
@@ -528,6 +599,7 @@ function AppContent() {
         .insert([
           {
             id: novaId,
+            cliente_id: clienteId || null,
             cliente_nome: clienteNome,
             live_id: liveId,
             status: "aberta",
@@ -1209,6 +1281,7 @@ Qualquer dúvida, é só nos chamar! 💕`;
     setMostrarSugestoesVenda(false);
     setVendaId("");
     setCliente("");
+    setClienteId(null);
     setFilaEspera("");
     setValorDesconto("");
   }
@@ -1430,6 +1503,18 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     const codigoPeca = vendaId.trim();
     const nomeCliente = cliente.trim();
 
+    const clientesEncontradas = (clientes || []).filter(
+      (item) =>
+        String(item?.nome || "").trim().toLowerCase() ===
+        nomeCliente.toLowerCase()
+    );
+
+    const clienteIdResolvido =
+      clienteId ||
+      (clientesEncontradas.length === 1
+        ? clientesEncontradas[0]?.id
+        : null);
+
     const peca = mapaPecasPorId[String(codigoPeca)];
 
     if (!peca) {
@@ -1463,8 +1548,11 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         return;
       }
 
-      const sacolinhaId = await obterOuCriarSacolinha(nomeCliente, liveAtual.id);
-
+      const sacolinhaId = await obterOuCriarSacolinha(
+        nomeCliente,
+        liveAtual.id,
+        clienteIdResolvido
+      );
       if (!sacolinhaId) return;
 
       const valorFinal = valorDesconto
@@ -3607,8 +3695,6 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 valorResumo={valorResumo}
                 cardCliente={cardCliente}
                 itemCliente={itemCliente}
-                botao={botao}
-                botaoPequeno={botaoPequeno}
                 input={input}
                 gridVendas={gridVendas}
                 gridForm={gridForm}
@@ -3625,6 +3711,8 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 setMostrarSugestoesVenda={setMostrarSugestoesVenda}
                 cliente={cliente}
                 setCliente={setCliente}
+                setClienteId={setClienteId}
+                clientes={clientes}
                 filaEspera={filaEspera}
                 setFilaEspera={setFilaEspera}
                 valorDesconto={valorDesconto}
