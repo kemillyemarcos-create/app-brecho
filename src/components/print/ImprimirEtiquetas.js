@@ -1,22 +1,8 @@
 const LARGURA_ETIQUETA = "37mm";
 const ALTURA_ETIQUETA = "58mm";
 
-function dispositivoMovel() {
-  const userAgent =
-    navigator.userAgent ||
-    navigator.vendor ||
-    window.opera ||
-    "";
-
-  const porUserAgent =
-    /android|iphone|ipad|ipod|mobile/i.test(
-      userAgent
-    );
-
-  const porLargura = window.innerWidth < 768;
-
-  return porUserAgent || porLargura;
-}
+const MODO_A4 = "a4";
+const MODO_TERMICA = "termica";
 
 function aguardarDocumento(janela) {
   return new Promise((resolve) => {
@@ -79,14 +65,12 @@ function converterCanvasEmImagem(
 
   canvasesOriginais.forEach(
     (canvasOriginal, index) => {
-      const canvasClonado =
-        canvasesClonados[index];
+      const canvasClonado = canvasesClonados[index];
 
       if (!canvasClonado) return;
 
       try {
-        const imagemQr =
-          document.createElement("img");
+        const imagemQr = document.createElement("img");
 
         imagemQr.src =
           canvasOriginal.toDataURL("image/png");
@@ -135,79 +119,92 @@ function prepararEtiquetaParaImpressao(
     elementoClonado
   );
 
-  /*
-   * Cada wrapper continuará representando
-   * uma página individual de etiqueta.
-   */
-  elementoClonado.style.width =
-    LARGURA_ETIQUETA;
-
-  elementoClonado.style.height =
-    ALTURA_ETIQUETA;
-
-  elementoClonado.style.minWidth =
-    LARGURA_ETIQUETA;
-
-  elementoClonado.style.maxWidth =
-    LARGURA_ETIQUETA;
-
-  elementoClonado.style.minHeight =
-    ALTURA_ETIQUETA;
-
-  elementoClonado.style.maxHeight =
-    ALTURA_ETIQUETA;
-
+  elementoClonado.style.width = LARGURA_ETIQUETA;
+  elementoClonado.style.height = ALTURA_ETIQUETA;
+  elementoClonado.style.minWidth = LARGURA_ETIQUETA;
+  elementoClonado.style.maxWidth = LARGURA_ETIQUETA;
+  elementoClonado.style.minHeight = ALTURA_ETIQUETA;
+  elementoClonado.style.maxHeight = ALTURA_ETIQUETA;
   elementoClonado.style.margin = "0";
   elementoClonado.style.padding = "0";
   elementoClonado.style.border = "0";
   elementoClonado.style.borderRadius = "0";
   elementoClonado.style.boxShadow = "none";
   elementoClonado.style.overflow = "hidden";
+  elementoClonado.style.boxSizing = "border-box";
 
   return elementoClonado.outerHTML;
 }
 
+function dividirEmGrupos(lista, tamanho) {
+  const grupos = [];
+
+  for (let index = 0; index < lista.length; index += tamanho) {
+    grupos.push(lista.slice(index, index + tamanho));
+  }
+
+  return grupos;
+}
+
+function criarFolhasA4(etiquetasHtml) {
+  return dividirEmGrupos(etiquetasHtml, 25)
+    .map(
+      (grupo, indiceFolha) => `
+        <section
+          class="folha-a4"
+          data-folha="${indiceFolha + 1}"
+        >
+          ${grupo.join("")}
+        </section>
+      `
+    )
+    .join("");
+}
+
+function criarListaTermica(etiquetasHtml) {
+  return etiquetasHtml
+    .map(
+      (etiquetaHtml) => `
+        <section class="pagina-termica">
+          ${etiquetaHtml}
+        </section>
+      `
+    )
+    .join("");
+}
+
+function normalizarModo(modo) {
+  if (modo === MODO_A4 || modo === MODO_TERMICA) {
+    return modo;
+  }
+
+  return MODO_A4;
+}
+
 function criarHtmlImpressao({
   etiquetasHtml,
-  imprimirAutomaticamente,
   quantidadeEtiquetas,
+  modoInicial,
 }) {
+  const folhasA4Html = criarFolhasA4(etiquetasHtml);
+  const termicaHtml = criarListaTermica(etiquetasHtml);
+
   return `
     <!DOCTYPE html>
 
     <html lang="pt-BR">
       <head>
         <meta charset="UTF-8" />
-
         <meta
           name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
 
-        <meta
-          name="apple-mobile-web-app-capable"
-          content="yes"
-        />
+        <title>Impressão de etiquetas K.Chic</title>
 
-        <!--
-          O título fica vazio para não exibir
-          "Etiquetas K.Chic" no cabeçalho do navegador.
-        -->
-        <title></title>
+        <style id="configuracao-pagina-impressao"></style>
 
         <style>
-          /*
-           * Cada página do documento tem exatamente
-           * o tamanho de uma etiqueta.
-           *
-           * Ao selecionar várias páginas por folha,
-           * o navegador distribuirá apenas as etiquetas.
-           */
-          @page {
-            size: ${LARGURA_ETIQUETA} ${ALTURA_ETIQUETA};
-            margin: 0;
-          }
-
           * {
             box-sizing: border-box;
           }
@@ -216,61 +213,38 @@ function criarHtmlImpressao({
           body {
             margin: 0;
             padding: 0;
-
             min-height: 100%;
-
             background: #f3f4f6;
-
-            font-family:
-              Arial,
-              Helvetica,
-              sans-serif;
-
+            font-family: Arial, Helvetica, sans-serif;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
 
           body {
-            padding-top: 74px;
+            padding-top: 88px;
           }
 
           .barra-impressao {
             position: fixed;
-
             top: 0;
             left: 0;
             right: 0;
-
             z-index: 9999;
-
-            min-height: 64px;
-
+            min-height: 76px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-
-            gap: 12px;
-
-            padding:
-              max(12px, env(safe-area-inset-top))
-              16px
-              12px;
-
+            gap: 16px;
+            padding: 12px 16px;
             background: #ffffff;
-
-            border-bottom:
-              1px solid #e5e7eb;
-
-            box-shadow:
-              0 4px 16px rgba(0, 0, 0, 0.08);
+            border-bottom: 1px solid #e5e7eb;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
           }
 
           .barra-impressao-info {
             min-width: 0;
-
             display: flex;
             flex-direction: column;
-
             gap: 3px;
           }
 
@@ -287,25 +261,21 @@ function criarHtmlImpressao({
           .barra-impressao-acoes {
             display: flex;
             align-items: center;
-
             gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
           }
 
           .botao-impressao {
             min-height: 42px;
-
             display: inline-flex;
             align-items: center;
             justify-content: center;
-
-            padding: 10px 15px;
-
-            border: none;
+            padding: 10px 14px;
+            border: 1px solid transparent;
             border-radius: 10px;
-
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 700;
-
             cursor: pointer;
             touch-action: manipulation;
           }
@@ -315,29 +285,32 @@ function criarHtmlImpressao({
             background: #e5e7eb;
           }
 
+          .botao-modo {
+            color: #374151;
+            background: #ffffff;
+            border-color: #d1d5db;
+          }
+
+          .botao-modo.ativo {
+            color: #ffffff;
+            background: #b14a66;
+            border-color: #b14a66;
+          }
+
           .botao-imprimir {
             color: #ffffff;
             background: #2563eb;
           }
 
           .aviso-configuracao {
-            width: min(
-              calc(100% - 28px),
-              680px
-            );
-
+            width: min(calc(100% - 28px), 760px);
             margin: 16px auto 0;
             padding: 12px 14px;
-
             font-size: 13px;
             line-height: 1.45;
-
             color: #374151;
             background: #ffffff;
-
-            border:
-              1px solid #e5e7eb;
-
+            border: 1px solid #e5e7eb;
             border-radius: 10px;
           }
 
@@ -345,398 +318,219 @@ function criarHtmlImpressao({
             color: #111827;
           }
 
-          .aviso-mobile {
-            display: none;
-
-            margin: 12px 14px 0;
-            padding: 11px 13px;
-
-            font-size: 13px;
-            line-height: 1.4;
-
-            color: #92400e;
-            background: #fffbeb;
-
-            border:
-              1px solid #fde68a;
-
-            border-radius: 10px;
-          }
-
           .area-visualizacao {
             width: 100%;
-
             display: flex;
             justify-content: center;
-
-            padding:
-              18px
-              14px
-              calc(
-                24px +
-                env(safe-area-inset-bottom)
-              );
+            padding: 18px 14px 30px;
+            overflow-x: auto;
           }
 
-          /*
-           * Na visualização normal, as etiquetas
-           * aparecem uma embaixo da outra.
-           */
-          .lista-etiquetas-impressao {
-            display: flex;
-            flex-direction: column;
+          .preview-a4,
+          .preview-termica {
+            display: none;
+          }
 
-            width: ${LARGURA_ETIQUETA};
-            min-width: ${LARGURA_ETIQUETA};
+          body[data-modo="a4"] .preview-a4 {
+            display: block;
+          }
 
-            margin: 0;
-            padding: 0;
+          body[data-modo="termica"] .preview-termica {
+            display: block;
+          }
 
-            gap: 8px;
-
+          .folha-a4 {
+            width: 210mm;
+            min-width: 210mm;
+            height: 297mm;
+            margin: 0 auto 18px;
+            padding: 3.5mm 12.5mm;
+            display: grid;
+            grid-template-columns: repeat(5, 37mm);
+            grid-template-rows: repeat(5, 58mm);
+            grid-auto-flow: row;
+            align-content: start;
+            justify-content: start;
+            gap: 0;
             background: #ffffff;
-
-            box-shadow:
-              0 5px 20px rgba(0, 0, 0, 0.12);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.14);
           }
 
-          .pagina-etiqueta-rolo {
+          .preview-termica {
+            width: 37mm;
+            min-width: 37mm;
+            margin: 0 auto;
+            background: #ffffff;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.14);
+          }
+
+          .pagina-termica {
             display: block;
             position: relative;
-
-            width:
-              ${LARGURA_ETIQUETA} !important;
-
-            height:
-              ${ALTURA_ETIQUETA} !important;
-
-            min-width:
-              ${LARGURA_ETIQUETA} !important;
-
-            max-width:
-              ${LARGURA_ETIQUETA} !important;
-
-            min-height:
-              ${ALTURA_ETIQUETA} !important;
-
-            max-height:
-              ${ALTURA_ETIQUETA} !important;
-
-            margin: 0 !important;
-            padding: 0 !important;
-
-            overflow: hidden !important;
-
-            background: #ffffff !important;
-
-            border: 0 !important;
-            border-radius: 0 !important;
-            box-shadow: none !important;
-
-            box-sizing: border-box !important;
-
-            break-inside:
-              avoid-page !important;
-
-            page-break-inside:
-              avoid !important;
+            width: 37mm;
+            height: 58mm;
+            min-width: 37mm;
+            max-width: 37mm;
+            min-height: 58mm;
+            max-height: 58mm;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #ffffff;
           }
 
-          .pagina-etiqueta-rolo >
-            .etiqueta,
-          .pagina-etiqueta-rolo >
-            .etiqueta-termica-37x58,
-          .etiqueta,
-          .etiqueta-termica-37x58 {
-            display: grid !important;
-
-            width:
-              ${LARGURA_ETIQUETA} !important;
-
-            height:
-              ${ALTURA_ETIQUETA} !important;
-
-            min-width:
-              ${LARGURA_ETIQUETA} !important;
-
-            max-width:
-              ${LARGURA_ETIQUETA} !important;
-
-            min-height:
-              ${ALTURA_ETIQUETA} !important;
-
-            max-height:
-              ${ALTURA_ETIQUETA} !important;
-
+          .folha-a4 .pagina-etiqueta-rolo,
+          .pagina-termica .pagina-etiqueta-rolo,
+          .folha-a4 .etiqueta,
+          .folha-a4 .etiqueta-termica-37x58,
+          .pagina-termica .etiqueta,
+          .pagina-termica .etiqueta-termica-37x58 {
+            width: 37mm !important;
+            height: 58mm !important;
+            min-width: 37mm !important;
+            max-width: 37mm !important;
+            min-height: 58mm !important;
+            max-height: 58mm !important;
             margin: 0 !important;
-
             overflow: hidden !important;
-
             background: #ffffff !important;
-
             box-sizing: border-box !important;
           }
 
-          .pagina-etiqueta-rolo img {
+          .folha-a4 img,
+          .pagina-termica img {
             image-rendering: auto;
           }
 
-          .pagina-etiqueta-rolo
-            img[alt="QR Code"] {
+          img[alt="QR Code"] {
             display: block !important;
-
             margin: 0 auto !important;
-
             object-fit: contain !important;
           }
 
-          @media (max-width: 767px) {
+          @media (max-width: 900px) {
             body {
-              padding-top:
-                calc(
-                  88px +
-                  env(safe-area-inset-top)
-                );
+              padding-top: 156px;
             }
 
             .barra-impressao {
               position: absolute;
-
               align-items: stretch;
               flex-direction: column;
-
-              padding-left: 12px;
-              padding-right: 12px;
             }
 
             .barra-impressao-acoes {
-              width: 100%;
-            }
-
-            .botao-impressao {
-              flex: 1;
-            }
-
-            .aviso-mobile {
-              display: block;
+              justify-content: flex-start;
             }
 
             .area-visualizacao {
               justify-content: flex-start;
-              overflow-x: auto;
             }
           }
 
           @media print {
-            @page {
-              size:
-                ${LARGURA_ETIQUETA}
-                ${ALTURA_ETIQUETA};
-
-              margin: 0 !important;
-            }
-
             html,
             body {
-              width:
-                ${LARGURA_ETIQUETA} !important;
-
-              min-width:
-                ${LARGURA_ETIQUETA} !important;
-
-              height: auto !important;
-              min-height: 0 !important;
-
               margin: 0 !important;
               padding: 0 !important;
-
-              overflow: visible !important;
-
               background: #ffffff !important;
-
-              -webkit-print-color-adjust:
-                exact !important;
-
-              print-color-adjust:
-                exact !important;
+              overflow: visible !important;
             }
 
-            body {
-              padding-top: 0 !important;
-            }
-
-            /*
-             * Estes elementos existem apenas
-             * na tela e nunca serão impressos.
-             */
             .barra-impressao,
-            .aviso-mobile,
             .aviso-configuracao {
               display: none !important;
             }
 
             .area-visualizacao {
               display: block !important;
-
-              width:
-                ${LARGURA_ETIQUETA} !important;
-
-              min-width:
-                ${LARGURA_ETIQUETA} !important;
-
+              width: auto !important;
               margin: 0 !important;
               padding: 0 !important;
-
               overflow: visible !important;
-
               background: #ffffff !important;
             }
 
-            .lista-etiquetas-impressao {
+            body[data-modo="a4"] .preview-a4 {
               display: block !important;
+            }
 
-              width:
-                ${LARGURA_ETIQUETA} !important;
+            body[data-modo="a4"] .preview-termica {
+              display: none !important;
+            }
 
-              min-width:
-                ${LARGURA_ETIQUETA} !important;
+            body[data-modo="termica"] .preview-a4 {
+              display: none !important;
+            }
 
+            body[data-modo="termica"] .preview-termica {
+              display: block !important;
+              width: 37mm !important;
+              min-width: 37mm !important;
               margin: 0 !important;
               padding: 0 !important;
+              box-shadow: none !important;
+            }
 
+            .folha-a4 {
+              width: 185mm !important;
+              min-width: 185mm !important;
+              height: 290mm !important;
+              min-height: 290mm !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              display: grid !important;
+              grid-template-columns: repeat(5, 37mm) !important;
+              grid-template-rows: repeat(5, 58mm) !important;
               gap: 0 !important;
-
-              overflow: visible !important;
-
-              background: #ffffff !important;
-
-              border: 0 !important;
               box-shadow: none !important;
-            }
-
-            /*
-             * Cada etiqueta representa uma página.
-             *
-             * Não transformar esta lista em grade A4.
-             * A distribuição por folha será feita pelo
-             * navegador na opção "Páginas por folha".
-             */
-            .pagina-etiqueta-rolo {
-              display: block !important;
-              position: relative !important;
-
-              width:
-                ${LARGURA_ETIQUETA} !important;
-
-              height:
-                ${ALTURA_ETIQUETA} !important;
-
-              min-width:
-                ${LARGURA_ETIQUETA} !important;
-
-              max-width:
-                ${LARGURA_ETIQUETA} !important;
-
-              min-height:
-                ${ALTURA_ETIQUETA} !important;
-
-              max-height:
-                ${ALTURA_ETIQUETA} !important;
-
-              margin: 0 !important;
-              padding: 0 !important;
-
-              overflow: hidden !important;
-
-              background: #ffffff !important;
-
-              border: 0 !important;
-              border-radius: 0 !important;
-              box-shadow: none !important;
-
-              box-sizing: border-box !important;
-
-              break-before: auto !important;
-              page-break-before: auto !important;
-
               break-after: page !important;
               page-break-after: always !important;
-
               break-inside: avoid !important;
               page-break-inside: avoid !important;
             }
 
-            .pagina-etiqueta-rolo:last-child {
+            .folha-a4:last-child {
               break-after: auto !important;
               page-break-after: auto !important;
             }
 
-            .pagina-etiqueta-rolo >
-              .etiqueta,
-            .pagina-etiqueta-rolo >
-              .etiqueta-termica-37x58,
-            .etiqueta,
-            .etiqueta-termica-37x58 {
-              display: grid !important;
-
-              width:
-                ${LARGURA_ETIQUETA} !important;
-
-              height:
-                ${ALTURA_ETIQUETA} !important;
-
-              min-width:
-                ${LARGURA_ETIQUETA} !important;
-
-              max-width:
-                ${LARGURA_ETIQUETA} !important;
-
-              min-height:
-                ${ALTURA_ETIQUETA} !important;
-
-              max-height:
-                ${ALTURA_ETIQUETA} !important;
-
+            .pagina-termica {
+              display: block !important;
+              width: 37mm !important;
+              height: 58mm !important;
+              min-width: 37mm !important;
+              max-width: 37mm !important;
+              min-height: 58mm !important;
+              max-height: 58mm !important;
               margin: 0 !important;
-
+              padding: 0 !important;
               overflow: hidden !important;
-
-              background: #ffffff !important;
-
-              box-sizing: border-box !important;
-
+              break-after: page !important;
+              page-break-after: always !important;
               break-inside: avoid !important;
               page-break-inside: avoid !important;
             }
 
-            .pagina-etiqueta-rolo img {
-              image-rendering: auto;
-            }
-
-            .pagina-etiqueta-rolo
-              img[alt="QR Code"] {
-              display: block !important;
-
-              margin: 0 auto !important;
-
-              object-fit: contain !important;
+            .pagina-termica:last-child {
+              break-after: auto !important;
+              page-break-after: auto !important;
             }
           }
         </style>
       </head>
 
-      <body>
+      <body data-modo="${normalizarModo(modoInicial)}">
         <header class="barra-impressao">
           <div class="barra-impressao-info">
             <strong>Etiquetas K.Chic</strong>
-
             <span>
               ${quantidadeEtiquetas}
               ${
                 quantidadeEtiquetas === 1
-                  ? "etiqueta preparada"
-                  : "etiquetas preparadas"
-              }.
+                  ? " etiqueta preparada"
+                  : " etiquetas preparadas"
+              }
             </span>
           </div>
 
@@ -751,6 +545,22 @@ function criarHtmlImpressao({
 
             <button
               type="button"
+              class="botao-impressao botao-modo"
+              data-selecionar-modo="a4"
+            >
+              A4 · 25 etiquetas
+            </button>
+
+            <button
+              type="button"
+              class="botao-impressao botao-modo"
+              data-selecionar-modo="termica"
+            >
+              Térmica · individual
+            </button>
+
+            <button
+              type="button"
               class="botao-impressao botao-imprimir"
               id="botao-imprimir"
             >
@@ -759,51 +569,94 @@ function criarHtmlImpressao({
           </div>
         </header>
 
-        <div class="aviso-mobile">
-          No iPhone, toque em
-          <strong>Imprimir</strong>
-          e selecione a impressora desejada.
-        </div>
-
-        <div class="aviso-configuracao">
-          Para colocar várias etiquetas em uma folha,
-          selecione a quantidade desejada em
-          <strong>Páginas por folha</strong>.
-          Também selecione
-          <strong>Margens: nenhuma</strong>
-          e desative
-          <strong>Cabeçalhos e rodapés</strong>.
-        </div>
+        <div class="aviso-configuracao" id="aviso-configuracao"></div>
 
         <div class="area-visualizacao">
-          <main class="lista-etiquetas-impressao">
-            ${etiquetasHtml}
+          <main class="preview-a4">
+            ${folhasA4Html}
+          </main>
+
+          <main class="preview-termica">
+            ${termicaHtml}
           </main>
         </div>
 
         <script>
           (() => {
-            const imprimirAutomaticamente =
-              ${JSON.stringify(
-                imprimirAutomaticamente
-              )};
+            const MODO_A4 = "a4";
+            const MODO_TERMICA = "termica";
 
-            const botaoImprimir =
-              document.getElementById(
-                "botao-imprimir"
-              );
+            const estiloPagina = document.getElementById(
+              "configuracao-pagina-impressao"
+            );
 
-            const botaoVoltar =
-              document.getElementById(
-                "botao-voltar"
-              );
+            const aviso = document.getElementById(
+              "aviso-configuracao"
+            );
+
+            const botoesModo = Array.from(
+              document.querySelectorAll("[data-selecionar-modo]")
+            );
+
+            const botaoImprimir = document.getElementById(
+              "botao-imprimir"
+            );
+
+            const botaoVoltar = document.getElementById(
+              "botao-voltar"
+            );
+
+            let modoAtual = ${JSON.stringify(
+              normalizarModo(modoInicial)
+            )};
 
             let imprimindo = false;
+
+            function atualizarConfiguracaoPagina() {
+              if (modoAtual === MODO_TERMICA) {
+                estiloPagina.textContent =
+                  "@page { size: 37mm 58mm; margin: 0; }";
+
+                aviso.innerHTML =
+                  "<strong>Térmica individual:</strong> cada peça será impressa em uma página física de 37 × 58 mm. Use escala 100% e sem margens adicionais no driver da impressora.";
+              } else {
+                estiloPagina.textContent =
+                  "@page { size: A4 portrait; margin: 3.5mm 12.5mm; }";
+
+                aviso.innerHTML =
+                  "<strong>A4 · 25 etiquetas:</strong> a folha será montada automaticamente em uma grade de 5 × 5, mantendo cada etiqueta com 37 × 58 mm. Use papel A4, escala 100% e desative cabeçalhos e rodapés.";
+              }
+            }
+
+            function atualizarBotoes() {
+              botoesModo.forEach((botao) => {
+                const ativo =
+                  botao.dataset.selecionarModo === modoAtual;
+
+                botao.classList.toggle("ativo", ativo);
+              });
+            }
+
+            function selecionarModo(modo) {
+              if (
+                modo !== MODO_A4 &&
+                modo !== MODO_TERMICA
+              ) {
+                return;
+              }
+
+              modoAtual = modo;
+              document.body.dataset.modo = modoAtual;
+
+              atualizarConfiguracaoPagina();
+              atualizarBotoes();
+            }
 
             function executarImpressao() {
               if (imprimindo) return;
 
               imprimindo = true;
+              atualizarConfiguracaoPagina();
 
               window.focus();
 
@@ -813,7 +666,7 @@ function criarHtmlImpressao({
                 window.setTimeout(() => {
                   imprimindo = false;
                 }, 1000);
-              }, 100);
+              }, 120);
             }
 
             function voltarAoSistema() {
@@ -830,13 +683,20 @@ function criarHtmlImpressao({
                     return;
                   }
 
-                  window.location.href =
-                    ${JSON.stringify(
-                      window.location.origin
-                    )};
+                  window.location.href = ${JSON.stringify(
+                    window.location.origin
+                  )};
                 }
               }, 150);
             }
+
+            botoesModo.forEach((botao) => {
+              botao.addEventListener("click", () => {
+                selecionarModo(
+                  botao.dataset.selecionarModo
+                );
+              });
+            });
 
             botaoImprimir?.addEventListener(
               "click",
@@ -848,34 +708,11 @@ function criarHtmlImpressao({
               voltarAoSistema
             );
 
-            window.addEventListener(
-              "afterprint",
-              () => {
-                imprimindo = false;
+            window.addEventListener("afterprint", () => {
+              imprimindo = false;
+            });
 
-                const mobile =
-                  /android|iphone|ipad|ipod|mobile/i.test(
-                    navigator.userAgent || ""
-                  );
-
-                if (!mobile) {
-                  window.setTimeout(() => {
-                    try {
-                      window.close();
-                    } catch (error) {
-                      console.error(error);
-                    }
-                  }, 250);
-                }
-              }
-            );
-
-            if (imprimirAutomaticamente) {
-              window.setTimeout(
-                executarImpressao,
-                500
-              );
-            }
+            selecionarModo(modoAtual);
           })();
         </script>
       </body>
@@ -883,7 +720,7 @@ function criarHtmlImpressao({
   `;
 }
 
-export default async function imprimirEtiquetas() {
+async function abrirImpressao(modoInicial = MODO_A4) {
   const areaPreview = document.querySelector(
     ".area-preview-impressao-etiquetas"
   );
@@ -916,14 +753,7 @@ export default async function imprimirEtiquetas() {
     };
   }
 
-  /*
-   * A janela é aberta imediatamente após o clique
-   * para reduzir o bloqueio de pop-up.
-   */
-  const janelaImpressao = window.open(
-    "",
-    "_blank"
-  );
+  const janelaImpressao = window.open("", "_blank");
 
   if (!janelaImpressao) {
     alert(
@@ -937,42 +767,32 @@ export default async function imprimirEtiquetas() {
   }
 
   try {
-    const etiquetasHtml = etiquetasOriginais
-      .map((elementoOriginal) =>
+    const etiquetasHtml = etiquetasOriginais.map(
+      (elementoOriginal) =>
         prepararEtiquetaParaImpressao(
           elementoOriginal
         )
-      )
-      .join("");
-
-    const mobile = dispositivoMovel();
+    );
 
     const html = criarHtmlImpressao({
       etiquetasHtml,
-      imprimirAutomaticamente: !mobile,
-      quantidadeEtiquetas:
-        etiquetasOriginais.length,
+      quantidadeEtiquetas: etiquetasOriginais.length,
+      modoInicial: normalizarModo(modoInicial),
     });
 
     janelaImpressao.document.open();
     janelaImpressao.document.write(html);
     janelaImpressao.document.close();
 
-    await aguardarDocumento(
-      janelaImpressao
-    );
-
-    await aguardarImagens(
-      janelaImpressao
-    );
+    await aguardarDocumento(janelaImpressao);
+    await aguardarImagens(janelaImpressao);
 
     janelaImpressao.focus();
 
     return {
       ok: true,
-      quantidade:
-        etiquetasOriginais.length,
-      dispositivoMovel: mobile,
+      quantidade: etiquetasOriginais.length,
+      modoInicial: normalizarModo(modoInicial),
     };
   } catch (error) {
     console.error(
@@ -994,4 +814,28 @@ export default async function imprimirEtiquetas() {
       error,
     };
   }
+}
+
+/**
+ * Mantém compatibilidade com o uso atual:
+ * imprimirEtiquetas()
+ *
+ * A tela de impressão abre com A4 selecionado e permite
+ * alternar entre A4 5 × 5 e térmica individual.
+ */
+export default async function imprimirEtiquetas(
+  modoInicial = MODO_A4
+) {
+  return abrirImpressao(modoInicial);
+}
+
+/**
+ * Atalhos opcionais para criar botões separados no ERP.
+ */
+export async function imprimirEtiquetasA4() {
+  return abrirImpressao(MODO_A4);
+}
+
+export async function imprimirEtiquetasTermica() {
+  return abrirImpressao(MODO_TERMICA);
 }
