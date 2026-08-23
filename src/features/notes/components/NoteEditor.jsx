@@ -9,12 +9,12 @@ import {
   NOTE_CATEGORIES,
   NOTE_TYPES,
   NOTES_MESSAGES,
-} from "../constants/notesConstants.js";
+} from "../constants/notesConstants";
 
 import {
   createTemporaryItem,
   normalizeNote,
-} from "../utils/notesUtils.js";
+} from "../utils/notesUtils";
 
 import NoteList from "./NoteList.jsx";
 
@@ -25,102 +25,55 @@ export default function NoteEditor({
   onClose,
   onSave,
 }) {
-  const [draft, setDraft] = useState(() =>
-    normalizeNote(note)
-  );
-
-  const [validationError, setValidationError] =
-    useState("");
+  const [draft, setDraft] = useState(() => normalizeNote(note));
+  const [validationError, setValidationError] = useState("");
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
-
+    if (!open) return;
     setDraft(normalizeNote(note));
     setValidationError("");
   }, [open, note]);
 
   const handleClose = useCallback(() => {
-    if (saving) {
-      return;
-    }
-
+    if (saving) return;
     setValidationError("");
     onClose?.();
   }, [onClose, saving]);
 
   useEffect(() => {
-    if (!open) {
-      return undefined;
-    }
+    if (!open) return undefined;
 
-    const previousOverflow =
-      document.body.style.overflow;
-
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
     const handleKeyDown = (event) => {
-      if (event.key === "Escape" && !saving) {
-        handleClose();
-      }
+      if (event.key === "Escape" && !saving) handleClose();
     };
 
-    window.addEventListener(
-      "keydown",
-      handleKeyDown
-    );
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.body.style.overflow =
-        previousOverflow;
-
-      window.removeEventListener(
-        "keydown",
-        handleKeyDown
-      );
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [open, saving, handleClose]);
 
   const categories = useMemo(() => {
-    const currentCategory =
-      draft.categoria?.trim();
-
-    if (
-      currentCategory &&
-      !NOTE_CATEGORIES.includes(currentCategory)
-    ) {
-      return [
-        ...NOTE_CATEGORIES,
-        currentCategory,
-      ];
+    const currentCategory = draft.categoria?.trim();
+    if (currentCategory && !NOTE_CATEGORIES.includes(currentCategory)) {
+      return [...NOTE_CATEGORIES, currentCategory];
     }
-
     return NOTE_CATEGORIES;
   }, [draft.categoria]);
 
-  const updateField = useCallback(
-    (field, value) => {
-      setDraft((currentDraft) => ({
-        ...currentDraft,
-        [field]: value,
-      }));
-
-      if (
-        field === "titulo" &&
-        String(value).trim()
-      ) {
-        setValidationError("");
-      }
-    },
-    []
-  );
+  const updateField = useCallback((field, value) => {
+    setDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
+    if (field === "titulo" && String(value).trim()) setValidationError("");
+  }, []);
 
   const addItem = useCallback(() => {
     setDraft((currentDraft) => {
-      const currentItems = Array.isArray(
-        currentDraft.nota_itens
-      )
+      const currentItems = Array.isArray(currentDraft.nota_itens)
         ? currentDraft.nota_itens
         : [];
 
@@ -129,60 +82,40 @@ export default function NoteEditor({
         tipo: NOTE_TYPES.CHECKLIST,
         nota_itens: [
           ...currentItems,
-          createTemporaryItem(
-            currentItems.length
-          ),
+          createTemporaryItem(currentItems.length),
         ],
       };
     });
   }, []);
 
-  const changeItem = useCallback(
-    (index, updatedItem) => {
-      setDraft((currentDraft) => {
-        const currentItems = Array.isArray(
-          currentDraft.nota_itens
-        )
-          ? currentDraft.nota_itens
-          : [];
+  const changeItem = useCallback((index, updatedItem) => {
+    setDraft((currentDraft) => {
+      const currentItems = Array.isArray(currentDraft.nota_itens)
+        ? currentDraft.nota_itens
+        : [];
 
-        return {
-          ...currentDraft,
-          nota_itens: currentItems.map(
-            (item, itemIndex) =>
-              itemIndex === index
-                ? {
-                    ...item,
-                    ...updatedItem,
-                    ordem: itemIndex,
-                  }
-                : item
-          ),
-        };
-      });
-    },
-    []
-  );
+      return {
+        ...currentDraft,
+        nota_itens: currentItems.map((item, itemIndex) =>
+          itemIndex === index
+            ? { ...item, ...updatedItem, ordem: itemIndex }
+            : item
+        ),
+      };
+    });
+  }, []);
 
   const removeItem = useCallback((index) => {
     setDraft((currentDraft) => {
-      const currentItems = Array.isArray(
-        currentDraft.nota_itens
-      )
+      const currentItems = Array.isArray(currentDraft.nota_itens)
         ? currentDraft.nota_itens
         : [];
 
       return {
         ...currentDraft,
         nota_itens: currentItems
-          .filter(
-            (_, itemIndex) =>
-              itemIndex !== index
-          )
-          .map((item, itemIndex) => ({
-            ...item,
-            ordem: itemIndex,
-          })),
+          .filter((_, itemIndex) => itemIndex !== index)
+          .map((item, itemIndex) => ({ ...item, ordem: itemIndex })),
       };
     });
   }, []);
@@ -190,31 +123,21 @@ export default function NoteEditor({
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    const normalizedTitle =
-      draft.titulo.trim();
-
+    const normalizedTitle = draft.titulo.trim();
     if (!normalizedTitle) {
-      setValidationError(
-        NOTES_MESSAGES.REQUIRED_TITLE
-      );
-
+      setValidationError(NOTES_MESSAGES.REQUIRED_TITLE);
       return;
     }
 
-    const currentItems = Array.isArray(
-      draft.nota_itens
-    )
+    const currentItems = Array.isArray(draft.nota_itens)
       ? draft.nota_itens
       : [];
 
     const notePayload = {
       ...draft,
       titulo: normalizedTitle,
-
       nota_itens: currentItems
-        .filter((item) =>
-          item.texto?.trim()
-        )
+        .filter((item) => item.texto?.trim())
         .map((item, index) => ({
           ...item,
           texto: item.texto.trim(),
@@ -227,27 +150,21 @@ export default function NoteEditor({
     try {
       await onSave?.(notePayload);
     } catch (saveError) {
-      console.error(
-        "Erro ao salvar nota no editor:",
-        saveError
-      );
-
+      console.error("Erro ao salvar nota no editor:", saveError);
       setValidationError(
-        saveError?.message ||
-          NOTES_MESSAGES.UPDATE_ERROR
+        saveError?.message || NOTES_MESSAGES.UPDATE_ERROR
       );
     }
   };
 
-  if (!open) {
-    return null;
-  }
+  if (!open) return null;
 
-  const items = Array.isArray(
-    draft.nota_itens
-  )
+  const items = Array.isArray(draft.nota_itens)
     ? draft.nota_itens
     : [];
+
+  const contentLines = String(draft.conteudo || "").split("\n").length;
+  const contentChars = String(draft.conteudo || "").length;
 
   return (
     <div
@@ -255,104 +172,61 @@ export default function NoteEditor({
       style={styles.overlay}
       role="presentation"
       onMouseDown={(event) => {
-        if (
-          event.target ===
-            event.currentTarget &&
-          !saving
-        ) {
-          handleClose();
-        }
+        if (event.target === event.currentTarget && !saving) handleClose();
       }}
     >
       <style>{`
         @media (max-width: 767px) {
           .note-editor-overlay {
-            align-items: flex-end !important;
             padding: 0 !important;
+            align-items: stretch !important;
           }
 
           .note-editor-modal {
             width: 100% !important;
-            max-height: 94dvh !important;
-            border-radius: 22px 22px 0 0 !important;
+            height: 100dvh !important;
+            max-height: 100dvh !important;
+            border-radius: 0 !important;
           }
 
           .note-editor-form {
-            gap: 15px !important;
-            padding: 18px 18px max(18px, env(safe-area-inset-bottom)) !important;
-          }
-
-          .note-editor-header {
-            gap: 14px !important;
-          }
-
-          .note-editor-title {
-            font-size: 22px !important;
-            line-height: 1.25 !important;
-          }
-
-          .note-editor-close {
-            width: 40px !important;
-            height: 40px !important;
-            border-radius: 11px !important;
+            padding: 14px !important;
+            gap: 12px !important;
           }
 
           .note-editor-grid {
-            grid-template-columns: minmax(0, 1fr) !important;
-          }
-
-          .note-editor-input {
-            min-height: 46px !important;
-            font-size: 16px !important;
+            grid-template-columns: 1fr !important;
           }
 
           .note-editor-textarea {
-            min-height: 120px !important;
-            font-size: 16px !important;
+            min-height: 38vh !important;
+            height: 38vh !important;
           }
 
           .note-editor-flags {
-            flex-direction: column !important;
             gap: 10px !important;
           }
 
-          .note-editor-checkbox-label {
-            width: 100% !important;
-            min-height: 42px !important;
-            white-space: nowrap !important;
-          }
-
-          .note-editor-checkbox-label input {
-            flex-shrink: 0 !important;
-            width: 22px !important;
-            height: 22px !important;
-            margin: 0 !important;
-          }
-
           .note-editor-items-header {
-            flex-direction: column !important;
+            align-items: stretch !important;
           }
 
-          .note-editor-add-item {
+          .note-editor-items-header button {
             width: 100% !important;
-            min-height: 44px !important;
           }
 
           .note-editor-footer {
             position: sticky !important;
             bottom: 0 !important;
-            z-index: 2 !important;
-            flex-direction: column-reverse !important;
-            flex-wrap: nowrap !important;
-            margin: 0 -18px -18px !important;
-            padding: 14px 18px max(18px, env(safe-area-inset-bottom)) !important;
-            background: #fff !important;
+            margin: 0 -14px -14px !important;
+            padding: 12px 14px !important;
+            background: rgba(255,255,255,0.98) !important;
+            backdrop-filter: blur(10px);
           }
 
           .note-editor-footer button {
-            width: 100% !important;
-            min-height: 46px !important;
-            font-size: 15px !important;
+            flex: 1 !important;
+            min-height: 44px !important;
           }
         }
       `}</style>
@@ -370,34 +244,18 @@ export default function NoteEditor({
           onSubmit={handleSubmit}
           style={styles.form}
         >
-          <header
-            className="note-editor-header"
-            style={styles.header}
-          >
+          <header style={styles.header}>
             <div style={styles.headerText}>
               <span style={styles.eyebrow}>
-                {draft.id
-                  ? "Editar nota"
-                  : "Nova nota"}
+                {draft.id ? "Editar nota" : "Nova nota"}
               </span>
 
-              <h2
-                id="note-editor-title"
-                className="note-editor-title"
-                style={styles.title}
-              >
-                {draft.id
-                  ? draft.titulo ||
-                    "Editar nota"
-                  : "Criar nota"}
+              <h2 id="note-editor-title" style={styles.title}>
+                {draft.id ? draft.titulo || "Editar nota" : "Criar nota"}
               </h2>
 
-              <span
-                id="note-editor-description"
-                style={styles.srOnly}
-              >
-                Formulário para criar ou editar
-                uma nota interna.
+              <span id="note-editor-description" style={styles.srOnly}>
+                Formulário para criar ou editar uma nota interna.
               </span>
             </div>
 
@@ -405,12 +263,9 @@ export default function NoteEditor({
               type="button"
               onClick={handleClose}
               disabled={saving}
-              className="note-editor-close"
               style={{
                 ...styles.closeButton,
-                ...(saving
-                  ? styles.disabledButton
-                  : {}),
+                ...(saving ? styles.disabledButton : {}),
               }}
               title="Fechar"
               aria-label="Fechar editor de nota"
@@ -419,27 +274,15 @@ export default function NoteEditor({
             </button>
           </header>
 
-          <div
-            className="note-editor-grid"
-            style={styles.grid}
-          >
+          <div className="note-editor-grid" style={styles.grid}>
             <label style={styles.field}>
-              <span style={styles.label}>
-                Título
-              </span>
-
+              <span style={styles.label}>Título</span>
               <input
                 autoFocus
                 type="text"
                 value={draft.titulo}
                 disabled={saving}
-                onChange={(event) =>
-                  updateField(
-                    "titulo",
-                    event.target.value
-                  )
-                }
-                className="note-editor-input"
+                onChange={(event) => updateField("titulo", event.target.value)}
                 style={styles.input}
                 placeholder="Ex.: Entregas da semana"
                 maxLength={150}
@@ -447,95 +290,60 @@ export default function NoteEditor({
             </label>
 
             <label style={styles.field}>
-              <span style={styles.label}>
-                Categoria
-              </span>
-
+              <span style={styles.label}>Categoria</span>
               <select
                 value={draft.categoria}
                 disabled={saving}
-                onChange={(event) =>
-                  updateField(
-                    "categoria",
-                    event.target.value
-                  )
-                }
-                className="note-editor-input"
+                onChange={(event) => updateField("categoria", event.target.value)}
                 style={styles.input}
               >
-                {categories.map(
-                  (category) => (
-                    <option
-                      key={category}
-                      value={category}
-                    >
-                      {category}
-                    </option>
-                  )
-                )}
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
               </select>
             </label>
           </div>
 
           <label style={styles.field}>
-            <span style={styles.label}>
-              Conteúdo
-            </span>
+            <div style={styles.contentLabelRow}>
+              <span style={styles.label}>Conteúdo da nota</span>
+              <span style={styles.counter}>
+                {contentLines} linha(s) • {contentChars} caractere(s)
+              </span>
+            </div>
 
             <textarea
+              className="note-editor-textarea"
               value={draft.conteudo}
               disabled={saving}
-              onChange={(event) =>
-                updateField(
-                  "conteudo",
-                  event.target.value
-                )
-              }
-              className="note-editor-textarea"
+              onChange={(event) => updateField("conteudo", event.target.value)}
               style={styles.textarea}
-              placeholder="Adicione informações gerais sobre esta nota..."
+              placeholder="Escreva aqui as informações da nota..."
             />
           </label>
 
-          <div
-            className="note-editor-flags"
-            style={styles.flags}
-          >
-            <label
-              className="note-editor-checkbox-label"
-              style={styles.checkboxLabel}
-            >
+          <div className="note-editor-flags" style={styles.flags}>
+            <label style={styles.checkboxLabel}>
               <input
                 type="checkbox"
                 checked={draft.fixada}
                 disabled={saving}
-                onChange={(event) =>
-                  updateField(
-                    "fixada",
-                    event.target.checked
-                  )
-                }
+                onChange={(event) => updateField("fixada", event.target.checked)}
+                style={styles.checkbox}
               />
-
-              Fixar nota
+              Fixar nota no topo
             </label>
 
-            <label
-              className="note-editor-checkbox-label"
-              style={styles.checkboxLabel}
-            >
+            <label style={styles.checkboxLabel}>
               <input
                 type="checkbox"
                 checked={draft.arquivada}
                 disabled={saving}
-                onChange={(event) =>
-                  updateField(
-                    "arquivada",
-                    event.target.checked
-                  )
-                }
+                onChange={(event) => updateField("arquivada", event.target.checked)}
+                style={styles.checkbox}
               />
-
               Arquivar nota
             </label>
           </div>
@@ -546,13 +354,9 @@ export default function NoteEditor({
               style={styles.itemsHeader}
             >
               <div>
-                <span style={styles.label}>
-                  Lista de itens
-                </span>
-
+                <span style={styles.label}>Lista de itens</span>
                 <p style={styles.help}>
-                  Use para clientes, entregas,
-                  descontos e tarefas.
+                  Opcional. Use para clientes, entregas, descontos ou tarefas.
                 </p>
               </div>
 
@@ -560,12 +364,9 @@ export default function NoteEditor({
                 type="button"
                 onClick={addItem}
                 disabled={saving}
-                className="note-editor-add-item"
                 style={{
                   ...styles.secondaryButton,
-                  ...(saving
-                    ? styles.disabledButton
-                    : {}),
+                  ...(saving ? styles.disabledButton : {}),
                 }}
               >
                 + Adicionar item
@@ -582,27 +383,19 @@ export default function NoteEditor({
           </section>
 
           {validationError ? (
-            <div
-              style={styles.error}
-              role="alert"
-            >
+            <div style={styles.error} role="alert">
               {validationError}
             </div>
           ) : null}
 
-          <footer
-            className="note-editor-footer"
-            style={styles.footer}
-          >
+          <footer className="note-editor-footer" style={styles.footer}>
             <button
               type="button"
               onClick={handleClose}
               disabled={saving}
               style={{
                 ...styles.cancelButton,
-                ...(saving
-                  ? styles.disabledButton
-                  : {}),
+                ...(saving ? styles.disabledButton : {}),
               }}
             >
               Cancelar
@@ -613,14 +406,10 @@ export default function NoteEditor({
               disabled={saving}
               style={{
                 ...styles.saveButton,
-                ...(saving
-                  ? styles.disabledButton
-                  : {}),
+                ...(saving ? styles.disabledButton : {}),
               }}
             >
-              {saving
-                ? "Salvando..."
-                : "Salvar nota"}
+              {saving ? "Salvando..." : "Salvar nota"}
             </button>
           </footer>
         </form>
@@ -638,156 +427,194 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     padding: 20,
-    background:
-      "rgba(26, 20, 16, 0.48)",
+    background: "rgba(15, 23, 42, 0.48)",
+    backdropFilter: "blur(2px)",
   },
 
   modal: {
-    width: "min(760px, 100%)",
-    maxHeight: "90vh",
+    width: "min(980px, 96vw)",
+    maxHeight: "94vh",
     overflowY: "auto",
-    borderRadius: 16,
+    borderRadius: 20,
     background: "#fff",
-    boxShadow:
-      "0 24px 70px rgba(0, 0, 0, 0.28)",
+    border: "1px solid #eef2f7",
+    boxShadow: "0 28px 80px rgba(15, 23, 42, 0.28)",
   },
 
   form: {
     display: "flex",
     flexDirection: "column",
-    gap: 18,
-    padding: 22,
+    gap: 14,
+    padding: 20,
   },
 
   header: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    gap: 20,
+    gap: 16,
   },
 
-  headerText: {
-    minWidth: 0,
-  },
+  headerText: { minWidth: 0 },
 
   eyebrow: {
-    fontSize: 12,
+    fontSize: 11,
     textTransform: "uppercase",
     letterSpacing: "0.08em",
-    opacity: 0.65,
+    color: "#8f2745",
+    fontWeight: 800,
   },
 
   title: {
-    margin: "4px 0 0",
-    fontSize: 23,
+    margin: "3px 0 0",
+    fontSize: 24,
+    lineHeight: 1.2,
+    color: "#243746",
     overflowWrap: "anywhere",
   },
 
   closeButton: {
     flexShrink: 0,
-    width: 36,
-    height: 36,
-    border: "1px solid #ded7d1",
-    borderRadius: 9,
+    width: 38,
+    height: 38,
+    border: "1px solid #e2e8f0",
+    borderRadius: 12,
     background: "#fff",
+    color: "#243746",
     cursor: "pointer",
     fontSize: 24,
     lineHeight: 1,
+    boxShadow: "0 2px 8px rgba(15,23,42,0.04)",
   },
 
   grid: {
     display: "grid",
-    gridTemplateColumns:
-      "repeat(auto-fit, minmax(min(100%, 220px), 1fr))",
+    gridTemplateColumns: "minmax(0, 1.2fr) minmax(220px, 0.8fr)",
     gap: 12,
   },
 
   field: {
     display: "flex",
     flexDirection: "column",
-    gap: 6,
+    gap: 5,
     minWidth: 0,
   },
 
   label: {
-    fontSize: 13,
-    fontWeight: 700,
+    fontSize: 12.5,
+    fontWeight: 800,
+    color: "#243746",
   },
 
   input: {
     width: "100%",
     minWidth: 0,
-    border: "1px solid #d8d0c8",
-    borderRadius: 9,
-    padding: "10px 11px",
+    minHeight: 42,
+    border: "1px solid #dfe6ee",
+    borderRadius: 12,
+    padding: "9px 12px",
     fontSize: 14,
+    color: "#243746",
     boxSizing: "border-box",
     background: "#fff",
+    outline: "none",
+  },
+
+  contentLabelRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    flexWrap: "wrap",
+  },
+
+  counter: {
+    fontSize: 11.5,
+    color: "#94a3b8",
+    fontWeight: 600,
   },
 
   textarea: {
     width: "100%",
-    minHeight: 100,
+    minHeight: 320,
+    height: "clamp(320px, 43vh, 460px)",
     resize: "vertical",
-    border: "1px solid #d8d0c8",
-    borderRadius: 9,
-    padding: "10px 11px",
-    fontSize: 14,
-    lineHeight: 1.45,
+    border: "1px solid #dfe6ee",
+    borderRadius: 14,
+    padding: "14px 15px",
+    fontSize: 15,
+    lineHeight: 1.55,
+    color: "#243746",
     boxSizing: "border-box",
+    background: "#fff",
+    outline: "none",
   },
 
   flags: {
     display: "flex",
     flexWrap: "wrap",
-    gap: 18,
+    gap: 14,
+    padding: "2px 0",
   },
 
   checkboxLabel: {
     display: "flex",
     alignItems: "center",
-    gap: 7,
-    fontSize: 14,
+    gap: 8,
+    fontSize: 13.5,
+    color: "#475569",
     cursor: "pointer",
+  },
+
+  checkbox: {
+    width: 17,
+    height: 17,
+    accentColor: "#8f2745",
   },
 
   itemsSection: {
     display: "flex",
     flexDirection: "column",
-    gap: 10,
-    borderTop: "1px solid #ece7e2",
-    paddingTop: 17,
+    gap: 9,
+    borderTop: "1px solid #eef2f7",
+    paddingTop: 13,
   },
 
   itemsHeader: {
     display: "flex",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 12,
+    alignItems: "center",
+    gap: 10,
   },
 
   help: {
     margin: "3px 0 0",
     fontSize: 12,
-    opacity: 0.65,
+    lineHeight: 1.4,
+    color: "#64748b",
   },
 
   secondaryButton: {
-    border: "1px solid #b8a496",
-    borderRadius: 9,
+    minHeight: 40,
+    border: "1px solid #ead1da",
+    borderRadius: 12,
     background: "#fff",
-    padding: "9px 12px",
+    color: "#8f2745",
+    padding: "8px 12px",
     cursor: "pointer",
     whiteSpace: "nowrap",
+    fontWeight: 800,
   },
 
   error: {
-    border: "1px solid #e1b3b3",
-    borderRadius: 9,
+    border: "1px solid #fecaca",
+    borderRadius: 12,
     padding: "10px 12px",
-    background: "#fff7f7",
+    background: "#fff1f2",
+    color: "#991b1b",
     fontSize: 13,
+    fontWeight: 700,
   },
 
   footer: {
@@ -795,26 +622,31 @@ const styles = {
     flexWrap: "wrap",
     justifyContent: "flex-end",
     gap: 10,
-    borderTop: "1px solid #ece7e2",
-    paddingTop: 17,
+    borderTop: "1px solid #eef2f7",
+    paddingTop: 14,
   },
 
   cancelButton: {
-    border: "1px solid #d8d0c8",
-    borderRadius: 9,
+    minHeight: 42,
+    border: "1px solid #dfe6ee",
+    borderRadius: 12,
     background: "#fff",
-    padding: "10px 15px",
+    color: "#243746",
+    padding: "9px 16px",
     cursor: "pointer",
+    fontWeight: 800,
   },
 
   saveButton: {
-    border: "1px solid #694a37",
-    borderRadius: 9,
-    background: "#694a37",
+    minHeight: 42,
+    border: "1px solid #8f2745",
+    borderRadius: 12,
+    background: "#8f2745",
     color: "#fff",
-    padding: "10px 17px",
+    padding: "9px 18px",
     cursor: "pointer",
-    fontWeight: 700,
+    fontWeight: 800,
+    boxShadow: "0 8px 18px rgba(143,39,69,0.18)",
   },
 
   disabledButton: {
