@@ -2405,8 +2405,12 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       }
 
       // 2️⃣ cria vínculos
-      const vinculos = sacolinhasElegiveis.map((s) => ({
-        id: crypto.randomUUID(),
+      const baseTimestamp = Date.now();
+
+      const vinculos = sacolinhasElegiveis.map((s, index) => ({
+        id: `${pedidoId}-${s.id}-${baseTimestamp}-${index}-${Math.random()
+          .toString(36)
+          .slice(2, 10)}`,
         pedido_envio_id: pedidoId,
         sacolinha_id: s.id,
       }));
@@ -2482,16 +2486,33 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   }
 
   async function carregarPedidoEnvioSacolinhas() {
-    const { data, error } = await supabase
-      .from("pedido_envio_sacolinhas")
-      .select("*");
+    const pageSize = 1000;
+    let from = 0;
+    let todos = [];
 
-    if (error) {
-      console.error("ERRO AO CARREGAR VÍNCULOS DE PEDIDOS DE ENVIO:", error);
-      throw new Error(`Erro ao carregar vínculos dos pedidos de envio: ${error.message}`);
+    while (true) {
+      const { data, error } = await supabase
+        .from("pedido_envio_sacolinhas")
+        .select("*")
+        .range(from, from + pageSize - 1);
+
+      if (error) {
+        console.error("ERRO AO CARREGAR VÍNCULOS DE PEDIDOS DE ENVIO:", error);
+        throw new Error(
+          `Erro ao carregar vínculos dos pedidos de envio: ${error.message}`
+        );
+      }
+
+      if (!data || data.length === 0) break;
+
+      todos = [...todos, ...data];
+
+      if (data.length < pageSize) break;
+
+      from += pageSize;
     }
 
-    setPedidoEnvioSacolinhas(data || []);
+    setPedidoEnvioSacolinhas(todos);
   }
 
   async function corrigirSacolinhasAntigas() {
