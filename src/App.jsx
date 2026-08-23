@@ -2173,19 +2173,38 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   async function carregarSacolinhasLive() {
     setCarregandoSacolinhas(true);
 
-    const { data, error } = await supabase
-      .from("sacolinhas_live")
-      .select("*")
-      .order("criado_em", { ascending: false });
+    const pageSize = 1000;
+    let from = 0;
+    let todas = [];
 
-    if (error) {
-      console.error("ERRO AO CARREGAR SACOLINHAS:", error);
+    try {
+      while (true) {
+        const { data, error } = await supabase
+          .from("sacolinhas_live")
+          .select("*")
+          .order("criado_em", { ascending: false })
+          .order("id", { ascending: false })
+          .range(from, from + pageSize - 1);
+
+        if (error) {
+          console.error("ERRO AO CARREGAR SACOLINHAS:", error);
+          throw new Error(`Erro ao carregar sacolinhas: ${error.message}`);
+        }
+
+        if (!data || data.length === 0) break;
+
+        todas = [...todas, ...data];
+
+        if (data.length < pageSize) break;
+
+        from += pageSize;
+      }
+
+      console.log("TOTAL sacolinhas carregadas:", todas.length);
+      setSacolinhasLive(todas);
+    } finally {
       setCarregandoSacolinhas(false);
-      throw new Error(`Erro ao carregar sacolinhas: ${error.message}`);
     }
-
-    setSacolinhasLive(data || []);
-    setCarregandoSacolinhas(false);
   }
 
   function resetExpansoesExpedicao() {

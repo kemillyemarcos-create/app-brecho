@@ -73,12 +73,33 @@ export default function useExpedicaoMemo({
             .map((v) => String(v.peca_id));
     }, [todasVendasLive, sacolinhasLive]);
 
-    const sacolinhasAgrupadas = useMemo(() => {
-        const vendas = todasVendasLive || [];
+    const vendasPorSacolinhaId = useMemo(() => {
+        const mapa = new Map();
 
+        for (const venda of todasVendasLive || []) {
+            const sacolinhaId = String(venda?.sacolinha_id || "");
+
+            if (!sacolinhaId) continue;
+
+            if (!mapa.has(sacolinhaId)) {
+                mapa.set(sacolinhaId, []);
+            }
+
+            mapa.get(sacolinhaId).push(venda);
+        }
+
+        return mapa;
+    }, [todasVendasLive]);
+
+    const sacolinhasAgrupadas = useMemo(() => {
         return (sacolinhasLive || [])
             .map((sacolinha) => {
-                const itens = getItensDaSacolinha(sacolinha, vendas) || [];
+                const vendasDaSacolinha =
+                    vendasPorSacolinhaId.get(String(sacolinha?.id)) || [];
+
+                const itens =
+                    getItensDaSacolinha(sacolinha, vendasDaSacolinha) || [];
+
                 const itensValidos = Array.isArray(itens) ? itens : [];
 
                 const valorTotal = itensValidos.reduce((acc, item) => {
@@ -86,9 +107,21 @@ export default function useExpedicaoMemo({
                 }, 0);
 
                 const quantidade = itensValidos.length;
-                const vencida = sacolinhaEstaVencida(sacolinha, vendas);
-                const diasDesdeReferencia = getDiasSacolinha(sacolinha, vendas);
-                const statusVisual = getStatusVisualSacolinha(sacolinha, vendas);
+
+                const vencida = sacolinhaEstaVencida(
+                    sacolinha,
+                    vendasDaSacolinha
+                );
+
+                const diasDesdeReferencia = getDiasSacolinha(
+                    sacolinha,
+                    vendasDaSacolinha
+                );
+
+                const statusVisual = getStatusVisualSacolinha(
+                    sacolinha,
+                    vendasDaSacolinha
+                );
 
                 return {
                     ...sacolinha,
@@ -107,7 +140,7 @@ export default function useExpedicaoMemo({
                     { sensitivity: "base" }
                 )
             );
-    }, [sacolinhasLive, todasVendasLive, mapaPecasPorId]);
+    }, [sacolinhasLive, vendasPorSacolinhaId, mapaPecasPorId]);
 
     const sacolinhasAbertas = useMemo(() => {
         return sacolinhasAgrupadas.filter((s) => s.status === "aberta");
@@ -124,7 +157,6 @@ export default function useExpedicaoMemo({
                 )
         );
     }, [sacolinhasAgrupadas, pedidoEnvioSacolinhas, pedidosEnvio]);
-
     const sacolinhasEnviadas = useMemo(() => {
         return sacolinhasAgrupadas.filter((s) => s.status === "enviada");
     }, [sacolinhasAgrupadas]);
