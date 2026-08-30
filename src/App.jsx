@@ -511,10 +511,88 @@ function AppContent() {
     clienteId = null
   ) => {
     try {
+      const nomeNormalizado = String(clienteNome || "").trim().toLowerCase();
+      const liveIdNormalizado = String(liveId || "");
+
+      // 1. Caminho rápido:
+      // procura primeiro nas sacolinhas que já estão carregadas no navegador.
+      const sacolinhasAbertasDaLive = (sacolinhasLive || []).filter(
+        (item) =>
+          String(item?.live_id || "") === liveIdNormalizado &&
+          item?.status === "aberta"
+      );
+
       let existente = null;
 
-      // 1. Cliente identificada:
-      // procura primeiro pela identidade oficial.
+      if (clienteId) {
+        // Cliente cadastrada: identidade oficial sempre tem prioridade.
+        existente =
+          sacolinhasAbertasDaLive.find(
+            (item) => String(item?.cliente_id || "") === String(clienteId)
+          ) || null;
+
+        if (existente) {
+          await garantirPortalTokenSacolinha(existente);
+          return existente.id;
+        }
+
+        // Compatibilidade com sacolinha antiga:
+        // somente nome EXATO e sem cliente_id.
+        const legada =
+          sacolinhasAbertasDaLive.find(
+            (item) =>
+              !item?.cliente_id &&
+              String(item?.cliente_nome || "").trim().toLowerCase() ===
+                nomeNormalizado
+          ) || null;
+
+        if (legada) {
+          const { error: erroVinculo } = await supabase
+            .from("sacolinhas_live")
+            .update({
+              cliente_id: clienteId,
+              cliente_nome: clienteNome,
+            })
+            .eq("id", legada.id);
+
+          if (erroVinculo) throw erroVinculo;
+
+          const legadaVinculada = {
+            ...legada,
+            cliente_id: clienteId,
+            cliente_nome: clienteNome,
+          };
+
+          setSacolinhasLive((prev) =>
+            (prev || []).map((item) =>
+              String(item?.id) === String(legada.id)
+                ? { ...item, ...legadaVinculada }
+                : item
+            )
+          );
+
+          await garantirPortalTokenSacolinha(legadaVinculada);
+          return legada.id;
+        }
+      } else {
+        // Cliente não cadastrada:
+        // reutiliza somente sacolinha sem cliente_id e com nome exato.
+        existente =
+          sacolinhasAbertasDaLive.find(
+            (item) =>
+              !item?.cliente_id &&
+              String(item?.cliente_nome || "").trim().toLowerCase() ===
+                nomeNormalizado
+          ) || null;
+
+        if (existente) {
+          await garantirPortalTokenSacolinha(existente);
+          return existente.id;
+        }
+      }
+
+      // 2. Não estava no estado local.
+      // Confirma no banco antes de criar para manter segurança entre aparelhos.
       if (clienteId) {
         const { data, error } = await supabase
           .from("sacolinhas_live")
@@ -530,9 +608,6 @@ function AppContent() {
 
         existente = data;
 
-        // 2. Compatibilidade com sacolinhas antigas:
-        // se ainda não encontrou pelo ID, procura somente uma
-        // sacolinha sem cliente_id com o mesmo nome.
         if (!existente) {
           const { data: legada, error: erroLegada } = await supabase
             .from("sacolinhas_live")
@@ -566,9 +641,6 @@ function AppContent() {
           }
         }
       } else {
-        // 3. Cliente nova/não identificada:
-        // nunca reutiliza uma sacolinha que já pertence
-        // oficialmente a outra cliente cadastrada.
         const { data, error } = await supabase
           .from("sacolinhas_live")
           .select("*")
@@ -590,25 +662,41 @@ function AppContent() {
         return existente.id;
       }
 
-      // 4. Nenhuma sacolinha encontrada:
+      // 3. Nenhuma sacolinha encontrada:
       // cria uma nova.
       const novaId = `SAC-${Date.now()}`;
+      const criadoEm = agoraIso();
+      const portalToken = gerarPortalToken();
+
+      const novaSacolinha = {
+        id: novaId,
+        cliente_id: clienteId || null,
+        cliente_nome: clienteNome,
+        live_id: liveId,
+        status: "aberta",
+        criado_em: criadoEm,
+        portal_token: portalToken,
+      };
 
       const { error: erroCriar } = await supabase
         .from("sacolinhas_live")
-        .insert([
-          {
-            id: novaId,
-            cliente_id: clienteId || null,
-            cliente_nome: clienteNome,
-            live_id: liveId,
-            status: "aberta",
-            criado_em: agoraIso(),
-            portal_token: gerarPortalToken(),
-          },
-        ]);
+        .insert([novaSacolinha]);
 
       if (erroCriar) throw erroCriar;
+
+      setSacolinhasLive((prev) => {
+        const lista = prev || [];
+
+        if (
+          lista.some(
+            (item) => String(item?.id) === String(novaSacolinha.id)
+          )
+        ) {
+          return lista;
+        }
+
+        return [novaSacolinha, ...lista];
+      });
 
       return novaId;
     } catch (err) {
@@ -997,7 +1085,36 @@ Qualquer dúvida, é só nos chamar! 💕`;
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "pecas" },
-        carregarPecas
+        (payload) => {
+          const evento = payload?.eventType;
+          const novaPeca = payload?.new;
+          const pecaAntiga = payload?.old;
+          const id = String(novaPeca?.id || pecaAntiga?.id || "");
+
+          if (!id) return;
+
+          setPecas((prev) => {
+            const lista = prev || [];
+
+            if (evento === "DELETE") {
+              return lista.filter(
+                (item) => String(item?.id) !== id
+              );
+            }
+
+            const indice = lista.findIndex(
+              (item) => String(item?.id) === id
+            );
+
+            if (indice === -1) {
+              return [novaPeca, ...lista];
+            }
+
+            return lista.map((item, index) =>
+              index === indice ? { ...item, ...novaPeca } : item
+            );
+          });
+        }
       )
       .subscribe();
 
@@ -1027,7 +1144,40 @@ Qualquer dúvida, é só nos chamar! 💕`;
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "sacolinhas_live" },
-        carregarSacolinhasLive
+        (payload) => {
+          const evento = payload?.eventType;
+          const novaSacolinha = payload?.new;
+          const sacolinhaAntiga = payload?.old;
+          const id = String(
+            novaSacolinha?.id || sacolinhaAntiga?.id || ""
+          );
+
+          if (!id) return;
+
+          setSacolinhasLive((prev) => {
+            const lista = prev || [];
+
+            if (evento === "DELETE") {
+              return lista.filter(
+                (item) => String(item?.id) !== id
+              );
+            }
+
+            const indice = lista.findIndex(
+              (item) => String(item?.id) === id
+            );
+
+            if (indice === -1) {
+              return [novaSacolinha, ...lista];
+            }
+
+            return lista.map((item, index) =>
+              index === indice
+                ? { ...item, ...novaSacolinha }
+                : item
+            );
+          });
+        }
       )
       .subscribe();
 
@@ -1069,17 +1219,68 @@ Qualquer dúvida, é só nos chamar! 💕`;
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "vendas_live" },
-        async () => {
-          await Promise.all([
-            carregarTodasVendasLive(),
-            carregarSacolinhasLive(),
-            carregarLives(),
-            carregarLiveAberta(),
-          ]);
+        (payload) => {
+          const evento = payload?.eventType;
+          const novaVenda = payload?.new;
+          const vendaAntiga = payload?.old;
+          const id = String(
+            novaVenda?.id || vendaAntiga?.id || ""
+          );
 
-          if (liveEmVisualizacao?.id) {
-            await carregarVendasLive(liveEmVisualizacao);
-          }
+          if (!id) return;
+
+          const atualizarLista = (listaAtual) => {
+            const lista = listaAtual || [];
+
+            if (evento === "DELETE") {
+              return lista.filter(
+                (item) => String(item?.id) !== id
+              );
+            }
+
+            const indice = lista.findIndex(
+              (item) => String(item?.id) === id
+            );
+
+            if (indice === -1) {
+              return [...lista, novaVenda];
+            }
+
+            return lista.map((item, index) =>
+              index === indice
+                ? { ...item, ...novaVenda }
+                : item
+            );
+          };
+
+          setTodasVendasLive(atualizarLista);
+
+          setVendasLive((prev) => {
+            const liveVisualizadaId = String(
+              liveEmVisualizacao?.id || ""
+            );
+
+            const liveNova = String(novaVenda?.live_id || "");
+            const liveAntiga = String(vendaAntiga?.live_id || "");
+
+            if (
+              liveVisualizadaId !== liveNova &&
+              liveVisualizadaId !== liveAntiga
+            ) {
+              return prev || [];
+            }
+
+            if (
+              evento !== "DELETE" &&
+              liveNova !== liveVisualizadaId
+            ) {
+              return (prev || []).filter(
+                (item) => String(item?.id) !== id
+              );
+            }
+
+            return atualizarLista(prev);
+          });
         }
       )
       .subscribe();
@@ -1530,24 +1731,6 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     setSalvandoVenda(true);
 
     try {
-      const { data: vendaExistente, error: errorBuscaVenda } = await supabase
-        .from("vendas_live")
-        .select("id")
-        .eq("peca_id", codigoPeca)
-        .eq("live_id", liveAtual.id)
-        .limit(1);
-
-      if (errorBuscaVenda) {
-        console.error("ERRO AO VERIFICAR VENDA EXISTENTE:", errorBuscaVenda);
-        alert("Erro ao verificar venda existente.");
-        return;
-      }
-
-      if (vendaExistente && vendaExistente.length > 0) {
-        alert("Essa peça já está registrada na live.");
-        return;
-      }
-
       const sacolinhaId = await obterOuCriarSacolinha(
         nomeCliente,
         liveAtual.id,
@@ -1558,7 +1741,6 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       const valorFinal = valorDesconto
         ? limparMoeda(valorDesconto)
         : limparMoeda(peca.venda);
-
       const { data: pecaAtualizada, error: errorPeca } = await supabase
         .from("pecas")
         .update({
@@ -1595,7 +1777,6 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         data_hora: agoraIso(),
         status_pagamento: "pendente",
       };
-
       const { error: errorVendaLive } = await supabase
         .from("vendas_live")
         .insert(novaVendaLive);
@@ -1626,8 +1807,38 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         return;
       }
 
-      await recarregarDadosGerais();
-      await recarregarLiveEmVisualizacaoAtual();
+      const pecaVendidaAtualizada = pecaAtualizada[0];
+
+      setPecas((prev) =>
+        (prev || []).map((item) =>
+          String(item?.id) === String(codigoPeca)
+            ? { ...item, ...pecaVendidaAtualizada }
+            : item
+        )
+      );
+
+      setVendasLive((prev) => [...(prev || []), novaVendaLive]);
+      setTodasVendasLive((prev) => [...(prev || []), novaVendaLive]);
+
+      setSacolinhasLive((prev) => {
+        const listaAtual = prev || [];
+        const jaExiste = listaAtual.some(
+          (item) => String(item?.id) === String(sacolinhaId)
+        );
+
+        if (jaExiste) return listaAtual;
+
+        return [
+          ...listaAtual,
+          {
+            id: sacolinhaId,
+            cliente_id: clienteIdResolvido || null,
+            cliente_nome: nomeCliente,
+            live_id: liveAtual.id,
+            status: "aberta",
+          },
+        ];
+      });
 
       resetFormularioVenda();
     } finally {
@@ -2897,15 +3108,6 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   });
 
   useEffect(() => {
-    console.log("liveAtual", liveAtual);
-    console.log("liveSelecionada", liveSelecionada);
-    console.log("liveEmVisualizacao", liveEmVisualizacao);
-    console.log("vendasLive qtd", vendasLive?.length);
-    console.log("todasVendasLive qtd", todasVendasLive?.length);
-    console.log(
-      "resumo live atual",
-      resumoFaturamentoPorLive.find((l) => String(l.id) === String(liveAtual?.id))
-    );
   }, [
     liveAtual,
     liveSelecionada,
@@ -2920,15 +3122,6 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     const vendasDaLiveAtual = (todasVendasLive || []).filter(
       (v) => String(v.live_id) === liveIdAtual
     );
-
-    console.log("LIVE ATUAL ID:", liveIdAtual);
-    console.log("TOTAL vendasLive:", vendasLive?.length);
-    console.log("TOTAL vendas da live atual em todasVendasLive:", vendasDaLiveAtual.length);
-    console.log(
-      "RESUMO FATURAMENTO LIVE ATUAL:",
-      resumoFaturamentoPorLive.find((l) => String(l.id) === liveIdAtual)
-    );
-    console.log("AMOSTRA vendasDaLiveAtual:", vendasDaLiveAtual.slice(0, 5));
   }, [liveAtual, vendasLive, todasVendasLive, resumoFaturamentoPorLive]);
 
   const pecasFiltradas = useMemo(() => {
