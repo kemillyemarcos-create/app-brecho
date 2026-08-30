@@ -59,6 +59,7 @@ export default function VendasSection({
     lucroEstimadoLive,
     clientesFiltrados,
     clientes,
+    todasVendasLive,
     clientesExpandidos,
     toggleExpandirCliente,
     exportarClienteCSV,
@@ -80,31 +81,53 @@ export default function VendasSection({
 
         if (termo.length < 1) return [];
 
-        return (clientes || [])
-            .filter((clienteCadastro) => {
-                const nome = String(clienteCadastro?.nome || "")
-                    .trim()
-                    .toLowerCase();
+        const mapaSugestoes = new Map();
 
-                if (!nome) return false;
+        // 1. Cadastro oficial tem prioridade.
+        (clientes || []).forEach((clienteCadastro) => {
+            const nomeOriginal = String(clienteCadastro?.nome || "").trim();
+            const nomeNormalizado = nomeOriginal.toLowerCase();
 
-                return nome.includes(termo);
-            })
-            .sort((a, b) =>
-                String(a?.nome || "").localeCompare(
-                    String(b?.nome || ""),
-                    "pt-BR",
-                    {
-                        sensitivity: "base",
-                    }
-                )
-            )
-            .slice(0, 8)
-            .map((clienteCadastro) => ({
+            if (!nomeOriginal) return;
+
+            mapaSugestoes.set(nomeNormalizado, {
                 id: clienteCadastro?.id || null,
-                nome: String(clienteCadastro?.nome || "").trim(),
-            }));
-    }, [cliente, clientes]);
+                nome: nomeOriginal,
+                origem: "cadastro",
+            });
+        });
+
+        // 2. Inclui clientes que já compraram, mas ainda não possuem
+        // cadastro com o mesmo nome exato.
+        (todasVendasLive || []).forEach((venda) => {
+            const nomeOriginal = String(venda?.cliente_nome || "").trim();
+            const nomeNormalizado = nomeOriginal.toLowerCase();
+
+            if (!nomeOriginal || mapaSugestoes.has(nomeNormalizado)) return;
+
+            mapaSugestoes.set(nomeNormalizado, {
+                id: null,
+                nome: nomeOriginal,
+                origem: "historico",
+            });
+        });
+
+        return [...mapaSugestoes.values()]
+            .filter((sugestao) =>
+                sugestao.nome.toLowerCase().includes(termo)
+            )
+            .sort((a, b) => {
+                // Cadastro oficial aparece primeiro.
+                if (a.origem !== b.origem) {
+                    return a.origem === "cadastro" ? -1 : 1;
+                }
+
+                return a.nome.localeCompare(b.nome, "pt-BR", {
+                    sensitivity: "base",
+                });
+            })
+            .slice(0, 8);
+    }, [cliente, clientes, todasVendasLive]);
 
     const sugestoesFilaLive = useMemo(() => {
         const termo = String(filaEspera || "").trim().toLowerCase();
@@ -611,7 +634,33 @@ export default function VendasSection({
                                                         fontWeight: 600,
                                                     }}
                                                 >
-                                                    {clienteSugestao.nome}
+                                                    <span
+                                                        style={{
+                                                            display: "flex",
+                                                            alignItems: "center",
+                                                            justifyContent: "space-between",
+                                                            gap: 10,
+                                                        }}
+                                                    >
+                                                        <span>
+                                                            {formatarNomeClienteVenda(clienteSugestao.nome)}
+                                                        </span>
+
+                                                        <span
+                                                            style={{
+                                                                fontSize: 11,
+                                                                fontWeight: 700,
+                                                                color:
+                                                                    clienteSugestao.origem === "cadastro"
+                                                                        ? "#64748b"
+                                                                        : "#94a3b8",
+                                                            }}
+                                                        >
+                                                            {clienteSugestao.origem === "cadastro"
+                                                                ? "Cadastro"
+                                                                : "Histórico"}
+                                                        </span>
+                                                    </span>
                                                 </button>
                                             );
                                         })}

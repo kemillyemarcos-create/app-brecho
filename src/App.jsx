@@ -3958,6 +3958,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 setCliente={setCliente}
                 setClienteId={setClienteId}
                 clientes={clientes}
+                todasVendasLive={todasVendasLive}
                 filaEspera={filaEspera}
                 setFilaEspera={setFilaEspera}
                 valorDesconto={valorDesconto}
