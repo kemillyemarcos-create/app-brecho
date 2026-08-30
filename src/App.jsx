@@ -1220,8 +1220,6 @@ Qualquer dúvida, é só nos chamar! 💕`;
         "postgres_changes",
         { event: "*", schema: "public", table: "vendas_live" },
         (payload) => {
-          console.log("[REALTIME vendas_live EVENTO]", payload);
-
           const evento = payload?.eventType;
           const novaVenda = payload?.new;
           const vendaAntiga = payload?.old;
@@ -1265,15 +1263,6 @@ Qualquer dúvida, é só nos chamar! 💕`;
             const liveNova = String(novaVenda?.live_id || "");
             const liveAntiga = String(vendaAntiga?.live_id || "");
 
-            console.log("[REALTIME LIVE CHECK]", {
-              evento,
-              id,
-              liveVisualizadaId,
-              liveNova,
-              liveAntiga,
-              vendasAntes: (prev || []).length,
-            });
-
             if (
               liveVisualizadaId !== liveNova &&
               liveVisualizadaId !== liveAntiga
@@ -1290,22 +1279,11 @@ Qualquer dúvida, é só nos chamar! 💕`;
               );
             }
 
-            const proximaLista = atualizarLista(prev);
-
-            console.log("[REALTIME vendas_live STATE]", {
-              vendasAntes: (prev || []).length,
-              vendasDepois: proximaLista.length,
-              id,
-              evento,
-            });
-
-            return proximaLista;
+            return atualizarLista(prev);
           });
         }
       )
-      .subscribe((status) => {
-        console.log("[REALTIME vendas_live STATUS]", status);
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channelVendasLive);
