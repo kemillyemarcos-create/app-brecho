@@ -1758,7 +1758,6 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         .eq("id", codigoPeca)
         .eq("vendido", false)
         .select();
-
       if (errorPeca) {
         console.error("ERRO AO ATUALIZAR PEÇA:", errorPeca);
         alert("Erro ao registrar venda.");
@@ -1786,7 +1785,6 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       const { error: errorVendaLive } = await supabase
         .from("vendas_live")
         .insert(novaVendaLive);
-
       if (errorVendaLive) {
         console.error("ERRO AO SALVAR EM vendas_live:", errorVendaLive);
 
@@ -1823,8 +1821,25 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         )
       );
 
-      setVendasLive((prev) => [...(prev || []), novaVendaLive]);
-      setTodasVendasLive((prev) => [...(prev || []), novaVendaLive]);
+      const adicionarOuAtualizarVendaLocal = (listaAtual) => {
+        const lista = listaAtual || [];
+        const indice = lista.findIndex(
+          (item) => String(item?.id) === String(novaVendaLive.id)
+        );
+
+        if (indice === -1) {
+          return [...lista, novaVendaLive];
+        }
+
+        return lista.map((item, index) =>
+          index === indice
+            ? { ...item, ...novaVendaLive }
+            : item
+        );
+      };
+
+      setVendasLive(adicionarOuAtualizarVendaLocal);
+      setTodasVendasLive(adicionarOuAtualizarVendaLocal);
 
       setSacolinhasLive((prev) => {
         const listaAtual = prev || [];
@@ -1986,7 +2001,6 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       "Deseja cancelar essa venda e devolver a peça para disponível?"
     );
     if (!confirmar) return;
-
     try {
       let queryVenda = supabase
         .from("vendas_live")
@@ -1998,9 +2012,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       if (liveEmVisualizacao?.id) {
         queryVenda = queryVenda.eq("live_id", liveEmVisualizacao.id);
       }
-
       const { data: vendaAlvo, error: erroBuscaVenda } = await queryVenda.maybeSingle();
-
       if (erroBuscaVenda) {
         console.error("ERRO AO BUSCAR VENDA PARA CANCELAMENTO:", erroBuscaVenda);
         alert(`Erro ao localizar venda: ${erroBuscaVenda.message}`);
@@ -2054,19 +2066,16 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       }
 
       const sacolinhaId = vendaAlvo.sacolinha_id || null;
-
       const { data: removidas, error: errorVendaLive } = await supabase
         .from("vendas_live")
         .delete()
         .eq("id", vendaAlvo.id)
         .select();
-
       if (errorVendaLive) {
         console.error("ERRO AO REMOVER VENDA DA LIVE:", errorVendaLive);
         alert(`Erro ao remover da live: ${errorVendaLive.message}`);
         return;
       }
-
       const { error: errorPeca } = await supabase
         .from("pecas")
         .update({
@@ -2076,7 +2085,6 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           valor_venda_final: null,
         })
         .eq("id", id);
-
       if (errorPeca) {
         console.error("ERRO AO VOLTAR PEÇA:", errorPeca);
 
@@ -2100,34 +2108,71 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
         return;
       }
-
       if (sacolinhaId) {
-        const { data: vendasRestantes, error: erroRestantes } = await supabase
-          .from("vendas_live")
-          .select("id")
-          .eq("sacolinha_id", sacolinhaId)
-          .limit(1);
+        const existemOutrasVendasLocais = (todasVendasLive || []).some(
+          (venda) =>
+            String(venda?.sacolinha_id || "") === String(sacolinhaId) &&
+            String(venda?.id || "") !== String(vendaAlvo.id)
+        );
 
-        if (erroRestantes) {
-          console.error("ERRO AO VERIFICAR SACOLINHA RESTANTE:", erroRestantes);
-        } else if (!vendasRestantes || vendasRestantes.length === 0) {
-          const { error: erroExcluirSacolinha } = await supabase
-            .from("sacolinhas_live")
-            .delete()
-            .eq("id", sacolinhaId);
+        // Se já sabemos localmente que a sacolinha ainda possui itens,
+        // evitamos uma consulta desnecessária ao banco.
+        // Quando parece ser a última peça, confirmamos no Supabase
+        // antes de excluir a sacolinha.
+        if (!existemOutrasVendasLocais) {
+          const { data: vendasRestantes, error: erroRestantes } = await supabase
+            .from("vendas_live")
+            .select("id")
+            .eq("sacolinha_id", sacolinhaId)
+            .limit(1);
 
-          if (erroExcluirSacolinha) {
+          if (erroRestantes) {
             console.error(
-              "ERRO AO EXCLUIR SACOLINHA VAZIA:",
-              erroExcluirSacolinha
+              "ERRO AO VERIFICAR SACOLINHA RESTANTE:",
+              erroRestantes
             );
+          } else if (!vendasRestantes || vendasRestantes.length === 0) {
+            const { error: erroExcluirSacolinha } = await supabase
+              .from("sacolinhas_live")
+              .delete()
+              .eq("id", sacolinhaId);
+
+            if (erroExcluirSacolinha) {
+              console.error(
+                "ERRO AO EXCLUIR SACOLINHA VAZIA:",
+                erroExcluirSacolinha
+              );
+            }
           }
         }
       }
+      // Atualização local imediata.
+      // O Realtime fará a mesma sincronização nos demais dispositivos.
+      setVendasLive((prev) =>
+        (prev || []).filter(
+          (item) => String(item?.id) !== String(vendaAlvo.id)
+        )
+      );
 
-      await recarregarDadosGerais();
-      await recarregarLiveEmVisualizacaoAtual();
+      setTodasVendasLive((prev) =>
+        (prev || []).filter(
+          (item) => String(item?.id) !== String(vendaAlvo.id)
+        )
+      );
 
+      setPecas((prev) =>
+        (prev || []).map((item) =>
+          String(item?.id) === String(id)
+            ? {
+                ...item,
+                vendido: false,
+                cliente: null,
+                data_venda: null,
+                valor_venda_final: null,
+              }
+            : item
+        )
+      );
       alert("Venda cancelada com sucesso.");
     } catch (error) {
       console.error("ERRO GERAL AO CANCELAR VENDA:", error);
