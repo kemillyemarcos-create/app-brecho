@@ -1256,6 +1256,12 @@ Qualquer dúvida, é só nos chamar! 💕`;
           setTodasVendasLive(atualizarLista);
 
           setVendasLive((prev) => {
+            if (evento === "DELETE") {
+              return (prev || []).filter(
+                (item) => String(item?.id) !== id
+              );
+            }
+
             const liveVisualizadaId = String(
               liveEmVisualizacao?.id || ""
             );
