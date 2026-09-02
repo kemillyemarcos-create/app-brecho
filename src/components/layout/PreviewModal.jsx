@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { formatarDataHoraBR } from "../../utils/dateUtils";
 import imprimirEtiquetas from "../print/ImprimirEtiquetas";
+import { useConfig } from "../../contexts/ConfigContext";
 
 export default function PreviewModal({
   previewAberto,
@@ -15,6 +16,8 @@ export default function PreviewModal({
   formatarBRL,
   EtiquetaPrint,
 }) {
+  const { impressao } = useConfig();
+
   const [preparandoImpressao, setPreparandoImpressao] =
     useState(false);
 
@@ -42,7 +45,9 @@ export default function PreviewModal({
     try {
       setPreparandoImpressao(true);
 
-      await imprimirEtiquetas();
+      await imprimirEtiquetas(
+        impressao?.impressoraPadrao || "a4"
+      );
     } catch (error) {
       console.error(
         "Erro ao iniciar impressão das etiquetas:",

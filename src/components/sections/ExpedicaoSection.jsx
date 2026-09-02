@@ -77,12 +77,12 @@ function sacolinhaPodeIrParaExpedicaoLocal(
 
 function IconButton({ icon: Icon, label, onClick, disabled, tone = "default", isMobile }) {
     const tons = {
-        default: { bg: "#f8fafc", border: "#e2e8f0", color: "#334155" },
+        default: { bg: "var(--kc-background, #f8fafc)", border: "var(--kc-border, #e2e8f0)", color: "var(--kc-text, #334155)" },
         primary: { bg: "#eff6ff", border: "#bfdbfe", color: "#1d4ed8" },
         success: { bg: "#ecfdf5", border: "#bbf7d0", color: "#15803d" },
         warning: { bg: "#fffbeb", border: "#fde68a", color: "#b45309" },
         danger: { bg: "#fef2f2", border: "#fecaca", color: "#b91c1c" },
-        muted: { bg: "#f1f5f9", border: "#e2e8f0", color: "#64748b" },
+        muted: { bg: "#f1f5f9", border: "var(--kc-border, #e2e8f0)", color: "var(--kc-text-muted, #64748b)" },
     };
 
     const tema = tons[tone] || tons.default;
@@ -109,7 +109,7 @@ function IconButton({ icon: Icon, label, onClick, disabled, tone = "default", is
                 justifyContent: "center",
                 cursor: disabled ? "not-allowed" : "pointer",
                 opacity: disabled ? 0.55 : 1,
-                boxShadow: "0 2px 8px rgba(15,23,42,0.04)",
+                boxShadow: "var(--kc-shadow, 0 2px 8px rgba(15,23,42,0.04))",
             }}
         >
             <Icon size={isMobile ? 17 : 18} strokeWidth={2.2} />
@@ -119,12 +119,12 @@ function IconButton({ icon: Icon, label, onClick, disabled, tone = "default", is
 
 function Badge({ children, tone = "default", icon: Icon }) {
     const tons = {
-        default: { bg: "#f8fafc", border: "#e2e8f0", color: "#334155" },
+        default: { bg: "var(--kc-background, #f8fafc)", border: "var(--kc-border, #e2e8f0)", color: "var(--kc-text, #334155)" },
         success: { bg: "#ecfdf5", border: "#bbf7d0", color: "#15803d" },
         warning: { bg: "#fffbeb", border: "#fde68a", color: "#b45309" },
         danger: { bg: "#fef2f2", border: "#fecaca", color: "#b91c1c" },
         primary: { bg: "#eff6ff", border: "#bfdbfe", color: "#1d4ed8" },
-        muted: { bg: "#f1f5f9", border: "#e2e8f0", color: "#64748b" },
+        muted: { bg: "#f1f5f9", border: "var(--kc-border, #e2e8f0)", color: "var(--kc-text-muted, #64748b)" },
     };
 
     const tema = tons[tone] || tons.default;
@@ -222,9 +222,9 @@ function SectionHeader({ titulo, quantidade, aberto, onToggle, extra, icon: Icon
                         display: "inline-flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        background: "#f7dce6",
-                        border: "1px solid #ead1da",
-                        color: "#8f2745",
+                        background: "var(--kc-soft, #f7dce6)",
+                        border: "1px solid var(--kc-border, #ead1da)",
+                        color: "var(--kc-secondary, #8f2745)",
                         flexShrink: 0,
                     }}
                 >
@@ -236,13 +236,13 @@ function SectionHeader({ titulo, quantidade, aberto, onToggle, extra, icon: Icon
                         style={{
                             margin: 0,
                             fontSize: isMobile ? 15 : 18,
-                            color: "#111827",
+                            color: "var(--kc-text, #111827)",
                             lineHeight: 1.1,
                         }}
                     >
                         {titulo}
                     </h3>
-                    <div style={{ marginTop: 4, color: "#64748b", fontSize: isMobile ? 12 : 13 }}>
+                    <div style={{ marginTop: 4, color: "var(--kc-text-muted, #64748b)", fontSize: isMobile ? 12 : 13 }}>
                         {quantidade} registro(s){extra ? ` • ${extra}` : ""}
                     </div>
                 </div>
@@ -256,9 +256,9 @@ function SectionHeader({ titulo, quantidade, aberto, onToggle, extra, icon: Icon
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    background: aberto ? "#fdf2f8" : "#f8fafc",
-                    color: aberto ? "#8f2745" : "#64748b",
-                    border: "1px solid #e2e8f0",
+                    background: aberto ? "var(--kc-soft, #fdf2f8)" : "var(--kc-background, #f8fafc)",
+                    color: aberto ? "var(--kc-secondary, #8f2745)" : "var(--kc-text-muted, #64748b)",
+                    border: "1px solid var(--kc-border, #e2e8f0)",
                 }}
             >
                 {aberto ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
@@ -272,10 +272,10 @@ function EmptyState({ children }) {
         <div
             style={{
                 padding: 14,
-                border: "1px dashed #cbd5e1",
+                border: "1px dashed var(--kc-border, #cbd5e1)",
                 borderRadius: 16,
-                background: "#f8fafc",
-                color: "#64748b",
+                background: "var(--kc-background, #f8fafc)",
+                color: "var(--kc-text-muted, #64748b)",
                 textAlign: "center",
                 fontSize: 14,
             }}
@@ -298,9 +298,9 @@ function ExpandButton({ expandido, onClick }) {
                 width: 34,
                 height: 34,
                 borderRadius: 12,
-                border: "1px solid #e2e8f0",
-                background: expandido ? "#fdf2f8" : "#f8fafc",
-                color: expandido ? "#8f2745" : "#64748b",
+                border: "1px solid var(--kc-border, #e2e8f0)",
+                background: expandido ? "var(--kc-soft, #fdf2f8)" : "var(--kc-background, #f8fafc)",
+                color: expandido ? "var(--kc-secondary, #8f2745)" : "var(--kc-text-muted, #64748b)",
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -333,14 +333,14 @@ function ListaItensSacolinha({ itens, mapaPecasPorId, formatarBRL, isMobile }) {
                             gridTemplateColumns: isMobile ? "1fr" : "1fr auto",
                             gap: 8,
                             padding: 12,
-                            border: "1px solid #e5e7eb",
+                            border: "1px solid var(--kc-border, #e5e7eb)",
                             borderRadius: 14,
-                            background: "#fff",
+                            background: "var(--kc-panel, #fff)",
                         }}
                     >
                         <div style={{ minWidth: 0 }}>
-                            <strong style={{ color: "#111827", wordBreak: "break-word" }}>{nome}</strong>
-                            <div style={{ color: "#64748b", fontSize: 12, marginTop: 4 }}>
+                            <strong style={{ color: "var(--kc-text, #111827)", wordBreak: "break-word" }}>{nome}</strong>
+                            <div style={{ color: "var(--kc-text-muted, #64748b)", fontSize: 12, marginTop: 4 }}>
                                 Código: <strong>{item.peca_id || "-"}</strong>
                             </div>
                         </div>
@@ -371,16 +371,16 @@ function BlocoInfo({ titulo, icon: Icon, children }) {
     return (
         <div
             style={{
-                background: "#f8fafc",
-                border: "1px solid #e2e8f0",
+                background: "var(--kc-background, #f8fafc)",
+                border: "1px solid var(--kc-border, #e2e8f0)",
                 borderRadius: 16,
                 padding: 12,
                 display: "grid",
                 gap: 8,
             }}
         >
-            <strong style={{ display: "flex", alignItems: "center", gap: 8, color: "#111827" }}>
-                {Icon ? <Icon size={17} color="#8f2745" /> : null}
+            <strong style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--kc-text, #111827)" }}>
+                {Icon ? <Icon size={17} color="var(--kc-secondary, #8f2745)" /> : null}
                 {titulo}
             </strong>
             {children}
@@ -410,9 +410,9 @@ function SacolinhaCard({
             style={{
                 padding: isMobile ? 11 : 14,
                 borderRadius: 18,
-                border: vencida ? "1px solid #fecaca" : "1px solid #e5e7eb",
-                background: vencida ? "#fff7f7" : "#fff",
-                boxShadow: "0 4px 16px rgba(15,23,42,0.05)",
+                border: vencida ? "1px solid #fecaca" : "1px solid var(--kc-border, #e5e7eb)",
+                background: vencida ? "#fff7f7" : "var(--kc-panel, #fff)",
+                boxShadow: "var(--kc-shadow, 0 4px 16px rgba(15,23,42,0.05))",
             }}
         >
             <div
@@ -431,14 +431,14 @@ function SacolinhaCard({
                                 style={{
                                     display: "block",
                                     fontSize: isMobile ? 15 : 16.5,
-                                    color: "#111827",
+                                    color: "var(--kc-text, #111827)",
                                     lineHeight: 1.15,
                                     wordBreak: "break-word",
                                 }}
                             >
                                 {sacolinha.cliente_nome || "Cliente sem nome"}
                             </strong>
-                            <span style={{ color: "#64748b", fontSize: 12 }}>
+                            <span style={{ color: "var(--kc-text-muted, #64748b)", fontSize: 12 }}>
                                 Live: {mapaLivesPorId[String(sacolinha.live_id)]?.nome || sacolinha.live_id || "-"}
                             </span>
                         </div>
@@ -665,12 +665,12 @@ export default function ExpedicaoSection({
                             width: "100%",
                             minHeight: isMobile ? 40 : 42,
                             borderRadius: 13,
-                            border: "1px solid #dfe6ee",
+                            border: "1px solid var(--kc-border, #dfe6ee)",
                             padding: "0 13px",
                             outline: "none",
                             fontSize: isMobile ? 13 : 14,
-                            color: "#243746",
-                            background: "#fff",
+                            color: "var(--kc-text, #243746)",
+                            background: "var(--kc-panel, #fff)",
                             boxSizing: "border-box",
                         }}
                     />
@@ -688,12 +688,12 @@ export default function ExpedicaoSection({
                             width: "100%",
                             minHeight: isMobile ? 40 : 42,
                             borderRadius: 13,
-                            border: "1px solid #dfe6ee",
+                            border: "1px solid var(--kc-border, #dfe6ee)",
                             padding: "0 13px",
                             outline: "none",
                             fontSize: isMobile ? 13 : 14,
-                            color: "#243746",
-                            background: "#fff",
+                            color: "var(--kc-text, #243746)",
+                            background: "var(--kc-panel, #fff)",
                             boxSizing: "border-box",
                         }}
                     />
@@ -711,12 +711,12 @@ export default function ExpedicaoSection({
                             width: "100%",
                             minHeight: isMobile ? 40 : 42,
                             borderRadius: 13,
-                            border: "1px solid #dfe6ee",
+                            border: "1px solid var(--kc-border, #dfe6ee)",
                             padding: "0 13px",
                             outline: "none",
                             fontSize: isMobile ? 13 : 14,
-                            color: "#243746",
-                            background: "#fff",
+                            color: "var(--kc-text, #243746)",
+                            background: "var(--kc-panel, #fff)",
                             boxSizing: "border-box",
                         }}
                     />
@@ -753,13 +753,13 @@ export default function ExpedicaoSection({
                             }}
                             style={{
                                 minHeight: isMobile ? 40 : 42,
-                                border: "1px solid #dfe6ee",
+                                border: "1px solid var(--kc-border, #dfe6ee)",
                                 borderRadius: 14,
                                 padding: "0 14px",
-                                background: "#fff",
-                                color: "#243746",
+                                background: "var(--kc-panel, #fff)",
+                                color: "var(--kc-text, #243746)",
                                 fontWeight: 800,
-                                boxShadow: "0 2px 8px rgba(15,23,42,0.04)",
+                                boxShadow: "var(--kc-shadow, 0 2px 8px rgba(15,23,42,0.04))",
                                 cursor: "pointer",
                             }}
                         >
@@ -772,19 +772,19 @@ export default function ExpedicaoSection({
 
         return (
             <div style={{ display: "grid", gap: 8 }}>
-                <div style={{ fontSize: 13, color: "#475569" }}>
+                <div style={{ fontSize: 13, color: "var(--kc-text-muted, #475569)" }}>
                     <strong>Status:</strong> {pedido?.status === "enviado" ? "Enviado" : "Em montagem"}
                 </div>
 
-                <div style={{ fontSize: 13, color: "#475569" }}>
+                <div style={{ fontSize: 13, color: "var(--kc-text-muted, #475569)" }}>
                     <strong>Transportadora:</strong> {pedido?.transportadora || "-"}
                 </div>
 
-                <div style={{ fontSize: 13, color: "#475569" }}>
+                <div style={{ fontSize: 13, color: "var(--kc-text-muted, #475569)" }}>
                     <strong>Código de rastreio:</strong> {pedido?.codigo_rastreio || "-"}
                 </div>
 
-                <div style={{ fontSize: 13, color: "#475569" }}>
+                <div style={{ fontSize: 13, color: "var(--kc-text-muted, #475569)" }}>
                     <strong>Link:</strong>{" "}
                     {pedido?.link_rastreio ? (
                         <a href={pedido.link_rastreio} target="_blank" rel="noreferrer" style={{ color: "#1d4ed8", fontWeight: 800 }}>
@@ -837,14 +837,17 @@ export default function ExpedicaoSection({
         ...boxGrande,
         display: "grid",
         gap: 6,
+        background: "var(--kc-panel, #ffffff)",
+        border: "1px solid var(--kc-border, #f2dfe5)",
+        color: "var(--kc-text, #243746)",
     };
 
     const painel = {
-        border: "1px solid #f2dfe5",
+        border: "1px solid var(--kc-border, #f2dfe5)",
         borderRadius: 22,
         padding: isMobile ? 10 : 14,
-        background: "linear-gradient(180deg, #ffffff 0%, #fffafa 100%)",
-        boxShadow: "0 8px 24px rgba(15,23,42,0.04)",
+        background: "var(--kc-panel, #ffffff)",
+        boxShadow: "var(--kc-shadow, 0 8px 24px rgba(15,23,42,0.04))",
     };
 
     const lista = {
@@ -855,7 +858,7 @@ export default function ExpedicaoSection({
 
     const divisoria = {
         height: 1,
-        background: "#f1e3e8",
+        background: "var(--kc-border, #f1e3e8)",
         margin: "4px 0",
     };
 
@@ -870,8 +873,8 @@ export default function ExpedicaoSection({
                 }}
             >
                 <div>
-                    <h2 style={{ ...tituloSecao, marginBottom: 4 }}>Expedição</h2>
-                    <div style={{ color: "#64748b", fontSize: isMobile ? 13 : 14 }}>
+                    <h2 style={{ ...tituloSecao, marginBottom: 4, color: "var(--kc-text, #243746)" }}>Expedição</h2>
+                    <div style={{ color: "var(--kc-text-muted, #64748b)", fontSize: isMobile ? 13 : 14 }}>
                         Gerencie separação, conferência, rastreamento e envio das sacolinhas.
                     </div>
                 </div>
@@ -896,13 +899,13 @@ export default function ExpedicaoSection({
                     <div
                         key={card.label}
                         style={{
-                            border: "1px solid #eef2f7",
+                            border: "1px solid var(--kc-border, #eef2f7)",
                             borderRadius: 18,
-                            background: "#fff",
+                            background: "var(--kc-panel, #fff)",
                             padding: isMobile ? 10 : 12,
                             display: "grid",
                             gap: 6,
-                            boxShadow: "0 2px 10px rgba(15,23,42,0.04)",
+                            boxShadow: "var(--kc-shadow, 0 2px 10px rgba(15,23,42,0.04))",
                         }}
                     >
                         <div
@@ -916,7 +919,7 @@ export default function ExpedicaoSection({
                             <strong
                                 style={{
                                     fontSize: isMobile ? 23 : 28,
-                                    color: "#243746",
+                                    color: "var(--kc-text, #243746)",
                                     lineHeight: 1,
                                 }}
                             >
@@ -931,9 +934,9 @@ export default function ExpedicaoSection({
                                     display: "inline-flex",
                                     alignItems: "center",
                                     justifyContent: "center",
-                                    background: "#fff7fa",
-                                    border: "1px solid #ead1da",
-                                    color: "#8f2745",
+                                    background: "var(--kc-soft, #fff7fa)",
+                                    border: "1px solid var(--kc-border, #ead1da)",
+                                    color: "var(--kc-secondary, #8f2745)",
                                 }}
                             >
                                 <card.icon size={17} />
@@ -942,7 +945,7 @@ export default function ExpedicaoSection({
 
                         <span
                             style={{
-                                color: "#64748b",
+                                color: "var(--kc-text-muted, #64748b)",
                                 fontSize: 12.5,
                                 fontWeight: 800,
                             }}
@@ -1119,9 +1122,9 @@ export default function ExpedicaoSection({
                                             style={{
                                                 padding: isMobile ? 11 : 14,
                                                 borderRadius: 18,
-                                                border: "1px solid #e5e7eb",
-                                                background: "#fff",
-                                                boxShadow: "0 4px 16px rgba(15,23,42,0.05)",
+                                                border: "1px solid var(--kc-border, #e5e7eb)",
+                                                background: "var(--kc-panel, #fff)",
+                                                boxShadow: "var(--kc-shadow, 0 4px 16px rgba(15,23,42,0.05))",
                                             }}
                                         >
                                             <div
@@ -1138,7 +1141,7 @@ export default function ExpedicaoSection({
                                                             expandido={expandido}
                                                             onClick={() => toggleExpandirPedidoEnvio(pedido.id)}
                                                         />
-                                                        <strong style={{ fontSize: isMobile ? 15 : 17, color: "#111827" }}>
+                                                        <strong style={{ fontSize: isMobile ? 15 : 17, color: "var(--kc-text, #111827)" }}>
                                                             {pedido.cliente_nome}
                                                         </strong>
                                                     </div>
@@ -1180,7 +1183,7 @@ export default function ExpedicaoSection({
                                                             <EmptyState>Nenhuma sacolinha vinculada.</EmptyState>
                                                         ) : (
                                                             pedido.sacolinhas.map((sacolinha) => (
-                                                                <div key={sacolinha.id} style={{ padding: 12, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14 }}>
+                                                                <div key={sacolinha.id} style={{ padding: 12, background: "var(--kc-panel, #fff)", border: "1px solid var(--kc-border, #e5e7eb)", borderRadius: 14 }}>
                                                                     <div><strong>Live:</strong> {mapaLivesPorId[String(sacolinha.live_id)]?.nome || sacolinha.live_id || "-"}</div>
                                                                     <div><strong>Sacolinha:</strong> {sacolinha.id}</div>
                                                                     <div><strong>Peças:</strong> {sacolinha.quantidade || 0}</div>
@@ -1212,9 +1215,9 @@ export default function ExpedicaoSection({
                                                                                 gridTemplateColumns: "auto 1fr",
                                                                                 gap: 10,
                                                                                 padding: 12,
-                                                                                border: checked ? "1px solid #bbf7d0" : "1px solid #e5e7eb",
+                                                                                border: checked ? "1px solid #bbf7d0" : "1px solid var(--kc-border, #e5e7eb)",
                                                                                 borderRadius: 14,
-                                                                                background: checked ? "#ecfdf5" : "#fff",
+                                                                                background: checked ? "#ecfdf5" : "var(--kc-panel, #fff)",
                                                                                 cursor: "pointer",
                                                                             }}
                                                                         >
@@ -1225,8 +1228,8 @@ export default function ExpedicaoSection({
                                                                             />
                                                                             <div>
                                                                                 <strong>{peca?.nome || item.nome_peca || item.nome || "-"}</strong>
-                                                                                <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>Código: {item.peca_id || "-"}</div>
-                                                                                <div style={{ fontSize: 12, color: "#64748b" }}>Valor: {formatarBRL(item.valor_venda || item.valor || 0)}</div>
+                                                                                <div style={{ fontSize: 12, color: "var(--kc-text-muted, #64748b)", marginTop: 4 }}>Código: {item.peca_id || "-"}</div>
+                                                                                <div style={{ fontSize: 12, color: "var(--kc-text-muted, #64748b)" }}>Valor: {formatarBRL(item.valor_venda || item.valor || 0)}</div>
                                                                             </div>
                                                                         </label>
                                                                     );
@@ -1270,13 +1273,13 @@ export default function ExpedicaoSection({
                                                 borderRadius: 18,
                                                 border: "1px solid #d1fae5",
                                                 background: "#f7fffb",
-                                                boxShadow: "0 4px 16px rgba(15,23,42,0.04)",
+                                                boxShadow: "var(--kc-shadow, 0 4px 16px rgba(15,23,42,0.04))",
                                             }}
                                         >
                                             <div style={{ display: "grid", gap: 10 }}>
                                                 <div style={{ display: "flex", gap: 9, alignItems: "center" }}>
                                                     <ExpandButton expandido={expandido} onClick={() => toggleExpandirPedidoEnvio(pedido.id)} />
-                                                    <strong style={{ fontSize: isMobile ? 15 : 17, color: "#111827" }}>{pedido.cliente_nome}</strong>
+                                                    <strong style={{ fontSize: isMobile ? 15 : 17, color: "var(--kc-text, #111827)" }}>{pedido.cliente_nome}</strong>
                                                 </div>
 
                                                 <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
@@ -1295,7 +1298,7 @@ export default function ExpedicaoSection({
                                                             <EmptyState>Nenhuma sacolinha vinculada.</EmptyState>
                                                         ) : (
                                                             pedido.sacolinhas.map((sacolinha) => (
-                                                                <div key={sacolinha.id} style={{ padding: 12, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14 }}>
+                                                                <div key={sacolinha.id} style={{ padding: 12, background: "var(--kc-panel, #fff)", border: "1px solid var(--kc-border, #e5e7eb)", borderRadius: 14 }}>
                                                                     <div><strong>Live:</strong> {mapaLivesPorId[String(sacolinha.live_id)]?.nome || sacolinha.live_id || "-"}</div>
                                                                     <div><strong>Sacolinha:</strong> {sacolinha.id}</div>
                                                                     <div><strong>Peças:</strong> {sacolinha.quantidade || 0}</div>
@@ -1315,10 +1318,10 @@ export default function ExpedicaoSection({
                                                         ) : (
                                                             <div style={{ display: "grid", gap: 8 }}>
                                                                 {pedido.itens.map((item, index) => (
-                                                                    <div key={item.id || `${item.peca_id}-${index}`} style={{ padding: 12, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14 }}>
+                                                                    <div key={item.id || `${item.peca_id}-${index}`} style={{ padding: 12, background: "var(--kc-panel, #fff)", border: "1px solid var(--kc-border, #e5e7eb)", borderRadius: 14 }}>
                                                                         <strong>{item.nome_peca || item.nome || "-"}</strong>
-                                                                        <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>Código: {item.peca_id || "-"}</div>
-                                                                        <div style={{ fontSize: 12, color: "#64748b" }}>Valor: {formatarBRL(item.valor_venda || item.valor || 0)}</div>
+                                                                        <div style={{ fontSize: 12, color: "var(--kc-text-muted, #64748b)", marginTop: 4 }}>Código: {item.peca_id || "-"}</div>
+                                                                        <div style={{ fontSize: 12, color: "var(--kc-text-muted, #64748b)" }}>Valor: {formatarBRL(item.valor_venda || item.valor || 0)}</div>
                                                                     </div>
                                                                 ))}
                                                             </div>

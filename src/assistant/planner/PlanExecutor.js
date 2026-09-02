@@ -8,11 +8,27 @@ import { normalizarTexto } from "../utils/TextUtils";
 import plannerEngine from "../planner/PlannerEngine";
 import conversationContextManager from "../conversation/ConversationContextManager";
 
-function formatarBRL(valor) {
-  return Number(valor || 0).toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
+function formatarBRL(
+  valor,
+  formatacao = {}
+) {
+  const locale =
+    formatacao?.locale ||
+    "pt-BR";
+
+  const moeda =
+    formatacao?.moeda ||
+    "BRL";
+
+  return Number(
+    valor || 0
+  ).toLocaleString(
+    locale,
+    {
+      style: "currency",
+      currency: moeda,
+    }
+  );
 }
 
 function formatarPercentual(valor) {
@@ -48,18 +64,25 @@ function descricaoPeriodo(
   const descricoes = {
     ultima_live:
       "da última live",
+
     ultimas_lives:
       "das últimas lives",
+
     hoje:
       "de hoje",
+
     ontem:
       "de ontem",
+
     semana_atual:
       "desta semana",
+
     mes_atual:
       "deste mês",
+
     ano_atual:
       "deste ano",
+
     estoque_atual:
       "do estoque atual",
   };
@@ -69,7 +92,9 @@ function descricaoPeriodo(
     "ultima_live" &&
     live
   ) {
-    return `da última live (${obterNomeLive(live)})`;
+    return `da última live (${obterNomeLive(
+      live
+    )})`;
   }
 
   return (
@@ -81,7 +106,8 @@ function descricaoPeriodo(
 }
 
 function formatarListaClientes(
-  clientes = []
+  clientes = [],
+  formatacao = {}
 ) {
   if (
     !Array.isArray(clientes) ||
@@ -109,7 +135,8 @@ function formatarListaClientes(
           );
 
         return `${index + 1}. ${nome} — ${quantidade} peça(s) — ${formatarBRL(
-          cliente?.valor
+          cliente?.valor,
+          formatacao
         )}`;
       }
     )
@@ -151,8 +178,10 @@ function formatarTendencia(
   const mapa = {
     crescimento:
       "crescimento",
+
     queda:
       "queda",
+
     estavel:
       "estabilidade",
   };
@@ -210,7 +239,9 @@ function detectarObjetivoComparacao(
     termosMelhor.some(
       (termo) =>
         pergunta.includes(
-          normalizarTexto(termo)
+          normalizarTexto(
+            termo
+          )
         )
     )
   ) {
@@ -233,7 +264,9 @@ function detectarObjetivoComparacao(
     termosPior.some(
       (termo) =>
         pergunta.includes(
-          normalizarTexto(termo)
+          normalizarTexto(
+            termo
+          )
         )
     )
   ) {
@@ -247,6 +280,7 @@ function montarRespostaLiveDestaque({
   live,
   limite,
   tipo,
+  formatacao = {},
 }) {
   if (!live) {
     return `Não encontrei dados suficientes para identificar a ${tipo === "melhor"
@@ -263,26 +297,37 @@ function montarRespostaLiveDestaque({
   return `${titulo}
 
 Live: ${live?.nome || "Live sem nome"}
+
 Faturamento: ${formatarBRL(
-    live?.faturamento
+    live?.faturamento,
+    formatacao
   )}
+
 Peças vendidas: ${Number(
     live?.quantidadeVendas ||
     0
   )}
+
 Clientes: ${Number(
     live?.quantidadeClientes ||
     0
   )}
+
 Ticket médio por peça: ${formatarBRL(
-    live?.ticketMedioPorPeca
+    live?.ticketMedioPorPeca,
+    formatacao
   )}
+
 Ticket médio por cliente: ${formatarBRL(
-    live?.ticketMedioPorCliente
+    live?.ticketMedioPorCliente,
+    formatacao
   )}
+
 Lucro estimado: ${formatarBRL(
-    live?.lucro
+    live?.lucro,
+    formatacao
   )}
+
 Margem estimada: ${formatarPercentual(
     live?.margem
   )}`;
@@ -290,7 +335,8 @@ Margem estimada: ${formatarPercentual(
 
 function montarRespostaComparacaoCompleta(
   dados = {},
-  definicao = {}
+  definicao = {},
+  formatacao = {}
 ) {
   const comparacoes =
     Array.isArray(
@@ -319,12 +365,15 @@ function montarRespostaComparacaoCompleta(
                 live?.variacaoPercentual
               );
 
-          return `${index + 1}. ${live?.nome || "Live sem nome"} — ${formatarBRL(
-            live?.faturamento
-          )} — ${Number(
-            live?.quantidadeVendas ||
-            0
-          )} venda(s) — ${variacao}`;
+          return `${index + 1}. ${live?.nome ||
+            "Live sem nome"
+            } — ${formatarBRL(
+              live?.faturamento,
+              formatacao
+            )} — ${Number(
+              live?.quantidadeVendas ||
+              0
+            )} venda(s) — ${variacao}`;
         }
       )
       .join("\n");
@@ -348,27 +397,33 @@ function montarRespostaComparacaoCompleta(
 ${linhas}
 
 💰 Faturamento total: ${formatarBRL(
-    dados?.faturamentoTotal
+    dados?.faturamentoTotal,
+    formatacao
   )}
+
 📊 Média por live: ${formatarBRL(
-    dados?.faturamentoMedio
+    dados?.faturamentoMedio,
+    formatacao
   )}
 
 🏆 Maior faturamento: ${maior?.nome ||
     "Não identificado"
     } — ${formatarBRL(
-      maior?.faturamento
+      maior?.faturamento,
+      formatacao
     )}
 
 📉 Menor faturamento: ${menor?.nome ||
     "Não identificado"
     } — ${formatarBRL(
-      menor?.faturamento
+      menor?.faturamento,
+      formatacao
     )}
 
 🔄 Variação total: ${formatarVariacao(
       dados?.variacaoTotalPercentual
     )}
+
 📌 Tendência recente: ${formatarTendencia(
       dados?.tendencia
     )}`;
@@ -376,7 +431,8 @@ ${linhas}
 
 function montarRespostaComparacaoLives(
   dados = {},
-  definicao = {}
+  definicao = {},
+  formatacao = {}
 ) {
   const limite =
     Number(
@@ -391,29 +447,44 @@ function montarRespostaComparacaoLives(
       definicao
     );
 
-  if (objetivo === "melhor") {
+  if (
+    objetivo === "melhor"
+  ) {
     return montarRespostaLiveDestaque({
       live:
         dados?.maiorFaturamento ||
         null,
+
       limite,
-      tipo: "melhor",
+
+      tipo:
+        "melhor",
+
+      formatacao,
     });
   }
 
-  if (objetivo === "pior") {
+  if (
+    objetivo === "pior"
+  ) {
     return montarRespostaLiveDestaque({
       live:
         dados?.menorFaturamento ||
         null,
+
       limite,
-      tipo: "pior",
+
+      tipo:
+        "pior",
+
+      formatacao,
     });
   }
 
   return montarRespostaComparacaoCompleta(
     dados,
-    definicao
+    definicao,
+    formatacao
   );
 }
 
@@ -445,15 +516,21 @@ function obterValorPeca(
 function montarDescricaoFiltroEstoque(
   dados = {}
 ) {
-  if (dados?.marca) {
+  if (
+    dados?.marca
+  ) {
     return ` da marca "${dados.marca}"`;
   }
 
-  if (dados?.categoria) {
+  if (
+    dados?.categoria
+  ) {
     return ` da categoria "${dados.categoria}"`;
   }
 
-  if (dados?.nome) {
+  if (
+    dados?.nome
+  ) {
     return ` contendo "${dados.nome}" no nome`;
   }
 
@@ -474,7 +551,9 @@ function montarRespostaQuantidadeEstoque(
       dados
     );
 
-  if (quantidade === 0) {
+  if (
+    quantidade === 0
+  ) {
     return `📦 Estoque atual
 
 Não encontrei nenhuma peça${descricaoFiltro} disponível no estoque.`;
@@ -486,7 +565,8 @@ Foram encontradas ${quantidade} peça(s)${descricaoFiltro} disponíveis no estoq
 }
 
 function montarRespostaListaPecasEstoque(
-  dados = {}
+  dados = {},
+  formatacao = {}
 ) {
   const pecas =
     Array.isArray(
@@ -495,7 +575,9 @@ function montarRespostaListaPecasEstoque(
       ? dados.pecas
       : [];
 
-  if (pecas.length === 0) {
+  if (
+    pecas.length === 0
+  ) {
     return "📦 Peças do estoque\n\nNão encontrei peças para esse filtro.";
   }
 
@@ -511,7 +593,8 @@ function montarRespostaListaPecasEstoque(
           )} — ${formatarBRL(
             obterValorPeca(
               peca
-            )
+            ),
+            formatacao
           )}`
       )
       .join("\n");
@@ -533,7 +616,9 @@ function montarRespostaListaMarcasEstoque(
       ? dados.marcas
       : [];
 
-  if (marcas.length === 0) {
+  if (
+    marcas.length === 0
+  ) {
     return "🏷️ Marcas do estoque\n\nNão encontrei marcas identificadas nas peças disponíveis.";
   }
 
@@ -611,11 +696,15 @@ function montarRespostaListaTamanhosEstoque(
   dados = {}
 ) {
   const tamanhos =
-    Array.isArray(dados?.tamanhos)
+    Array.isArray(
+      dados?.tamanhos
+    )
       ? dados.tamanhos
       : [];
 
-  if (tamanhos.length === 0) {
+  if (
+    tamanhos.length === 0
+  ) {
     return "📏 Tamanhos do estoque\n\nNão encontrei tamanhos identificados nas peças disponíveis.";
   }
 
@@ -652,11 +741,15 @@ function montarRespostaListaCoresEstoque(
   dados = {}
 ) {
   const cores =
-    Array.isArray(dados?.cores)
+    Array.isArray(
+      dados?.cores
+    )
       ? dados.cores
       : [];
 
-  if (cores.length === 0) {
+  if (
+    cores.length === 0
+  ) {
     return "🎨 Cores do estoque\n\nNão encontrei cores identificadas nas peças disponíveis.";
   }
 
@@ -691,9 +784,12 @@ ${linhas}`;
 
 function montarResposta(
   resultado = {},
-  definicao = {}
+  definicao = {},
+  formatacao = {}
 ) {
-  if (!resultado?.ok) {
+  if (
+    !resultado?.ok
+  ) {
     return (
       resultado?.resposta ||
       "Não foi possível processar o resultado dessa análise."
@@ -714,7 +810,6 @@ function montarResposta(
   resultado?.tipo ||
   definicao?.operacao
   ) {
-
     case "listar_tamanhos":
     case "listar_tamanhos_estoque":
       return montarRespostaListaTamanhosEstoque(
@@ -726,11 +821,14 @@ function montarResposta(
       return montarRespostaListaCoresEstoque(
         dados
       );
+
     case "maior_compra": {
       const cliente =
         dados?.cliente;
 
-      if (!cliente) {
+      if (
+        !cliente
+      ) {
         return `Não encontrei clientes com compras registradas ${periodo}.`;
       }
 
@@ -740,13 +838,16 @@ Cliente: ${cliente?.nome ||
         cliente?.cliente ||
         "Cliente não identificado"
         }
+
 Peças compradas: ${Number(
           cliente?.quantidade ??
           cliente?.pecas ??
           0
         )}
+
 Valor total: ${formatarBRL(
-          cliente?.valor
+          cliente?.valor,
+          formatacao
         )}`;
     }
 
@@ -767,11 +868,13 @@ Valor total: ${formatarBRL(
       return `⏳ Clientes pendentes ${periodo}
 
 ${formatarListaClientes(
-        clientes
+        clientes,
+        formatacao
       )}
 
 Total pendente: ${formatarBRL(
-        dados?.totalPendente
+        dados?.totalPendente,
+        formatacao
       )}`;
     }
 
@@ -782,30 +885,38 @@ Clientes: ${Number(
         dados?.quantidadeClientes ||
         0
       )}
+
 Peças vendidas: ${Number(
         dados?.quantidadePecas ||
         0
       )}
+
 Faturamento: ${formatarBRL(
-        dados?.faturamento
+        dados?.faturamento,
+        formatacao
       )}
 
 Por cliente: ${formatarBRL(
         dados?.ticketMedioPorCliente ??
         dados?.ticketCliente ??
-        0
+        0,
+        formatacao
       )}
+
 Por peça: ${formatarBRL(
         dados?.ticketMedioPorPeca ??
         dados?.ticketPeca ??
-        0
+        0,
+        formatacao
       )}`;
 
     case "mais_vendida": {
       const marca =
         dados?.marca;
 
-      if (!marca) {
+      if (
+        !marca
+      ) {
         return `Não encontrei marcas identificadas nas vendas ${periodo}.`;
       }
 
@@ -814,25 +925,32 @@ Por peça: ${formatarBRL(
 Marca: ${marca?.marca ||
         "Sem marca"
         }
+
 Peças vendidas: ${Number(
           marca?.quantidade ||
           0
         )}
+
 Faturamento: ${formatarBRL(
-          marca?.valor
+          marca?.valor,
+          formatacao
         )}`;
     }
 
     case "quantidade":
-      if (dados?.marca) {
+      if (
+        dados?.marca
+      ) {
         return `🏷️ Vendas da marca ${dados.marca} ${periodo}
 
 Peças vendidas: ${Number(
           dados?.quantidade ||
           0
         )}
+
 Faturamento: ${formatarBRL(
-          dados?.faturamento
+          dados?.faturamento,
+          formatacao
         )}`;
       }
 
@@ -842,8 +960,10 @@ Peças vendidas: ${Number(
         dados?.quantidade ||
         0
       )}
+
 Faturamento: ${formatarBRL(
-        dados?.faturamento
+        dados?.faturamento,
+        formatacao
       )}`;
 
     case "lucro": {
@@ -861,14 +981,20 @@ Faturamento: ${formatarBRL(
       return `💰 Resultado ${periodo}
 
 Faturamento: ${formatarBRL(
-        dados?.faturamento
+        dados?.faturamento,
+        formatacao
       )}
+
 Custo identificado: ${formatarBRL(
-        dados?.custo
+        dados?.custo,
+        formatacao
       )}
+
 Lucro estimado: ${formatarBRL(
-        dados?.lucro
+        dados?.lucro,
+        formatacao
       )}
+
 Margem estimada: ${formatarPercentual(
         dados?.margem
       )}${aviso}`;
@@ -881,14 +1007,17 @@ Peças vendidas: ${Number(
         dados?.quantidade ||
         0
       )}
+
 Faturamento total: ${formatarBRL(
-        dados?.faturamento
+        dados?.faturamento,
+        formatacao
       )}`;
 
     case "comparar_lives":
       return montarRespostaComparacaoLives(
         dados,
-        definicao
+        definicao,
+        formatacao
       );
 
     case "quantidade_estoque":
@@ -901,7 +1030,8 @@ Faturamento total: ${formatarBRL(
     case "listar_pecas":
     case "listar_pecas_estoque":
       return montarRespostaListaPecasEstoque(
-        dados
+        dados,
+        formatacao
       );
 
     case "listar_marcas":
@@ -946,34 +1076,54 @@ class PlanExecutor {
     metadados = {},
     usarContexto = true,
     plano = null,
+    formatacao = {},
   } = {}) {
     const texto =
-      String(pergunta || "").trim();
+      String(
+        pergunta ||
+        ""
+      ).trim();
 
-    if (!texto) {
+    if (
+      !texto
+    ) {
       return {
         ok: false,
-        tipo: "conversa",
+
+        tipo:
+          "conversa",
+
         resposta:
           "Digite uma pergunta para continuar.",
       };
     }
 
-    let decisaoConversacional = null;
+    let decisaoConversacional =
+      null;
+
     let planoResolvido =
-      plano || null;
+      plano ||
+      null;
 
     /*
      * Primeiro tenta resolver a mensagem usando
      * o contexto da conversa.
      */
-    if (usarContexto) {
+    if (
+      usarContexto
+    ) {
       decisaoConversacional =
         conversationContextManager.processar({
-          mensagem: texto,
-          pergunta: texto,
+          mensagem:
+            texto,
+
+          pergunta:
+            texto,
+
           conversaId,
+
           usuarioId,
+
           metadados,
         });
 
@@ -989,23 +1139,33 @@ class PlanExecutor {
         !decisaoConversacional?.plano
       ) {
         return {
-          ok: true,
-          tipo: "conversa",
+          ok:
+            true,
+
+          tipo:
+            "conversa",
+
           origem:
             decisaoConversacional?.origem ||
             "contexto",
+
           acao:
             decisaoConversacional?.acao ||
             null,
+
           resposta:
             decisaoConversacional?.resposta ||
             "A ação conversacional foi concluída.",
+
           conversa: {
             conversaId,
+
             usuarioId,
+
             contexto:
               decisaoConversacional?.contexto ||
               null,
+
             intent:
               decisaoConversacional?.intent ||
               null,
@@ -1030,7 +1190,9 @@ class PlanExecutor {
      * Caso o contexto não tenha resolvido a
      * mensagem, usa o PlannerEngine normal.
      */
-    if (!planoResolvido) {
+    if (
+      !planoResolvido
+    ) {
       planoResolvido =
         plannerEngine.criarPlano(
           texto
@@ -1039,28 +1201,44 @@ class PlanExecutor {
 
     const resultado =
       await this.executar({
-        plano: planoResolvido,
-        pergunta: texto,
+        plano:
+          planoResolvido,
+
+        pergunta:
+          texto,
+
         supabase,
+
+        formatacao,
       });
 
     /*
      * Registra o plano, os filtros, o resultado
      * e a resposta para as próximas mensagens.
      */
-    if (usarContexto) {
+    if (
+      usarContexto
+    ) {
       try {
         const sugestao =
           resultado?.sugestao ??
-          resultado?.dados?.sugestao;
+          resultado?.dados
+            ?.sugestao;
 
         conversationContextManager
           .registrarResultado({
             conversaId,
+
             usuarioId,
-            pergunta: texto,
-            plano: planoResolvido,
+
+            pergunta:
+              texto,
+
+            plano:
+              planoResolvido,
+
             resultado,
+
             resposta:
               resultado?.resposta ||
               "",
@@ -1073,17 +1251,21 @@ class PlanExecutor {
 
             metadados: {
               ...metadados,
+
               origemConversa:
                 decisaoConversacional
                   ?.origem ||
                 "planner",
+
               acaoConversa:
                 decisaoConversacional
                   ?.acao ||
                 null,
             },
           });
-      } catch (error) {
+      } catch (
+      error
+      ) {
         /*
          * Uma falha ao salvar memória não deve
          * invalidar uma consulta já executada.
@@ -1100,6 +1282,7 @@ class PlanExecutor {
 
       conversa: {
         conversaId,
+
         usuarioId,
 
         origem:
@@ -1141,20 +1324,33 @@ class PlanExecutor {
     plano,
     pergunta,
     supabase,
+    formatacao = {},
   }) {
-    if (!plano?.encontrado) {
+    if (
+      !plano?.encontrado
+    ) {
       return {
-        ok: false,
-        tipo: "planner",
+        ok:
+          false,
+
+        tipo:
+          "planner",
+
         resposta:
           "Nenhum plano válido foi encontrado para essa solicitação.",
       };
     }
 
-    if (!supabase) {
+    if (
+      !supabase
+    ) {
       return {
-        ok: false,
-        tipo: "planner",
+        ok:
+          false,
+
+        tipo:
+          "planner",
+
         resposta:
           "Não foi possível acessar o banco de dados.",
       };
@@ -1185,15 +1381,22 @@ class PlanExecutor {
         !definicao?.valido
       ) {
         return {
-          ok: false,
-          tipo: "planner",
+          ok:
+            false,
+
+          tipo:
+            "planner",
+
           plano:
             plano?.planoId ||
             null,
+
           motivo:
             definicao?.motivo ||
             "definicao_invalida",
+
           definicao,
+
           resposta:
             "O plano foi reconhecido, mas a consulta ainda não está disponível.",
         };
@@ -1222,6 +1425,7 @@ class PlanExecutor {
             "comparar_lives"
             ? detectarObjetivoComparacao({
               ...definicao,
+
               perguntaOriginal:
                 definicao.perguntaOriginal,
             })
@@ -1241,17 +1445,29 @@ class PlanExecutor {
         !contexto?.live
       ) {
         return {
-          ok: true,
-          tipo: "planner",
+          ok:
+            true,
+
+          tipo:
+            "planner",
+
           plano:
             plano?.planoId ||
             null,
+
           definicao,
+
           dados: {
-            live: null,
-            vendas: [],
-            pecas: [],
+            live:
+              null,
+
+            vendas:
+              [],
+
+            pecas:
+              [],
           },
+
           resposta:
             "Ainda não encontrei nenhuma live encerrada para executar essa análise.",
         };
@@ -1269,17 +1485,29 @@ class PlanExecutor {
         )
       ) {
         return {
-          ok: true,
-          tipo: "planner",
+          ok:
+            true,
+
+          tipo:
+            "planner",
+
           plano:
             plano?.planoId ||
             null,
+
           definicao,
+
           dados: {
-            lives: [],
-            vendas: [],
-            pecas: [],
+            lives:
+              [],
+
+            vendas:
+              [],
+
+            pecas:
+              [],
           },
+
           resposta:
             "Ainda não encontrei lives encerradas suficientes para executar essa comparação.",
         };
@@ -1341,14 +1569,18 @@ class PlanExecutor {
         resposta:
           responseRouter.build(
             resultado,
-            definicao
+            definicao,
+            formatacao
           ) ||
           montarResposta(
             resultado,
-            definicao
+            definicao,
+            formatacao
           ),
       };
-    } catch (error) {
+    } catch (
+    error
+    ) {
       console.error(
         `[PlanExecutor] Erro ao executar plano "${plano?.planoId ||
         "desconhecido"
@@ -1357,13 +1589,19 @@ class PlanExecutor {
       );
 
       return {
-        ok: false,
-        tipo: "planner",
+        ok:
+          false,
+
+        tipo:
+          "planner",
+
         plano:
           plano?.planoId ||
           null,
+
         resposta:
           "Ocorreu um erro ao executar essa análise.",
+
         erro:
           error?.message ||
           String(error),

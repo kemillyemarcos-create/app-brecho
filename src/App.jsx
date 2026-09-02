@@ -53,6 +53,7 @@ import {
   CreditCard,
   Sparkles,
   NotebookPen,
+  Settings,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import SidebarERP from "./components/layout/SidebarERP";
@@ -81,6 +82,11 @@ import { lerArquivoComoDataURL } from "./utils/arquivos";
 import { Html5QrcodeScanner } from "html5-qrcode";
 import { supabase } from "./lib/supabase";
 import logoKchic from "./assets/logo-kchic.png";
+import {
+  ConfigProvider,
+  useConfig,
+} from "./contexts/ConfigContext";
+import ConfiguracaoSection from "./components/sections/ConfiguracaoSection";
 
 const FORM_INICIAL_PECA = {
   nome: "",
@@ -105,13 +111,22 @@ const PREVIEW_TIPO = {
   ETIQUETAS: "etiquetas",
 };
 
-function formatarMoeda(valor) {
-  const numeros = String(valor || "").replace(/\D/g, "");
-  const numeroFloat = Number(numeros || 0) / 100;
+function formatarMoeda(
+  valor,
+  locale = "pt-BR",
+  moeda = "BRL"
+) {
+  const numeros = String(valor || "").replace(
+    /\D/g,
+    ""
+  );
 
-  return numeroFloat.toLocaleString("pt-BR", {
+  const numeroFloat =
+    Number(numeros || 0) / 100;
+
+  return numeroFloat.toLocaleString(locale, {
     style: "currency",
-    currency: "BRL",
+    currency: moeda,
   });
 }
 
@@ -144,11 +159,18 @@ function limparMoeda(valor) {
   );
 }
 
-function formatarBRL(numero) {
-  return Number(numero || 0).toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
+function formatarBRL(
+  numero,
+  locale = "pt-BR",
+  moeda = "BRL"
+) {
+  return Number(numero || 0).toLocaleString(
+    locale,
+    {
+      style: "currency",
+      currency: moeda,
+    }
+  );
 }
 
 function csvEscape(valor) {
@@ -241,33 +263,130 @@ function parseDataFlex(valor) {
   return null;
 }
 
-function formatarDataHoraBR(valor) {
+function formatarDataHoraBR(
+  valor,
+  locale = "pt-BR",
+  timezone = "America/Sao_Paulo",
+  formatoData = "DD/MM/YYYY"
+) {
   if (!valor) return "";
 
-  // Se já vier formatado em pt-BR, mantém sem tentar converter de novo.
-  if (typeof valor === "string" && valor.includes("/") && valor.includes(":")) {
-    return valor;
+  const data = parseDataFlex(valor);
+
+  if (!data) return "";
+
+  const partes = new Intl.DateTimeFormat(
+    locale,
+    {
+      timeZone: timezone,
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }
+  ).formatToParts(data);
+
+  const mapa = Object.fromEntries(
+    partes.map((parte) => [
+      parte.type,
+      parte.value,
+    ])
+  );
+
+  let dataFormatada;
+
+  if (formatoData === "MM/DD/YYYY") {
+    dataFormatada = `${mapa.month}/${mapa.day}/${mapa.year}`;
+  } else if (
+    formatoData === "YYYY-MM-DD"
+  ) {
+    dataFormatada = `${mapa.year}-${mapa.month}-${mapa.day}`;
+  } else {
+    dataFormatada = `${mapa.day}/${mapa.month}/${mapa.year}`;
   }
 
-  const data = parseDataFlex(valor);
-  if (!data) return "";
-
-  return data.toLocaleString("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+  return `${dataFormatada}, ${mapa.hour}:${mapa.minute}:${mapa.second}`;
 }
 
-function formatarDataBR(valor) {
+function formatarDataBR(
+  valor,
+  locale = "pt-BR",
+  timezone = "America/Sao_Paulo",
+  formatoData = "DD/MM/YYYY"
+) {
   const data = parseDataFlex(valor);
-  if (!data) return "";
-  return data.toLocaleDateString("pt-BR");
 
+  if (!data) return "";
+
+  const partes = new Intl.DateTimeFormat(
+    locale,
+    {
+      timeZone: timezone,
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }
+  ).formatToParts(data);
+
+  const mapa = Object.fromEntries(
+    partes.map((parte) => [
+      parte.type,
+      parte.value,
+    ])
+  );
+
+  if (formatoData === "MM/DD/YYYY") {
+    return `${mapa.month}/${mapa.day}/${mapa.year}`;
+  }
+
+  if (formatoData === "YYYY-MM-DD") {
+    return `${mapa.year}-${mapa.month}-${mapa.day}`;
+  }
+
+  return `${mapa.day}/${mapa.month}/${mapa.year}`;
+}
+
+function formatarDataLiveCurta(
+  valor,
+  locale = "pt-BR",
+  timezone = "America/Sao_Paulo",
+  formatoData = "DD/MM/YYYY"
+) {
+  if (!valor) return "";
+
+  const data = parseDataFlex(valor);
+
+  if (!data) return "";
+
+  const partes = new Intl.DateTimeFormat(
+    locale,
+    {
+      timeZone: timezone,
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }
+  ).formatToParts(data);
+
+  const mapa = Object.fromEntries(
+    partes.map((parte) => [
+      parte.type,
+      parte.value,
+    ])
+  );
+
+  if (formatoData === "MM/DD/YYYY") {
+    return `${mapa.month}/${mapa.day}`;
+  }
+
+  if (formatoData === "YYYY-MM-DD") {
+    return `${mapa.year}-${mapa.month}-${mapa.day}`;
+  }
+
+  return `${mapa.day}/${mapa.month}`;
 }
 
 
@@ -285,31 +404,27 @@ function baixarCSV(nomeArquivo, linhas) {
   URL.revokeObjectURL(url);
 }
 
-function getSaudacaoDinamica() {
+function getSaudacaoDinamica(
+  locale = "pt-BR",
+  timezone = "America/Sao_Paulo"
+) {
   const hora = Number(
-    new Intl.DateTimeFormat("pt-BR", {
-      timeZone: "America/Sao_Paulo",
+    new Intl.DateTimeFormat(locale, {
+      timeZone: timezone,
       hour: "2-digit",
       hour12: false,
     }).format(new Date())
   );
 
-  if (hora >= 5 && hora < 12) return "bom dia";
-  if (hora >= 12 && hora < 18) return "boa tarde";
+  if (hora >= 5 && hora < 12) {
+    return "bom dia";
+  }
+
+  if (hora >= 12 && hora < 18) {
+    return "boa tarde";
+  }
+
   return "boa noite";
-}
-
-function formatarDataLiveCurta(valor) {
-  if (!valor) return "";
-
-  const data = parseDataFlex(valor);
-  if (!data) return "";
-
-  return data.toLocaleDateString("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    day: "2-digit",
-    month: "2-digit",
-  });
 }
 
 function normalizarTelefoneWhatsApp(valor) {
@@ -321,23 +436,48 @@ function normalizarTelefoneWhatsApp(valor) {
   return `55${numeros}`;
 }
 
-function montarTextoComanda(clienteResumo) {
-  const saudacao = getSaudacaoDinamica();
+function montarTextoComanda(
+  clienteResumo,
+  {
+    formatarMoedaFn = formatarBRL,
+    formatarDataHoraFn = formatarDataHoraBR,
+    formatarDataLiveFn = formatarDataLiveCurta,
+    saudacaoFn = getSaudacaoDinamica,
+  } = {}
+) {
+  const saudacao = saudacaoFn();
+
   const dataLiveFormatada =
-    formatarDataLiveCurta(clienteResumo?.liveData || clienteResumo?.live_data) ||
-    formatarDataLiveCurta(clienteResumo?.data_live) ||
+    formatarDataLiveFn(
+      clienteResumo?.liveData ||
+      clienteResumo?.live_data
+    ) ||
+    formatarDataLiveFn(
+      clienteResumo?.data_live
+    ) ||
     "";
 
-  const complementoLive = dataLiveFormatada ? ` *${dataLiveFormatada}*` : "";
+  const complementoLive = dataLiveFormatada
+    ? ` *${dataLiveFormatada}*`
+    : "";
+
   const pago = !!clienteResumo?.pago;
 
-  const itensTexto = (clienteResumo.itens || [])
+  const itensTexto = (
+    clienteResumo.itens || []
+  )
     .map((item, index) => {
-      const dataVendaFormatada = formatarDataHoraBR(item.dataVenda);
+      const dataVendaFormatada =
+        formatarDataHoraFn(
+          item.dataVenda
+        );
 
       return `${index + 1}. ${item.nomePeca}
-💲 ${formatarBRL(item.valor)}
-🏷️ Código: ${item.codigo}${dataVendaFormatada ? `\n🕒 ${dataVendaFormatada}` : ""}`;
+💲 ${formatarMoedaFn(item.valor)}
+🏷️ Código: ${item.codigo}${dataVendaFormatada
+          ? `\n🕒 ${dataVendaFormatada}`
+          : ""
+        }`;
     })
     .join("\n\n");
 
@@ -354,7 +494,9 @@ Segue sua comandinha da live:${complementoLive} 🛍️
 
 🛍️ Total de peças: ${clienteResumo.pecas}
 
-💰 Valor total: *${formatarBRL(clienteResumo.total)}*
+💰 Valor total: *${formatarMoedaFn(
+      clienteResumo.total
+    )}*
 
 ━━━━━━━━━━━━━━
 
@@ -381,7 +523,9 @@ Segue sua comandinha da live:${complementoLive} 🛍️
 
 🛍️ Total de peças: ${clienteResumo.pecas}
 
-💰 Valor total: *${formatarBRL(clienteResumo.total)}*
+💰 Valor total: *${formatarMoedaFn(
+    clienteResumo.total
+  )}*
 
 ━━━━━━━━━━━━━━
 
@@ -405,17 +549,30 @@ Obrigada! ☺️🌸`;
 }
 
 function AppContent() {
-  const paramsPortal = typeof window !== "undefined"
-    ? new URLSearchParams(window.location.search)
-    : new URLSearchParams();
+  const paramsPortal =
+    typeof window !== "undefined"
+      ? new URLSearchParams(
+        window.location.search
+      )
+      : new URLSearchParams();
 
   const portalClienteAtivo =
-    paramsPortal.has("portal") || paramsPortal.get("portal") === "cliente";
+    paramsPortal.has("portal") ||
+    paramsPortal.get("portal") === "cliente";
 
-  const cadastroPublicoAtivo = paramsPortal.get("cadastro") === "cliente";
-  const rotaPublica = portalClienteAtivo || cadastroPublicoAtivo;
+  const cadastroPublicoAtivo =
+    paramsPortal.get("cadastro") === "cliente";
 
-  const { session, carregando: carregandoAuth, sair: sairDoApp } = useAuth();
+  const rotaPublica =
+    portalClienteAtivo ||
+    cadastroPublicoAtivo;
+
+  const {
+    session,
+    carregando: carregandoAuth,
+    sair: sairDoApp,
+  } = useAuth();
+
   const {
     usuarioSistema,
     carregando: carregandoUsuario,
@@ -423,6 +580,288 @@ function AppContent() {
     motivoBloqueio,
     isAdmin,
   } = useUser();
+
+  const {
+    aparenciaEfetiva,
+    identidade,
+    operacao,
+  } = useConfig();
+
+  const localeEmpresa =
+    operacao?.locale || "pt-BR";
+
+  const moedaEmpresa =
+    operacao?.moeda || "BRL";
+
+  const timezoneEmpresa =
+    operacao?.timezone ||
+    "America/Sao_Paulo";
+
+  const formatoDataEmpresa =
+    operacao?.formatoData ||
+    "DD/MM/YYYY";
+
+  const formatarMoedaEmpresa = (valor) =>
+    formatarMoeda(
+      valor,
+      localeEmpresa,
+      moedaEmpresa
+    );
+
+  const formatarMoedaExibicao = (valor) =>
+    formatarBRL(
+      valor,
+      localeEmpresa,
+      moedaEmpresa
+    );
+
+  const formatarDataHoraEmpresa = (valor) =>
+    formatarDataHoraBR(
+      valor,
+      localeEmpresa,
+      timezoneEmpresa,
+      formatoDataEmpresa
+    );
+
+  const formatarDataEmpresa = (valor) =>
+    formatarDataBR(
+      valor,
+      localeEmpresa,
+      timezoneEmpresa,
+      formatoDataEmpresa
+    );
+
+  const formatarDataLiveEmpresa = (valor) =>
+    formatarDataLiveCurta(
+      valor,
+      localeEmpresa,
+      timezoneEmpresa,
+      formatoDataEmpresa
+    );
+
+  const getSaudacaoEmpresa = () =>
+    getSaudacaoDinamica(
+      localeEmpresa,
+      timezoneEmpresa
+    );
+
+  const montarTextoComandaEmpresa = (
+    clienteResumo
+  ) =>
+    montarTextoComanda(
+      clienteResumo,
+      {
+        formatarMoedaFn:
+          formatarMoedaExibicao,
+
+        formatarDataHoraFn:
+          formatarDataHoraEmpresa,
+
+        formatarDataLiveFn:
+          formatarDataLiveEmpresa,
+
+        saudacaoFn:
+          getSaudacaoEmpresa,
+      }
+    );
+
+  const coresApp = useMemo(
+    () => ({
+      fundoApp:
+        aparenciaEfetiva?.corFundo ||
+        CORES_APP.fundoApp,
+
+      fundoPainel:
+        aparenciaEfetiva?.corPainel ||
+        CORES_APP.fundoPainel,
+
+      borda:
+        aparenciaEfetiva?.corBorda ||
+        CORES_APP.borda,
+
+      bordaSuave:
+        aparenciaEfetiva?.corBorda ||
+        CORES_APP.bordaSuave,
+
+      rosaClaro:
+        aparenciaEfetiva?.corSuave ||
+        CORES_APP.rosaClaro,
+
+      rosaHover:
+        aparenciaEfetiva?.corSuave ||
+        CORES_APP.rosaHover,
+
+      rosaPrincipal:
+        aparenciaEfetiva
+          ?.corPrimaria ||
+        CORES_APP.rosaPrincipal,
+
+      rosaEscuro:
+        aparenciaEfetiva
+          ?.corSecundaria ||
+        CORES_APP.rosaEscuro,
+
+      texto:
+        aparenciaEfetiva?.corTexto ||
+        CORES_APP.texto,
+
+      textoSuave:
+        aparenciaEfetiva
+          ?.corTextoSuave ||
+        CORES_APP.textoSuave,
+
+      sombraLeve:
+        CORES_APP.sombraLeve,
+
+      // Compatibilidade com referências antigas
+      fundo:
+        aparenciaEfetiva?.corFundo ||
+        CORES_APP.fundoApp,
+
+      textoPrincipal:
+        aparenciaEfetiva?.corTexto ||
+        CORES_APP.texto,
+    }),
+    [aparenciaEfetiva]
+  );
+
+  const layoutAppTema = useMemo(
+    () => ({
+      ...layoutApp,
+      background: coresApp.fundoApp,
+    }),
+    [coresApp]
+  );
+
+  const painelPrincipalTema =
+    useMemo(
+      () => ({
+        ...painelPrincipal,
+        background:
+          coresApp.fundoPainel,
+      }),
+      [coresApp]
+    );
+
+  const topoPainelTituloTema =
+    useMemo(
+      () => ({
+        ...topoPainelTitulo,
+        color:
+          coresApp.rosaPrincipal,
+      }),
+      [coresApp]
+    );
+
+  const topoPainelTextoTema =
+    useMemo(
+      () => ({
+        ...topoPainelTexto,
+        color: coresApp.textoSuave,
+      }),
+      [coresApp]
+    );
+
+  const estilosTema = useMemo(
+    () => ({
+      boxGrande: {
+        ...boxGrande,
+        border: `1px solid ${coresApp.borda}`,
+        background:
+          coresApp.fundoPainel,
+        boxShadow:
+          coresApp.sombraLeve,
+      },
+
+      tituloSecao: {
+        ...tituloSecao,
+        color: coresApp.texto,
+      },
+
+      previewBox: {
+        ...previewBox,
+        border: `1px solid ${coresApp.borda}`,
+        background:
+          coresApp.fundoApp,
+      },
+
+      input: {
+        ...input,
+        border: `1px solid ${coresApp.borda}`,
+        background:
+          coresApp.fundoPainel,
+        color: coresApp.texto,
+      },
+
+      inputCliente: {
+        ...inputCliente,
+        border: `1px solid ${coresApp.borda}`,
+        background:
+          coresApp.fundoPainel,
+        color: coresApp.texto,
+      },
+
+      botao: {
+        ...botao,
+        background:
+          coresApp.rosaPrincipal,
+        boxShadow:
+          coresApp.sombraLeve,
+      },
+
+      botaoPequeno: {
+        ...botaoPequeno,
+      },
+
+      cardPeca: {
+        ...cardPeca,
+        border: `1px solid ${coresApp.borda}`,
+        background:
+          coresApp.fundoPainel,
+        boxShadow:
+          coresApp.sombraLeve,
+      },
+
+      cardResumo: {
+        ...cardResumo,
+        border: `1px solid ${coresApp.borda}`,
+        background:
+          coresApp.fundoPainel,
+        boxShadow:
+          coresApp.sombraLeve,
+      },
+
+      valorResumo: {
+        ...valorResumo,
+        color:
+          coresApp.rosaPrincipal,
+      },
+
+      textoItem: {
+        ...textoItem,
+        color:
+          coresApp.textoSuave,
+      },
+
+      cardCliente: {
+        ...cardCliente,
+        border: `1px solid ${coresApp.borda}`,
+        background:
+          coresApp.fundoPainel,
+        boxShadow:
+          coresApp.sombraLeve,
+      },
+
+      itemCliente: {
+        ...itemCliente,
+        border: `1px solid ${coresApp.bordaSuave}`,
+        background:
+          coresApp.fundoApp,
+      },
+    }),
+    [coresApp]
+  );
+
   const podeAcessarDadosAdministrativos =
     !rotaPublica &&
     !carregandoAuth &&
@@ -543,7 +982,7 @@ function AppContent() {
             (item) =>
               !item?.cliente_id &&
               String(item?.cliente_nome || "").trim().toLowerCase() ===
-                nomeNormalizado
+              nomeNormalizado
           ) || null;
 
         if (legada) {
@@ -582,7 +1021,7 @@ function AppContent() {
             (item) =>
               !item?.cliente_id &&
               String(item?.cliente_nome || "").trim().toLowerCase() ===
-                nomeNormalizado
+              nomeNormalizado
           ) || null;
 
         if (existente) {
@@ -1578,7 +2017,10 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     if (!form.nome.trim()) return;
 
     const nova = {
-      id: gerarCodigo("KC", form.custo),
+      id: gerarCodigo(
+        operacao?.prefixoPeca || "KC",
+        form.custo
+      ),
       nome: form.nome.trim(),
       custo: form.custo,
       venda: form.venda,
@@ -2164,12 +2606,12 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         (prev || []).map((item) =>
           String(item?.id) === String(id)
             ? {
-                ...item,
-                vendido: false,
-                cliente: null,
-                data_venda: null,
-                valor_venda_final: null,
-              }
+              ...item,
+              vendido: false,
+              cliente: null,
+              data_venda: null,
+              valor_venda_final: null,
+            }
             : item
         )
       );
@@ -2346,8 +2788,8 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         p.obs || "",
         p.vendido ? "Vendido" : "Disponivel",
         p.cliente || "",
-        formatarDataHoraBR(p.data_cadastro) || "",
-        formatarDataHoraBR(p.data_venda) || "",
+        formatarDataHoraEmpresa(p.data_cadastro) || "",
+        formatarDataHoraEmpresa(p.data_venda) || "",
       ]),
     ];
 
@@ -2366,7 +2808,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         item.codigo,
         item.nomePeca,
         Number(item.valor || 0).toFixed(2),
-        formatarDataHoraBR(item.dataVenda) || item.dataVenda || "",
+        formatarDataHoraEmpresa(item.dataVenda) || item.dataVenda || "",
       ]),
     ];
 
@@ -2476,7 +2918,9 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
   async function copiarTextoComanda(clienteResumo) {
     try {
-      await navigator.clipboard.writeText(montarTextoComanda(clienteResumo));
+      await navigator.clipboard.writeText(
+        montarTextoComandaEmpresa(clienteResumo)
+      );
       alert("Texto da comanda copiado com sucesso.");
     } catch {
       alert("Não foi possível copiar o texto da comanda.");
@@ -2910,7 +3354,9 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       clienteResumo?.clienteTelefone || clienteCadastro?.telefone || ""
     );
 
-    const textoCodificado = encodeURIComponent(montarTextoComanda(clienteResumo));
+    const textoCodificado = encodeURIComponent(
+      montarTextoComandaEmpresa(clienteResumo)
+    );
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     const url = telefoneCliente
@@ -3156,6 +3602,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     formatarCPF,
     formatarTelefone,
     converterDataPtBrParaIso,
+    formatarDataBR: formatarDataEmpresa,
   });
 
   useEffect(() => {
@@ -3224,6 +3671,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     { id: "expedicao", label: "Expedição", icon: Truck, adminOnly: false },
     { id: "pendencias", label: "Pendências", icon: CreditCard, adminOnly: false },
     { id: "faturamento", label: "Faturamento", icon: BarChart3, adminOnly: true },
+    { id: "configuracao", label: "Configuração", icon: Settings, adminOnly: true, },
   ];
 
   const menuVisivel = MENU_ITEMS.filter((item) => !item.adminOnly || isAdmin);
@@ -3239,6 +3687,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     if (aba === "pendencias") return "Pendências";
     if (aba === "assistente") return "Assistente Virtual";
     if (aba === "faturamento") return "Faturamento";
+    if (aba === "configuracao") return "Configuração";
 
     return "Painel";
   }
@@ -3448,8 +3897,8 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: CORES_APP.fundo,
-          color: CORES_APP.textoPrincipal,
+          background: coresApp.fundo,
+          color: coresApp.textoPrincipal,
           fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
           padding: 24,
         }}
@@ -3471,8 +3920,8 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: CORES_APP.fundo,
-          color: CORES_APP.textoPrincipal,
+          background: coresApp.fundo,
+          color: coresApp.textoPrincipal,
           fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
           padding: 24,
         }}
@@ -3490,7 +3939,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: CORES_APP.fundo,
+          background: coresApp.fundo,
           fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
           padding: 24,
         }}
@@ -3499,20 +3948,20 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           style={{
             width: "min(420px, 100%)",
             background: "#fff",
-            border: `1px solid ${CORES_APP.borda}`,
+            border: `1px solid ${coresApp.borda}`,
+            boxShadow: coresApp.sombraLeve,
             borderRadius: 24,
             padding: 24,
-            boxShadow: CORES_APP.sombraLeve,
             display: "grid",
             gap: 12,
             textAlign: "center",
           }}
         >
-          <strong style={{ fontSize: 20, color: CORES_APP.textoPrincipal }}>
+          <strong style={{ fontSize: 20, color: coresApp.textoPrincipal }}>
             Acesso não liberado
           </strong>
 
-          <p style={{ margin: 0, color: CORES_APP.textoSuave, lineHeight: 1.5 }}>
+          <p style={{ margin: 0, color: coresApp.textoSuave, lineHeight: 1.5 }}>
             {motivoBloqueio || "Seu usuário ainda não foi liberado no painel interno."}
           </p>
 
@@ -3522,7 +3971,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
             style={{
               border: "none",
               borderRadius: 14,
-              background: CORES_APP.rosaPrincipal,
+              background: coresApp.rosaPrincipal,
               color: "#fff",
               fontWeight: 800,
               padding: "12px 16px",
@@ -3876,10 +4325,13 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         getTituloAba={getTituloAba}
         menuMobileAberto={menuMobileAberto}
         setMenuMobileAberto={setMenuMobileAberto}
-        cores={CORES_APP}
+        cores={coresApp}
       />
 
-      <div className="layout-app" style={layoutApp}>
+      <div
+        className="layout-app"
+        style={layoutAppTema}
+      >
         <SidebarERP
           isMobile={isMobile}
           menuMobileAberto={menuMobileAberto}
@@ -3890,15 +4342,20 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           carregando={carregando}
           usuarioSistema={usuarioSistema}
           session={session}
-          logoKchic={logoKchic}
-          cores={CORES_APP}
+          logoKchic={
+            identidade?.logoUrl || logoKchic
+          }
+          cores={coresApp}
         />
 
         <main className="area-principal" style={areaPrincipal}>
-          <div className="painel-principal" style={painelPrincipal}>
+          <div
+            className="painel-principal"
+            style={painelPrincipalTema}
+          >
             <div style={topoPainel}>
               <div>
-                <h2 style={topoPainelTitulo}>
+                <h2 style={topoPainelTituloTema}>
                   {abaAtiva === "cadastro" && "Cadastro de Peças"}
                   {abaAtiva === "pecas" && "Estoque"}
                   {abaAtiva === "vendas" && "Registro de Vendas"}
@@ -3909,15 +4366,22 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                   {abaAtiva === "pendencias" && "Pendências de Pagamento"}
                   {abaAtiva === "assistente" && "Assistente Virtual"}
                   {abaAtiva === "faturamento" && "Faturamento"}
+                  {abaAtiva === "configuracao" && "Configuração"}
                 </h2>
 
-                <p style={topoPainelTexto}>
+                <p style={topoPainelTextoTema}>
                   {carregando
                     ? "Atualizando informações do sistema..."
                     : `Olá, ${usuarioSistema?.apelido || usuarioSistema?.nome || "admin"} 👋`}
                 </p>
               </div>
             </div>
+
+            {abaAtiva === "configuracao" && (
+              <ConfiguracaoSection
+                cores={coresApp}
+              />
+            )}
 
             {abaAtiva === "cadastro" && (
               <CadastroSection
@@ -3926,9 +4390,9 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 handleFoto={handleFoto}
                 adicionarPeca={adicionarPeca}
                 formatarMoeda={formatarMoeda}
-                formatarBRL={formatarBRL}
+                formatarBRL={formatarMoedaExibicao}
                 isMobile={isMobile}
-                cores={CORES_APP}
+                cores={coresApp}
               />
             )}
 
@@ -3943,6 +4407,8 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 setBuscaPeca={setBuscaPeca}
                 filtroEstoque={filtroEstoque}
                 setFiltroEstoque={setFiltroEstoque}
+
+                formatarDataHoraBR={formatarDataHoraEmpresa}
 
                 etiquetasSelecionadas={etiquetasSelecionadas}
                 toggleEtiqueta={toggleEtiqueta}
@@ -3961,216 +4427,254 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 salvarEdicaoPeca={salvarEdicaoPeca}
                 cancelarEdicaoPeca={cancelarEdicaoPeca}
                 salvandoEdicaoPeca={salvandoEdicaoPeca}
-                formatarMoeda={formatarMoeda}
 
-                formatarBRL={formatarBRL}
+                formatarMoeda={formatarMoedaEmpresa}
+                formatarBRL={formatarMoedaExibicao}
 
-                boxGrande={boxGrande}
+                boxGrande={estilosTema.boxGrande}
                 cabecalhoSecao={cabecalhoSecao}
-                tituloSecao={tituloSecao}
+                tituloSecao={estilosTema.tituloSecao}
                 linhaResumoHorizontal={linhaResumoHorizontal}
-                cardResumo={cardResumo}
-                valorResumo={valorResumo}
+                cardResumo={estilosTema.cardResumo}
+                valorResumo={estilosTema.valorResumo}
                 linhaFiltros={linhaFiltros}
-                input={input}
-                botao={botao}
-                botaoPequeno={botaoPequeno}
+                input={estilosTema.input}
+                botao={estilosTema.botao}
+                botaoPequeno={estilosTema.botaoPequeno}
                 gridPecas={gridPecas}
-                cardPeca={cardPeca}
-                textoItem={textoItem}
+                cardPeca={estilosTema.cardPeca}
+                textoItem={estilosTema.textoItem}
               />
             )}
-
             {abaAtiva === "vendas" && (
               <VendasSection
-                boxGrande={boxGrande}
-                tituloSecao={tituloSecao}
+                boxGrande={estilosTema.boxGrande}
+                tituloSecao={estilosTema.tituloSecao}
                 cabecalhoSecao={cabecalhoSecao}
                 linhaResumo={linhaResumo}
-                cardResumo={cardResumo}
-                valorResumo={valorResumo}
-                cardCliente={cardCliente}
-                itemCliente={itemCliente}
-                input={input}
+                cardResumo={estilosTema.cardResumo}
+                valorResumo={estilosTema.valorResumo}
+                cardCliente={estilosTema.cardCliente}
+                itemCliente={estilosTema.itemCliente}
+                input={estilosTema.input}
                 gridVendas={gridVendas}
                 gridForm={gridForm}
-                previewBox={previewBox}
+                previewBox={estilosTema.previewBox}
                 semFoto={semFoto}
                 isMobile={isMobile}
+
                 scannerAtivo={scannerAtivo}
                 setScannerAtivo={setScannerAtivo}
                 scannerElementId={scannerElementId}
+
                 vendaId={vendaId}
                 setVendaId={setVendaId}
                 sugestoesPecasVenda={sugestoesPecasVenda}
                 mostrarSugestoesVenda={mostrarSugestoesVenda}
                 setMostrarSugestoesVenda={setMostrarSugestoesVenda}
+
                 cliente={cliente}
                 setCliente={setCliente}
                 setClienteId={setClienteId}
                 clientes={clientes}
                 todasVendasLive={todasVendasLive}
+
                 filaEspera={filaEspera}
                 setFilaEspera={setFilaEspera}
+
                 valorDesconto={valorDesconto}
                 setValorDesconto={setValorDesconto}
                 formatarValorDescontoInput={formatarValorDescontoInput}
+
                 registrarVenda={registrarVenda}
                 salvandoVenda={salvandoVenda}
+
                 liveEmVisualizacao={liveEmVisualizacao}
+
                 buscaCliente={buscaCliente}
                 setBuscaCliente={setBuscaCliente}
                 filtroPagamentoCliente={filtroPagamentoCliente}
                 setFiltroPagamentoCliente={setFiltroPagamentoCliente}
+
                 totalPecasLive={totalPecasLive}
                 faturamentoLive={faturamentoLive}
                 lucroEstimadoLive={lucroEstimadoLive}
+
                 clientesFiltrados={clientesFiltrados}
                 clientesExpandidos={clientesExpandidos}
                 toggleExpandirCliente={toggleExpandirCliente}
+
                 exportarClienteCSV={exportarClienteCSV}
                 gerarComanda={gerarComanda}
                 copiarMensagemPortalCliente={copiarMensagemPortalCliente}
+
                 togglePagamentoClienteLive={togglePagamentoClienteLive}
                 cancelarVenda={cancelarVenda}
                 passarVendaParaFila={passarVendaParaFila}
-                formatarBRL={formatarBRL}
-                formatarDataHoraBR={formatarDataHoraBR}
+
+                formatarBRL={formatarMoedaExibicao}
+                formatarDataHoraBR={formatarDataHoraEmpresa}
               />
             )}
 
             {abaAtiva === "clientes" && (
               <ClientesSection
-                boxGrande={boxGrande}
-                tituloSecao={tituloSecao}
-                inputCliente={inputCliente}
-                botao={botao}
-                botaoPequeno={botaoPequeno}
-                cardCliente={cardCliente}
+                boxGrande={estilosTema.boxGrande}
+                tituloSecao={estilosTema.tituloSecao}
+                inputCliente={estilosTema.inputCliente}
+                botao={estilosTema.botao}
+                botaoPequeno={estilosTema.botaoPequeno}
+                cardCliente={estilosTema.cardCliente}
+
                 clientesFiltradosCadastro={clientesFiltradosCadastro}
                 buscaClienteCadastro={buscaClienteCadastro}
                 setBuscaClienteCadastro={setBuscaClienteCadastro}
+
                 copiarLinkCadastroCliente={copiarLinkCadastroCliente}
-                copiarMensagemWhatsAppCadastroCliente={copiarMensagemWhatsAppCadastroCliente}
+                copiarMensagemWhatsAppCadastroCliente={
+                  copiarMensagemWhatsAppCadastroCliente
+                }
                 gerarLinkCadastroCliente={gerarLinkCadastroCliente}
+
                 formCliente={formCliente}
                 setFormCliente={setFormCliente}
+
                 formatarCPF={formatarCPF}
                 formatarTelefone={formatarTelefone}
                 formatarCEP={formatarCEP}
                 buscarCep={buscarCep}
+
                 salvarCliente={salvarCliente}
                 clienteEditandoId={clienteEditandoId}
                 cancelarEdicaoCliente={cancelarEdicaoCliente}
                 editarCliente={editarCliente}
                 compartilharCliente={compartilharCliente}
                 excluirCliente={excluirCliente}
+
                 clientesExpandidos={clientesExpandidos}
                 toggleExpandirCliente={toggleExpandirCliente}
               />
             )}
 
             {abaAtiva === "notes" && (
-              <NotesSection />
+              <NotesSection
+                formatarDataHoraBR={formatarDataHoraEmpresa}
+              />
             )}
 
             {abaAtiva === "lives" && (
               <LivesSection
-                boxGrande={boxGrande}
-                tituloSecao={tituloSecao}
-                input={input}
-                botao={botao}
+                boxGrande={estilosTema.boxGrande}
+                tituloSecao={estilosTema.tituloSecao}
+                input={estilosTema.input}
+                botao={estilosTema.botao}
                 linhaResumo={linhaResumo}
-                cardResumo={cardResumo}
-                valorResumo={valorResumo}
-                cardCliente={cardCliente}
+                cardResumo={estilosTema.cardResumo}
+                valorResumo={estilosTema.valorResumo}
+                cardCliente={estilosTema.cardCliente}
+
                 isMobile={isMobile}
                 liveAtual={liveAtual}
                 liveEmVisualizacao={liveEmVisualizacao}
+
                 nomeNovaLive={nomeNovaLive}
                 setNomeNovaLive={setNomeNovaLive}
+
                 iniciarLive={iniciarLive}
                 encerrarLive={encerrarLive}
+
                 abaInternaLive={abaInternaLive}
                 setAbaInternaLive={setAbaInternaLive}
+
                 clientesLiveExpandido={clientesLiveExpandido}
                 setClientesLiveExpandido={setClientesLiveExpandido}
+
                 resumoClientesLive={resumoClientesLive}
                 listaLives={listaLives}
                 vendasLive={vendasLive}
                 pecasVendidasLiveCronologicas={pecasVendidasLiveCronologicas}
+
                 abrirLiveHistorica={abrirLiveHistorica}
                 setAbaAtiva={setAbaAtiva}
-                formatarDataHoraBR={formatarDataHoraBR}
-                formatarDataBR={formatarDataBR}
-                formatarBRL={formatarBRL}
+
+                formatarDataHoraBR={formatarDataHoraEmpresa}
+                formatarDataBR={formatarDataEmpresa}
+                formatarBRL={formatarMoedaExibicao}
               />
             )}
 
 
             {abaAtiva === "pendencias" && (
               <PendenciasSection
-                boxGrande={boxGrande}
-                tituloSecao={tituloSecao}
+                boxGrande={estilosTema.boxGrande}
+                tituloSecao={estilosTema.tituloSecao}
                 linhaResumo={linhaResumo}
-                cardResumo={cardResumo}
-                valorResumo={valorResumo}
-                cardCliente={cardCliente}
-                itemCliente={itemCliente}
-                input={input}
-                botaoPequeno={botaoPequeno}
+                cardResumo={estilosTema.cardResumo}
+                valorResumo={estilosTema.valorResumo}
+                cardCliente={estilosTema.cardCliente}
+                itemCliente={estilosTema.itemCliente}
+                input={estilosTema.input}
+                botaoPequeno={estilosTema.botaoPequeno}
+
                 isMobile={isMobile}
                 todasVendasLive={todasVendasLive}
                 mapaPecasPorId={mapaPecasPorId}
                 mapaLivesPorId={mapaLivesPorId}
                 clientes={clientes}
                 liveAtual={liveAtual}
-                formatarBRL={formatarBRL}
-                formatarDataHoraBR={formatarDataHoraBR}
+
+                formatarBRL={formatarMoedaExibicao}
+                formatarDataHoraBR={formatarDataHoraEmpresa}
                 gerarComanda={gerarComanda}
                 marcarClientePendenteComoPago={marcarClientePendenteComoPago}
               />
             )}
 
-
             {abaAtiva === "assistente" && (
-              <AssistenteVirtual />
+              <AssistenteVirtual operacao={operacao} />
             )}
 
             {abaAtiva === "faturamento" && (
               <FaturamentoSection
-                boxGrande={boxGrande}
-                tituloSecao={tituloSecao}
-                input={input}
+                boxGrande={estilosTema.boxGrande}
+                tituloSecao={estilosTema.tituloSecao}
+                input={estilosTema.input}
+
                 isMobile={isMobile}
                 dataInicialFiltro={dataInicialFiltro}
                 setDataInicialFiltro={setDataInicialFiltro}
                 dataFinalFiltro={dataFinalFiltro}
                 setDataFinalFiltro={setDataFinalFiltro}
+
                 exportarRelatorioCSV={exportarRelatorioCSV}
                 resumoFaturamentoPorLive={resumoFaturamentoPorLive}
+
                 faturamentoFiltrado={faturamentoFiltrado}
                 lucroFiltrado={lucroFiltrado}
                 quantidadeVendidaFiltrada={quantidadeVendidaFiltrada}
                 ticketMedioFiltrado={ticketMedioFiltrado}
-                formatarBRL={formatarBRL}
+
+                formatarBRL={formatarMoedaExibicao}
               />
             )}
 
             {abaAtiva === "expedicao" && (
               <ExpedicaoSection
-                boxGrande={boxGrande}
-                tituloSecao={tituloSecao}
-                cardCliente={cardCliente}
-                itemCliente={itemCliente}
-                botaoPequeno={botaoPequeno}
+                boxGrande={estilosTema.boxGrande}
+                tituloSecao={estilosTema.tituloSecao}
+                cardCliente={estilosTema.cardCliente}
+                itemCliente={estilosTema.itemCliente}
+                botaoPequeno={estilosTema.botaoPequeno}
+
                 sacolinhasAgrupadas={sacolinhasAgrupadas}
                 sacolinhasAbertas={sacolinhasAbertas}
                 sacolinhasSeparadas={sacolinhasSeparadas}
                 totalSacolinhasVencidas={totalSacolinhasVencidas}
+
                 pedidosEnvioEmMontagem={pedidosEnvioEmMontagem}
                 pedidosEnvioConcluidos={pedidosEnvioConcluidos}
                 carregandoPedidosEnvio={carregandoPedidosEnvio}
+
                 mostrarAbertas={mostrarAbertas}
                 setMostrarAbertas={setMostrarAbertas}
                 mostrarSeparadas={mostrarSeparadas}
@@ -4179,21 +4683,28 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 setMostrarPedidosEnvio={setMostrarPedidosEnvio}
                 mostrarEnviadas={mostrarEnviadas}
                 setMostrarEnviadas={setMostrarEnviadas}
+
                 sacolinhasExpandidas={sacolinhasExpandidas}
                 toggleExpandirSacolinha={toggleExpandirSacolinha}
                 pedidosEnvioExpandidos={pedidosEnvioExpandidos}
                 toggleExpandirPedidoEnvio={toggleExpandirPedidoEnvio}
+
                 mapaLivesPorId={mapaLivesPorId}
                 mapaPecasPorId={mapaPecasPorId}
                 todasVendasLive={todasVendasLive}
+
                 getStatusSacolinha={getStatusSacolinha}
                 sacolinhaPodeIrParaExpedicao={sacolinhaPodeIrParaExpedicao}
                 sacolinhaEstaVencida={sacolinhaEstaVencida}
+
                 marcarSacolinhaComoSeparada={marcarSacolinhaComoSeparada}
                 marcarSacolinhaComoEnviada={marcarSacolinhaComoEnviada}
+
                 criarPedidoDeEnvio={criarPedidoDeEnvio}
                 criandoPedidoEnvioCliente={criandoPedidoEnvioCliente}
-                formatarBRL={formatarBRL}
+
+                formatarBRL={formatarMoedaExibicao}
+
                 cancelarPedidoDeEnvio={cancelarPedidoDeEnvio}
                 pedidoEstaConferido={pedidoEstaConferido}
                 itensConferidosPedido={itensConferidosPedido}
@@ -4209,13 +4720,13 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           tipoPreview={tipoPreview}
           dadosPreview={dadosPreview}
           PREVIEW_TIPO={PREVIEW_TIPO}
-          botao={botao}
-          botaoPequeno={botaoPequeno}
+          botao={estilosTema.botao}
+          botaoPequeno={estilosTema.botaoPequeno}
           fecharPreview={fecharPreview}
           copiarTextoComanda={copiarTextoComanda}
           abrirWhatsappComanda={abrirWhatsappComanda}
-          formatarBRL={formatarBRL}
-          formatarDataHoraBR={formatarDataHoraBR}
+          formatarBRL={formatarMoedaExibicao}
+          formatarDataHoraBR={formatarDataHoraEmpresa}
           agruparEtiquetasEmPaginas={agruparEtiquetasEmPaginas}
           EtiquetaPrint={EtiquetaPrint}
         />
@@ -4235,7 +4746,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
               height: isMobile ? 48 : 54,
               borderRadius: "50%",
               border: "none",
-              background: CORES_APP.rosaPrincipal,
+              background: coresApp.rosaPrincipal,
               color: "#fff",
               fontSize: isMobile ? 22 : 24,
               fontWeight: 800,
@@ -4281,7 +4792,9 @@ export default function App() {
   return (
     <AuthProvider>
       <UserProvider>
-        <AppContent />
+        <ConfigProvider>
+          <AppContent />
+        </ConfigProvider>
       </UserProvider>
     </AuthProvider>
   );

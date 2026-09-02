@@ -43,17 +43,22 @@ export default function ClientesSection({
     const isMobile =
         typeof window !== "undefined" ? window.innerWidth <= 767 : false;
 
-    const corPrincipal = "#8f2745";
-    const corPrincipalClara = "#f7dce6";
-    const corBorda = "#ead1da";
-    const corTexto = "#243746";
-    const corSuave = "#64748b";
-    const corFundoSuave = "#fff7fa";
+    // =====================================================
+    // TEMA GLOBAL
+    // =====================================================
+
+    const corPrincipal = "var(--kc-primary)";
+    const corPrincipalClara = "var(--kc-soft)";
+    const corBorda = "var(--kc-border)";
+    const corTexto = "var(--kc-text)";
+    const corSuave = "var(--kc-text-muted)";
+    const corFundoSuave = "var(--kc-background)";
+    const corPainel = "var(--kc-panel)";
 
     const cardBase = {
-        border: "1px solid #eef2f7",
+        border: `1px solid ${corBorda}`,
         borderRadius: 18,
-        background: "#fff",
+        background: corPainel,
         boxShadow: "0 2px 10px rgba(15,23,42,0.04)",
     };
 
@@ -62,7 +67,7 @@ export default function ClientesSection({
         height: 34,
         borderRadius: 12,
         border: `1px solid ${corBorda}`,
-        background: "#fff",
+        background: corPainel,
         color: corPrincipal,
         display: "inline-flex",
         alignItems: "center",
@@ -76,8 +81,8 @@ export default function ClientesSection({
         minHeight: isMobile ? 40 : 42,
         padding: isMobile ? "9px 12px" : "10px 13px",
         borderRadius: 13,
-        border: "1px solid #dfe6ee",
-        background: "#fff",
+        border: `1px solid ${corBorda}`,
+        background: corPainel,
         color: corTexto,
         fontSize: isMobile ? 13 : 14,
         lineHeight: 1.2,
@@ -107,15 +112,15 @@ export default function ClientesSection({
         border: `1px solid ${corPrincipal}`,
         background: corPrincipal,
         color: "#fff",
-        boxShadow: "0 8px 18px rgba(143,39,69,0.18)",
+        boxShadow: "0 8px 18px rgba(15,23,42,0.12)",
     };
 
     const botaoSecundario = {
         ...botaoPequeno,
         ...botaoBase,
         width: "100%",
-        border: "1px solid #dfe6ee",
-        background: "#fff",
+        border: `1px solid ${corBorda}`,
+        background: corPainel,
         color: corTexto,
         boxShadow: "0 2px 8px rgba(15,23,42,0.04)",
     };
@@ -136,9 +141,9 @@ export default function ClientesSection({
 
     const botaoCancelar = {
         ...botaoSecundario,
-        border: "1px solid #e2e8f0",
-        background: "#f8fafc",
-        color: "#475569",
+        border: `1px solid ${corBorda}`,
+        background: corFundoSuave,
+        color: corSuave,
     };
 
     const botaoIcone = ({
@@ -158,7 +163,7 @@ export default function ClientesSection({
             ? "1px solid #bbf7d0"
             : info
             ? "1px solid #bfdbfe"
-            : "1px solid #e2e8f0",
+            : `1px solid ${corBorda}`,
         background: ativo
             ? corPrincipal
             : danger
@@ -167,7 +172,7 @@ export default function ClientesSection({
             ? "#ecfdf5"
             : info
             ? "#eff6ff"
-            : "#fff",
+            : corPainel,
         color: ativo
             ? "#fff"
             : danger
@@ -184,7 +189,7 @@ export default function ClientesSection({
         padding: 0,
         flexShrink: 0,
         boxShadow: ativo
-            ? "0 6px 14px rgba(143,39,69,0.16)"
+            ? "0 6px 14px rgba(15,23,42,0.12)"
             : "0 2px 8px rgba(15,23,42,0.04)",
     });
 
@@ -236,6 +241,9 @@ export default function ClientesSection({
                 ...boxGrande,
                 display: "grid",
                 gap: isMobile ? 14 : 16,
+                background: corPainel,
+                border: `1px solid ${corBorda}`,
+                color: corTexto,
             }}
         >
             <div
@@ -248,7 +256,13 @@ export default function ClientesSection({
                 }}
             >
                 <div>
-                    <h2 style={{ ...tituloSecao, marginBottom: 4 }}>
+                    <h2
+                        style={{
+                            ...tituloSecao,
+                            marginBottom: 4,
+                            color: corTexto,
+                        }}
+                    >
                         Cadastro de clientes
                     </h2>
 
@@ -288,7 +302,7 @@ export default function ClientesSection({
                     padding: isMobile ? 13 : 16,
                     display: "grid",
                     gap: 14,
-                    background: "#fcfdff",
+                    background: corFundoSuave,
                 }}
             >
                 <div
@@ -315,9 +329,7 @@ export default function ClientesSection({
                                 fontSize: isMobile ? 15 : 16,
                             }}
                         >
-                            {clienteEditandoId
-                                ? "Editar cliente"
-                                : "Nova cliente"}
+                            {clienteEditandoId ? "Editar cliente" : "Nova cliente"}
                         </strong>
 
                         <span
@@ -386,19 +398,14 @@ export default function ClientesSection({
                             placeholder="00000-000"
                             value={formCliente.cep}
                             onChange={(e) => {
-                                const cepFormatado = formatarCEP(
-                                    e.target.value
-                                );
+                                const cepFormatado = formatarCEP(e.target.value);
 
                                 setFormCliente((prev) => ({
                                     ...prev,
                                     cep: cepFormatado,
                                 }));
 
-                                const cepLimpo = cepFormatado.replace(
-                                    /\D/g,
-                                    ""
-                                );
+                                const cepLimpo = cepFormatado.replace(/\D/g, "");
 
                                 if (cepLimpo.length === 8) {
                                     buscarCep(cepLimpo);
@@ -458,9 +465,7 @@ export default function ClientesSection({
                 <div style={gridAcoesFormulario}>
                     <button style={botaoPrincipal} onClick={salvarCliente}>
                         <Save size={16} />
-                        {clienteEditandoId
-                            ? "Atualizar cliente"
-                            : "Salvar cliente"}
+                        {clienteEditandoId ? "Atualizar cliente" : "Salvar cliente"}
                     </button>
 
                     {clienteEditandoId ? (
@@ -544,7 +549,7 @@ export default function ClientesSection({
                             left: 12,
                             top: "50%",
                             transform: "translateY(-50%)",
-                            color: "#94a3b8",
+                            color: corSuave,
                             pointerEvents: "none",
                         }}
                     />
@@ -619,9 +624,7 @@ export default function ClientesSection({
                                                 ativo: expandido,
                                             })}
                                             onClick={() =>
-                                                toggleExpandirCliente(
-                                                    cliente.nome
-                                                )
+                                                toggleExpandirCliente(cliente.nome)
                                             }
                                             aria-label={
                                                 expandido
@@ -629,9 +632,7 @@ export default function ClientesSection({
                                                     : "Expandir cliente"
                                             }
                                             title={
-                                                expandido
-                                                    ? "Minimizar"
-                                                    : "Expandir"
+                                                expandido ? "Minimizar" : "Expandir"
                                             }
                                         >
                                             {expandido ? (
@@ -684,12 +685,8 @@ export default function ClientesSection({
                                         >
                                             <button
                                                 type="button"
-                                                style={botaoIcone({
-                                                    info: true,
-                                                })}
-                                                onClick={() =>
-                                                    editarCliente(cliente)
-                                                }
+                                                style={botaoIcone({ info: true })}
+                                                onClick={() => editarCliente(cliente)}
                                                 aria-label={`Editar ${cliente.nome}`}
                                                 title="Editar"
                                             >
@@ -698,13 +695,9 @@ export default function ClientesSection({
 
                                             <button
                                                 type="button"
-                                                style={botaoIcone({
-                                                    success: true,
-                                                })}
+                                                style={botaoIcone({ success: true })}
                                                 onClick={() =>
-                                                    compartilharCliente(
-                                                        cliente
-                                                    )
+                                                    compartilharCliente(cliente)
                                                 }
                                                 aria-label={`Compartilhar ${cliente.nome}`}
                                                 title="Compartilhar"
@@ -714,9 +707,7 @@ export default function ClientesSection({
 
                                             <button
                                                 type="button"
-                                                style={botaoIcone({
-                                                    danger: true,
-                                                })}
+                                                style={botaoIcone({ danger: true })}
                                                 onClick={() =>
                                                     excluirCliente(cliente.id)
                                                 }
@@ -733,8 +724,7 @@ export default function ClientesSection({
                                             style={{
                                                 marginTop: 11,
                                                 paddingTop: 11,
-                                                borderTop:
-                                                    "1px solid #eef2f7",
+                                                borderTop: `1px solid ${corBorda}`,
                                                 display: "grid",
                                                 gridTemplateColumns: isMobile
                                                     ? "1fr"
@@ -744,39 +734,26 @@ export default function ClientesSection({
                                         >
                                             {[
                                                 ["CPF", cliente.cpf],
-                                                [
-                                                    "Telefone",
-                                                    cliente.telefone,
-                                                ],
+                                                ["Telefone", cliente.telefone],
                                                 ["CEP", cliente.cep],
-                                                [
-                                                    "Endereço",
-                                                    cliente.endereco,
-                                                ],
+                                                ["Endereço", cliente.endereco],
                                                 ["Número", cliente.numero],
-                                                [
-                                                    "Complemento",
-                                                    cliente.complemento,
-                                                ],
+                                                ["Complemento", cliente.complemento],
                                             ].map(([label, value]) => (
                                                 <div
                                                     key={label}
                                                     style={{
-                                                        padding:
-                                                            isMobile
-                                                                ? "9px 10px"
-                                                                : "10px 11px",
+                                                        padding: isMobile
+                                                            ? "9px 10px"
+                                                            : "10px 11px",
                                                         borderRadius: 12,
-                                                        border:
-                                                            "1px solid #eef2f7",
-                                                        background:
-                                                            corFundoSuave,
+                                                        border: `1px solid ${corBorda}`,
+                                                        background: corFundoSuave,
                                                     }}
                                                 >
                                                     <div
                                                         style={{
-                                                            color:
-                                                                corSuave,
+                                                            color: corSuave,
                                                             fontSize: 11,
                                                             fontWeight: 800,
                                                             textTransform:
@@ -790,12 +767,10 @@ export default function ClientesSection({
 
                                                     <div
                                                         style={{
-                                                            color:
-                                                                corTexto,
-                                                            fontSize:
-                                                                isMobile
-                                                                    ? 12.5
-                                                                    : 13,
+                                                            color: corTexto,
+                                                            fontSize: isMobile
+                                                                ? 12.5
+                                                                : 13,
                                                             fontWeight: 700,
                                                             marginTop: 3,
                                                             wordBreak:

@@ -14,7 +14,9 @@ import {
     Users,
     XCircle,
 } from "lucide-react";
-import { formatarDataHoraBR } from "../../utils/dateUtils";
+import {
+  formatarDataHoraBR as formatarDataHoraBRPadrao,
+} from "../../utils/dateUtils";
 
 export default function VendasSection({
     boxGrande,
@@ -69,6 +71,7 @@ export default function VendasSection({
     cancelarVenda,
     passarVendaParaFila,
     formatarBRL,
+    formatarDataHoraBR = formatarDataHoraBRPadrao,
 }) {
     const [mostrarSugestoesCliente, setMostrarSugestoesCliente] = useState(false);
     const [indiceSugestaoClienteAtiva, setIndiceSugestaoClienteAtiva] = useState(-1);
@@ -290,30 +293,52 @@ export default function VendasSection({
         return `${partes[0]} ${partes[partes.length - 1]}`;
     }
 
+    // =====================================================
+    // TEMA GLOBAL DA EMPRESA
+    // =====================================================
+    const corPrincipal = "var(--kc-primary)";
+    const corSuaveTema = "var(--kc-soft)";
+    const corBorda = "var(--kc-border)";
+    const corTexto = "var(--kc-text)";
+    const corTextoSuave = "var(--kc-text-muted)";
+    const corPainel = "var(--kc-panel)";
+    const corFundo = "var(--kc-background)";
+
+    // Cores semânticas permanecem independentes da identidade visual.
+    const corPerigo = "#b91c1c";
+    const corPerigoFundo = "#fff1f2";
+    const corPerigoBorda = "rgba(185, 28, 28, 0.22)";
+    const corAviso = "#b45309";
+    const corAvisoFundo = "#fffbeb";
+    const corAvisoBorda = "rgba(180, 83, 9, 0.22)";
+    const corSucesso = "#15803d";
+    const corSucessoFundo = "#ecfdf5";
+    const corSucessoBorda = "rgba(21, 128, 61, 0.22)";
+
     const iconeBotao = ({ ativo = false, danger = false, warning = false, success = false, width = "auto" } = {}) => ({
         minHeight: isMobile ? 36 : 40,
         width,
         padding: isMobile ? "7px 10px" : "8px 12px",
         borderRadius: 12,
         border: ativo
-            ? "1px solid rgba(221, 83, 116, 0.35)"
+            ? `1px solid ${corPrincipal}`
             : danger
-                ? "1px solid rgba(185, 28, 28, 0.22)"
+                ? `1px solid ${corPerigoBorda}`
                 : warning
-                    ? "1px solid rgba(180, 83, 9, 0.22)"
+                    ? `1px solid ${corAvisoBorda}`
                     : success
-                        ? "1px solid rgba(21, 128, 61, 0.22)"
-                        : "1px solid #ead8df",
+                        ? `1px solid ${corSucessoBorda}`
+                        : `1px solid ${corBorda}`,
         background: ativo
-            ? "#f8dce6"
+            ? corSuaveTema
             : danger
-                ? "#fff1f2"
+                ? corPerigoFundo
                 : warning
-                    ? "#fffbeb"
+                    ? corAvisoFundo
                     : success
-                        ? "#ecfdf5"
-                        : "#fff",
-        color: danger ? "#b91c1c" : warning ? "#b45309" : success ? "#15803d" : "#8f2745",
+                        ? corSucessoFundo
+                        : corPainel,
+        color: danger ? corPerigo : warning ? corAviso : success ? corSucesso : corPrincipal,
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
@@ -322,7 +347,7 @@ export default function VendasSection({
         fontWeight: 800,
         fontSize: isMobile ? 11.5 : 13,
         lineHeight: 1,
-        boxShadow: "0 2px 8px rgba(143,39,69,0.05)",
+        boxShadow: "0 2px 8px rgba(15,23,42,0.05)",
         whiteSpace: "nowrap",
     });
 
@@ -331,19 +356,19 @@ export default function VendasSection({
         height: isMobile ? 38 : 40,
         borderRadius: 12,
         border: danger
-            ? "1px solid rgba(185, 28, 28, 0.22)"
+            ? `1px solid ${corPerigoBorda}`
             : warning
-                ? "1px solid rgba(180, 83, 9, 0.22)"
+                ? `1px solid ${corAvisoBorda}`
                 : success
-                    ? "1px solid rgba(21, 128, 61, 0.22)"
-                    : "1px solid #ead8df",
-        background: danger ? "#fff1f2" : warning ? "#fffbeb" : success ? "#ecfdf5" : "#fff",
-        color: danger ? "#b91c1c" : warning ? "#b45309" : success ? "#15803d" : "#8f2745",
+                    ? `1px solid ${corSucessoBorda}`
+                    : `1px solid ${corBorda}`,
+        background: danger ? corPerigoFundo : warning ? corAvisoFundo : success ? corSucessoFundo : corPainel,
+        color: danger ? corPerigo : warning ? corAviso : success ? corSucesso : corPrincipal,
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
         cursor: "pointer",
-        boxShadow: "0 2px 8px rgba(143,39,69,0.05)",
+        boxShadow: "0 2px 8px rgba(15,23,42,0.05)",
         flexShrink: 0,
     });
 
@@ -361,6 +386,9 @@ export default function VendasSection({
                 style={{
                     ...boxGrande,
                     padding: isMobile ? 14 : 20,
+                    background: corPainel,
+                    border: `1px solid ${corBorda}`,
+                    color: corTexto,
                 }}
             >
                 <div
@@ -374,6 +402,7 @@ export default function VendasSection({
                         style={{
                             ...tituloSecao,
                             margin: 0,
+                            color: corTexto,
                         }}
                     >
                         Gestão de vendas
@@ -382,7 +411,7 @@ export default function VendasSection({
                     <p
                         style={{
                             margin: 0,
-                            color: "#8d727b",
+                            color: corTextoSuave,
                             fontSize: isMobile ? 12 : 13,
                             lineHeight: 1.4,
                         }}
@@ -405,9 +434,9 @@ export default function VendasSection({
                             display: "grid",
                             gap: 12,
                             padding: isMobile ? 12 : 14,
-                            border: "1px solid #f1dce4",
+                            border: `1px solid ${corBorda}`,
                             borderRadius: 16,
-                            background: "#fffafb",
+                            background: corFundo,
                         }}
                     >
                         <div
@@ -430,14 +459,14 @@ export default function VendasSection({
                                     style={{
                                         fontSize: 12,
                                         fontWeight: 800,
-                                        color: "#64748b",
+                                        color: corTextoSuave,
                                     }}
                                 >
                                     Código da peça
                                 </span>
 
                                 <input
-                                    style={input}
+                                    style={{ ...input, background: corPainel, border: `1px solid ${corBorda}`, color: corTexto }}
                                     placeholder="Código da peça"
                                     value={vendaId}
                                     onChange={(e) => {
@@ -476,8 +505,8 @@ export default function VendasSection({
                                             left: 0,
                                             right: 0,
                                             zIndex: 30,
-                                            background: "#fff",
-                                            border: "1px solid #d1d5db",
+                                            background: corPainel,
+                                            border: `1px solid ${corBorda}`,
                                             borderRadius: 10,
                                             marginTop: 4,
                                             boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
@@ -500,15 +529,15 @@ export default function VendasSection({
                                                         textAlign: "left",
                                                         padding: "10px 12px",
                                                         border: "none",
-                                                        borderBottom: "1px solid #f1f5f9",
-                                                        background: ativo ? "#e2e8f0" : "#fff",
+                                                        borderBottom: `1px solid ${corBorda}`,
+                                                        background: ativo ? corSuaveTema : corPainel,
                                                         cursor: "pointer",
                                                     }}
                                                 >
                                                     <div style={{ fontWeight: "bold" }}>
                                                         {peca.id} • {peca.nome || "Sem nome"}
                                                     </div>
-                                                    <div style={{ fontSize: 13, color: "#64748b" }}>
+                                                    <div style={{ fontSize: 13, color: corTextoSuave }}>
                                                         {peca.venda || "Sem valor"} {peca.obs ? `• ${peca.obs}` : ""}
                                                     </div>
                                                 </button>
@@ -528,14 +557,14 @@ export default function VendasSection({
                                     style={{
                                         fontSize: 12,
                                         fontWeight: 800,
-                                        color: "#64748b",
+                                        color: corTextoSuave,
                                     }}
                                 >
                                     Valor com desconto
                                 </span>
 
                                 <input
-                                    style={input}
+                                    style={{ ...input, background: corPainel, border: `1px solid ${corBorda}`, color: corTexto }}
                                     placeholder="Opcional"
                                     value={valorDesconto}
                                     onChange={(e) => setValorDesconto(formatarValorDescontoInput(e.target.value))}
@@ -555,14 +584,14 @@ export default function VendasSection({
                                     style={{
                                         fontSize: 12,
                                         fontWeight: 800,
-                                        color: "#64748b",
+                                        color: corTextoSuave,
                                     }}
                                 >
                                     Cliente
                                 </span>
 
                                 <input
-                                    style={input}
+                                    style={{ ...input, background: corPainel, border: `1px solid ${corBorda}`, color: corTexto }}
                                     placeholder="Nome da cliente"
                                     value={cliente}
                                     onChange={(e) => {
@@ -603,8 +632,8 @@ export default function VendasSection({
                                             left: 0,
                                             right: 0,
                                             zIndex: 30,
-                                            background: "#fff",
-                                            border: "1px solid #d1d5db",
+                                            background: corPainel,
+                                            border: `1px solid ${corBorda}`,
                                             borderRadius: 10,
                                             marginTop: 4,
                                             boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
@@ -627,8 +656,8 @@ export default function VendasSection({
                                                         textAlign: "left",
                                                         padding: "10px 12px",
                                                         border: "none",
-                                                        borderBottom: "1px solid #f1f5f9",
-                                                        background: ativo ? "#e2e8f0" : "#fff",
+                                                        borderBottom: `1px solid ${corBorda}`,
+                                                        background: ativo ? corSuaveTema : corPainel,
                                                         cursor: "pointer",
                                                         fontSize: 15,
                                                         fontWeight: 600,
@@ -650,10 +679,7 @@ export default function VendasSection({
                                                             style={{
                                                                 fontSize: 11,
                                                                 fontWeight: 700,
-                                                                color:
-                                                                    clienteSugestao.origem === "cadastro"
-                                                                        ? "#64748b"
-                                                                        : "#94a3b8",
+                                                                color: corTextoSuave,
                                                             }}
                                                         >
                                                             {clienteSugestao.origem === "cadastro"
@@ -680,14 +706,14 @@ export default function VendasSection({
                                     style={{
                                         fontSize: 12,
                                         fontWeight: 800,
-                                        color: "#64748b",
+                                        color: corTextoSuave,
                                     }}
                                 >
                                     Fila de espera
                                 </span>
 
                                 <input
-                                    style={input}
+                                    style={{ ...input, background: corPainel, border: `1px solid ${corBorda}`, color: corTexto }}
                                     placeholder="Fila (opcional)"
                                     value={filaEspera}
                                     onChange={(e) => {
@@ -726,8 +752,8 @@ export default function VendasSection({
                                             left: 0,
                                             right: 0,
                                             zIndex: 30,
-                                            background: "#fff",
-                                            border: "1px solid #d1d5db",
+                                            background: corPainel,
+                                            border: `1px solid ${corBorda}`,
                                             borderRadius: 10,
                                             marginTop: 4,
                                             boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
@@ -750,8 +776,8 @@ export default function VendasSection({
                                                         textAlign: "left",
                                                         padding: "10px 12px",
                                                         border: "none",
-                                                        borderBottom: "1px solid #f1f5f9",
-                                                        background: ativo ? "#e2e8f0" : "#fff",
+                                                        borderBottom: `1px solid ${corBorda}`,
+                                                        background: ativo ? corSuaveTema : corPainel,
                                                         cursor: "pointer",
                                                         fontSize: 15,
                                                         fontWeight: 600,
@@ -801,9 +827,11 @@ export default function VendasSection({
                         style={{
                             ...previewBox,
                             minHeight: isMobile ? "auto" : undefined,
+                            border: `1px solid ${corBorda}`,
+                            color: corTexto,
                             padding: isMobile ? 14 : 16,
                             borderRadius: 16,
-                            background: "#fffafb",
+                            background: corFundo,
                         }}
                     >
                         <h3
@@ -824,13 +852,13 @@ export default function VendasSection({
                                         minHeight: isMobile ? 220 : 280,
                                         overflow: "hidden",
                                         borderRadius: 12,
-                                        border: "1px solid #ddd",
+                                        border: `1px solid ${corBorda}`,
                                         padding: 8,
-                                        background: "#fff",
+                                        background: corPainel,
                                         boxSizing: "border-box",
                                     }}
                                 />
-                                <p style={{ fontSize: 14, color: "#555", marginTop: 10 }}>
+                                <p style={{ fontSize: 14, color: corTextoSuave, marginTop: 10 }}>
                                     Aponte a câmera para o QR Code da peça.
                                 </p>
                             </div>
@@ -855,6 +883,9 @@ export default function VendasSection({
                 style={{
                     ...boxGrande,
                     padding: isMobile ? 14 : 20,
+                    background: corPainel,
+                    border: `1px solid ${corBorda}`,
+                    color: corTexto,
                 }}
             >
                 <div
@@ -869,6 +900,7 @@ export default function VendasSection({
                         style={{
                             ...tituloSecao,
                             margin: 0,
+                            color: corTexto,
                         }}
                     >
                         {liveEmVisualizacao
@@ -892,12 +924,12 @@ export default function VendasSection({
                                     left: 12,
                                     top: "50%",
                                     transform: "translateY(-50%)",
-                                    color: "#94a3b8",
+                                    color: corTextoSuave,
                                     pointerEvents: "none",
                                 }}
                             />
                             <input
-                                style={{ ...input, maxWidth: "100%", paddingLeft: 36 }}
+                                style={{ ...input, maxWidth: "100%", paddingLeft: 36, background: corPainel, border: `1px solid ${corBorda}`, color: corTexto }}
                                 placeholder="Buscar cliente"
                                 value={buscaCliente}
                                 onChange={(e) => setBuscaCliente(e.target.value)}
@@ -965,6 +997,9 @@ export default function VendasSection({
                                 style={{
                                     ...cardResumo,
                                     minWidth: 0,
+                                    background: corPainel,
+                                    border: `1px solid ${corBorda}`,
+                                    color: corTexto,
                                     padding: isMobile ? 13 : 15,
                                     borderRadius: 16,
                                     boxShadow: "none",
@@ -974,7 +1009,7 @@ export default function VendasSection({
                             >
                                 <span
                                     style={{
-                                        color: "#8d727b",
+                                        color: corTextoSuave,
                                         fontSize: 11,
                                         fontWeight: 800,
                                         textTransform: "uppercase",
@@ -988,6 +1023,7 @@ export default function VendasSection({
                                     style={{
                                         ...valorResumo,
                                         margin: 0,
+                                        color: corPrincipal,
                                         fontSize: isMobile ? 22 : 26,
                                         lineHeight: 1.1,
                                     }}
@@ -1022,6 +1058,9 @@ export default function VendasSection({
                                         style={{
                                             ...cardCliente,
                                             padding: isMobile ? 12 : 14,
+                                            background: corPainel,
+                                            border: `1px solid ${corBorda}`,
+                                            color: corTexto,
                                             borderRadius: 16,
                                             boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
                                         }}
@@ -1078,7 +1117,7 @@ export default function VendasSection({
                                                     >
                                                         {formatarNomeClienteVenda(c.nome)}
                                                     </strong>
-                                                    <span style={{ color: "#64748b", fontSize: 13 }}>
+                                                    <span style={{ color: corTextoSuave, fontSize: 13 }}>
                                                         {c.pecas} peça(s) • {formatarBRL(c.total)}
                                                     </span>
                                                 </div>
@@ -1159,8 +1198,10 @@ export default function VendasSection({
                                                         style={{
                                                             ...itemCliente,
                                                             padding: isMobile ? 10 : 12,
+                                                            border: `1px solid ${corBorda}`,
+                                                            color: corTexto,
                                                             borderRadius: 12,
-                                                            background: "#fffafb",
+                                                            background: corFundo,
                                                         }}
                                                     >
                                                         <div>

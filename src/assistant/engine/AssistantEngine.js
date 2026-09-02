@@ -37,7 +37,8 @@ class AssistantEngine {
   async executarSkill(
     skill,
     pergunta,
-    intent = null
+    intent = null,
+    opcoes = {}
   ) {
     return skillExecutor.executar({
       skill,
@@ -45,6 +46,8 @@ class AssistantEngine {
       contexto: {
         supabase,
         intent,
+        formatacao:
+          opcoes?.formatacao || {},
       },
     });
   }
@@ -58,6 +61,7 @@ class AssistantEngine {
       conversaId = "chat-principal",
       usuarioId = null,
       usarContexto = true,
+      formatacao = {},
     } = opcoes;
 
     let resultado;
@@ -70,6 +74,7 @@ class AssistantEngine {
           conversaId,
           usuarioId,
           usarContexto,
+          formatacao,
 
           metadados: {
             intent:
@@ -99,6 +104,7 @@ class AssistantEngine {
           plano,
           pergunta,
           supabase,
+          formatacao,
         });
     }
 
@@ -164,7 +170,8 @@ class AssistantEngine {
         return this.executarSkill(
           skillDireta,
           textoOriginal,
-          intent
+          intent,
+          opcoes
         );
       }
     }
@@ -178,7 +185,8 @@ class AssistantEngine {
       return this.executarSkill(
         skillPorAlias,
         textoOriginal,
-        intent
+        intent,
+        opcoes
       );
     }
 

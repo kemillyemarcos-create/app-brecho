@@ -19,21 +19,30 @@ import {
     Trash2,
     X,
 } from "lucide-react";
-import { formatarDataHoraBR } from "../../utils/dateUtils";
+
+import {
+    formatarDataHoraBR as formatarDataHoraBRPadrao,
+} from "../../utils/dateUtils";
 
 function parseDataFlex(valor) {
     if (!valor) return null;
 
     if (valor instanceof Date) {
-        return Number.isNaN(valor.getTime()) ? null : valor;
+        return Number.isNaN(valor.getTime())
+            ? null
+            : valor;
     }
 
     const texto = String(valor).trim();
+
     if (!texto) return null;
 
     if (texto.includes("T")) {
         const dataIso = new Date(texto);
-        return Number.isNaN(dataIso.getTime()) ? null : dataIso;
+
+        return Number.isNaN(dataIso.getTime())
+            ? null
+            : dataIso;
     }
 
     const matchBr = texto.match(
@@ -41,7 +50,15 @@ function parseDataFlex(valor) {
     );
 
     if (matchBr) {
-        const [, dia, mes, ano, hora = "00", minuto = "00", segundo = "00"] = matchBr;
+        const [
+            ,
+            dia,
+            mes,
+            ano,
+            hora = "00",
+            minuto = "00",
+            segundo = "00",
+        ] = matchBr;
 
         const dataBr = new Date(
             Number(ano),
@@ -52,11 +69,16 @@ function parseDataFlex(valor) {
             Number(segundo)
         );
 
-        return Number.isNaN(dataBr.getTime()) ? null : dataBr;
+        return Number.isNaN(dataBr.getTime())
+            ? null
+            : dataBr;
     }
 
     const dataDireta = new Date(texto);
-    return Number.isNaN(dataDireta.getTime()) ? null : dataDireta;
+
+    return Number.isNaN(dataDireta.getTime())
+        ? null
+        : dataDireta;
 }
 
 function getTimestampCadastro(peca) {
@@ -69,16 +91,27 @@ function getTimestampCadastro(peca) {
 }
 
 function getTimestampVenda(peca) {
-    const data = parseDataFlex(peca?.data_venda);
+    const data = parseDataFlex(
+        peca?.data_venda
+    );
+
     return data ? data.getTime() : 0;
 }
 
 function limparMoedaLocal(valor) {
-    if (valor === null || valor === undefined || valor === "") return 0;
+    if (
+        valor === null ||
+        valor === undefined ||
+        valor === ""
+    ) {
+        return 0;
+    }
 
     const texto = String(valor).trim();
 
-    if (typeof valor === "number") return valor;
+    if (typeof valor === "number") {
+        return valor;
+    }
 
     const numero = Number(
         texto
@@ -87,25 +120,40 @@ function limparMoedaLocal(valor) {
             .replace(",", ".")
     );
 
-    return Number.isFinite(numero) ? numero : 0;
+    return Number.isFinite(numero)
+        ? numero
+        : 0;
 }
 
 function inicioDoDia(valor) {
     if (!valor) return null;
 
-    const data = new Date(`${valor}T00:00:00`);
-    return Number.isNaN(data.getTime()) ? null : data;
+    const data = new Date(
+        `${valor}T00:00:00`
+    );
+
+    return Number.isNaN(data.getTime())
+        ? null
+        : data;
 }
 
 function fimDoDia(valor) {
     if (!valor) return null;
 
-    const data = new Date(`${valor}T23:59:59.999`);
-    return Number.isNaN(data.getTime()) ? null : data;
+    const data = new Date(
+        `${valor}T23:59:59.999`
+    );
+
+    return Number.isNaN(data.getTime())
+        ? null
+        : data;
 }
 
-function formatarDataLocal(valor) {
-    return formatarDataHoraBR(valor) || "-";
+function formatarDataLocal(
+    valor,
+    formatador = formatarDataHoraBRPadrao
+) {
+    return formatador(valor) || "-";
 }
 
 function IconButton({
@@ -118,9 +166,30 @@ function IconButton({
     compact = false,
     onClick,
 }) {
-    const background = danger ? "#fff1f2" : active ? "#fde7ee" : "#fff";
-    const color = danger ? "#b91c1c" : active ? "#e45c7d" : "#9b7582";
-    const border = danger ? "1px solid #fecdd3" : active ? "1px solid #f7c8d6" : "1px solid #f1dce4";
+    const corPrincipal = "var(--kc-primary)";
+    const corSuaveTema = "var(--kc-soft)";
+    const corPainel = "var(--kc-panel)";
+    const corTexto = "var(--kc-text)";
+    const corTextoSuave = "var(--kc-text-muted)";
+    const corBorda = "var(--kc-border)";
+
+    const background = danger
+        ? "#fff1f2"
+        : active
+            ? corSuaveTema
+            : corPainel;
+
+    const color = danger
+        ? "#b91c1c"
+        : active
+            ? corPrincipal
+            : corTextoSuave;
+
+    const border = danger
+        ? "1px solid #fecdd3"
+        : active
+            ? `1px solid ${corPrincipal}`
+            : `1px solid ${corBorda}`;
 
     return (
         <button
@@ -137,7 +206,7 @@ function IconButton({
                 borderRadius: compact ? 12 : 14,
                 border,
                 background,
-                color,
+                color: disabled ? corTextoSuave : color,
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -184,6 +253,7 @@ export default function EstoqueSection({
     salvandoEdicaoPeca,
     formatarMoeda,
     formatarBRL,
+    formatarDataHoraBR = formatarDataHoraBRPadrao,
     boxGrande,
     cabecalhoSecao,
     tituloSecao,
@@ -196,9 +266,27 @@ export default function EstoqueSection({
     cardPeca,
     textoItem,
 }) {
-    const isMobile = typeof window !== "undefined" ? window.innerWidth <= 767 : false;
+    const isMobile =
+        typeof window !== "undefined" ? window.innerWidth <= 767 : false;
 
-    const [mostrarFiltrosAvancados, setMostrarFiltrosAvancados] = useState(false);
+    // =====================================================
+    // TEMA GLOBAL
+    // =====================================================
+
+    const corPrincipal = "var(--kc-primary)";
+    const corSuaveTema = "var(--kc-soft)";
+    const corFundo = "var(--kc-background)";
+    const corPainel = "var(--kc-panel)";
+    const corTexto = "var(--kc-text)";
+    const corTextoSuave = "var(--kc-text-muted)";
+    const corBorda = "var(--kc-border)";
+
+    // Cores semânticas
+    const corSucesso = "#15803d";
+    const corPerigo = "#b91c1c";
+
+    const [mostrarFiltrosAvancados, setMostrarFiltrosAvancados] =
+        useState(false);
     const [ordenacao, setOrdenacao] = useState("cadastro_desc");
     const [tipoData, setTipoData] = useState("cadastro");
     const [dataInicialLocal, setDataInicialLocal] = useState("");
@@ -323,7 +411,7 @@ export default function EstoqueSection({
         margin: 0,
         fontSize: isMobile ? 11.5 : 14,
         lineHeight: isMobile ? 1.18 : 1.35,
-        color: "#475569",
+        color: corTextoSuave,
     };
 
     const tituloPecaStyle = {
@@ -332,7 +420,7 @@ export default function EstoqueSection({
         marginBottom: isMobile ? 4 : 8,
         lineHeight: 1.12,
         wordBreak: "break-word",
-        color: "#111827",
+        color: corTexto,
     };
 
     const estiloInputBusca = {
@@ -344,6 +432,9 @@ export default function EstoqueSection({
         padding: isMobile ? "8px 12px" : input.padding,
         fontSize: isMobile ? 13 : undefined,
         borderRadius: isMobile ? 12 : input.borderRadius,
+        border: `1px solid ${corBorda}`,
+        background: corPainel,
+        color: corTexto,
     };
 
     const estiloInputModal = {
@@ -354,6 +445,9 @@ export default function EstoqueSection({
         padding: "8px 12px",
         fontSize: 14,
         borderRadius: 12,
+        border: `1px solid ${corBorda}`,
+        background: corPainel,
+        color: corTexto,
     };
 
     return (
@@ -361,6 +455,9 @@ export default function EstoqueSection({
             style={{
                 ...boxGrande,
                 padding: isMobile ? 10 : 12,
+                background: corPainel,
+                border: `1px solid ${corBorda}`,
+                color: corTexto,
             }}
         >
             <div
@@ -376,6 +473,7 @@ export default function EstoqueSection({
                         style={{
                             ...tituloSecao,
                             marginBottom: 5,
+                            color: corTexto,
                         }}
                     >
                         Gestão de estoque
@@ -384,7 +482,7 @@ export default function EstoqueSection({
                     <p
                         style={{
                             margin: 0,
-                            color: "#8d727b",
+                            color: corTextoSuave,
                             fontSize: isMobile ? 12 : 13,
                             lineHeight: 1.4,
                         }}
@@ -405,18 +503,9 @@ export default function EstoqueSection({
                     }}
                 >
                     {[
-                        {
-                            label: "Total de peças",
-                            value: totalPecas,
-                        },
-                        {
-                            label: "Disponíveis",
-                            value: totalDisponiveis,
-                        },
-                        {
-                            label: "Vendidas",
-                            value: totalVendidas,
-                        },
+                        { label: "Total de peças", value: totalPecas },
+                        { label: "Disponíveis", value: totalDisponiveis },
+                        { label: "Vendidas", value: totalVendidas },
                     ].map((resumo) => (
                         <div
                             key={resumo.label}
@@ -428,11 +517,14 @@ export default function EstoqueSection({
                                 boxShadow: "none",
                                 display: "grid",
                                 gap: 4,
+                                background: corPainel,
+                                border: `1px solid ${corBorda}`,
+                                color: corTexto,
                             }}
                         >
                             <span
                                 style={{
-                                    color: "#8d727b",
+                                    color: corTextoSuave,
                                     fontSize: 11,
                                     fontWeight: 800,
                                     textTransform: "uppercase",
@@ -448,6 +540,7 @@ export default function EstoqueSection({
                                     margin: 0,
                                     fontSize: isMobile ? 24 : 28,
                                     lineHeight: 1,
+                                    color: corPrincipal,
                                 }}
                             >
                                 {resumo.value}
@@ -505,7 +598,6 @@ export default function EstoqueSection({
                             : "minmax(250px, 330px) auto auto",
                         gap: 8,
                         alignItems: "center",
-                        marginTop: 0,
                     }}
                 >
                     <div
@@ -516,7 +608,7 @@ export default function EstoqueSection({
                             alignItems: "center",
                         }}
                     >
-                        <ArrowUpDown size={17} color="#9b7582" />
+                        <ArrowUpDown size={17} color={corTextoSuave} />
 
                         <select
                             style={{
@@ -558,7 +650,10 @@ export default function EstoqueSection({
                     <IconButton
                         icon={Eraser}
                         label="Limpar filtros"
-                        disabled={!filtrosAvancadosAtivos && ordenacao === "cadastro_desc"}
+                        disabled={
+                            !filtrosAvancadosAtivos &&
+                            ordenacao === "cadastro_desc"
+                        }
                         onClick={limparFiltrosAvancados}
                     />
                 </div>
@@ -568,9 +663,9 @@ export default function EstoqueSection({
                         style={{
                             marginTop: 8,
                             padding: isMobile ? 12 : 16,
-                            border: "1px solid #f1dce4",
+                            border: `1px solid ${corBorda}`,
                             borderRadius: 16,
-                            background: "#fffafb",
+                            background: corFundo,
                             display: "grid",
                             gap: 14,
                         }}
@@ -580,7 +675,7 @@ export default function EstoqueSection({
                                 display: "flex",
                                 alignItems: "center",
                                 gap: 8,
-                                color: "#8f2745",
+                                color: corPrincipal,
                                 fontWeight: 900,
                             }}
                         >
@@ -605,7 +700,7 @@ export default function EstoqueSection({
                                         gap: 6,
                                         fontSize: 12,
                                         fontWeight: 800,
-                                        color: "#64748b",
+                                        color: corTextoSuave,
                                     }}
                                 >
                                     <CalendarDays size={15} />
@@ -631,7 +726,7 @@ export default function EstoqueSection({
                                     style={{
                                         fontSize: 12,
                                         fontWeight: 800,
-                                        color: "#64748b",
+                                        color: corTextoSuave,
                                     }}
                                 >
                                     Data inicial
@@ -642,7 +737,9 @@ export default function EstoqueSection({
                                     style={estiloInputBusca}
                                     value={dataInicialLocal}
                                     max={dataFinalLocal || undefined}
-                                    onChange={(e) => setDataInicialLocal(e.target.value)}
+                                    onChange={(e) =>
+                                        setDataInicialLocal(e.target.value)
+                                    }
                                 />
                             </label>
 
@@ -651,7 +748,7 @@ export default function EstoqueSection({
                                     style={{
                                         fontSize: 12,
                                         fontWeight: 800,
-                                        color: "#64748b",
+                                        color: corTextoSuave,
                                     }}
                                 >
                                     Data final
@@ -662,7 +759,9 @@ export default function EstoqueSection({
                                     style={estiloInputBusca}
                                     value={dataFinalLocal}
                                     min={dataInicialLocal || undefined}
-                                    onChange={(e) => setDataFinalLocal(e.target.value)}
+                                    onChange={(e) =>
+                                        setDataFinalLocal(e.target.value)
+                                    }
                                 />
                             </label>
                         </div>
@@ -684,7 +783,7 @@ export default function EstoqueSection({
                                         gap: 6,
                                         fontSize: 12,
                                         fontWeight: 800,
-                                        color: "#64748b",
+                                        color: corTextoSuave,
                                     }}
                                 >
                                     <StickyNote size={15} />
@@ -703,8 +802,12 @@ export default function EstoqueSection({
                                     }
                                 >
                                     <option value="todas">Todas</option>
-                                    <option value="com">Somente com observação</option>
-                                    <option value="sem">Somente sem observação</option>
+                                    <option value="com">
+                                        Somente com observação
+                                    </option>
+                                    <option value="sem">
+                                        Somente sem observação
+                                    </option>
                                 </select>
                             </label>
 
@@ -716,7 +819,7 @@ export default function EstoqueSection({
                                         gap: 6,
                                         fontSize: 12,
                                         fontWeight: 800,
-                                        color: "#64748b",
+                                        color: corTextoSuave,
                                     }}
                                 >
                                     <Image size={15} />
@@ -730,7 +833,9 @@ export default function EstoqueSection({
                                         textTransform: "none",
                                     }}
                                     value={filtroFoto}
-                                    onChange={(e) => setFiltroFoto(e.target.value)}
+                                    onChange={(e) =>
+                                        setFiltroFoto(e.target.value)
+                                    }
                                 >
                                     <option value="todas">Todas</option>
                                     <option value="com">Somente com foto</option>
@@ -748,7 +853,12 @@ export default function EstoqueSection({
                                 flexWrap: "wrap",
                             }}
                         >
-                            <span style={{ color: "#64748b", fontSize: 13 }}>
+                            <span
+                                style={{
+                                    color: corTextoSuave,
+                                    fontSize: 13,
+                                }}
+                            >
                                 {pecasOrdenadas.length} peça(s) encontrada(s)
                             </span>
 
@@ -774,9 +884,9 @@ export default function EstoqueSection({
                     gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
                     gap: 8,
                     alignItems: "stretch",
-                    border: "1px solid #f1dce4",
+                    border: `1px solid ${corBorda}`,
                     borderRadius: 14,
-                    background: "#fffafb",
+                    background: corFundo,
                 }}
             >
                 <IconButton
@@ -796,12 +906,16 @@ export default function EstoqueSection({
                     icon={Printer}
                     label={isMobile ? "Imprimir" : "Imprimir selecionadas"}
                     active
-                    onClick={() => imprimirEtiquetasSelecionadas(pecasOrdenadas)}
+                    onClick={() =>
+                        imprimirEtiquetasSelecionadas(pecasOrdenadas)
+                    }
                 />
             </div>
 
             {pecasOrdenadas.length === 0 ? (
-                <p>Nenhuma peça encontrada.</p>
+                <p style={{ color: corTextoSuave }}>
+                    Nenhuma peça encontrada.
+                </p>
             ) : (
                 <div
                     style={{
@@ -810,16 +924,34 @@ export default function EstoqueSection({
                     }}
                 >
                     {pecasOrdenadas.map((p, index) => {
-                        const codigo = String(p?.id || `sem-codigo-${index}`);
+                        const codigo = String(
+                            p?.id || `sem-codigo-${index}`
+                        );
                         const nome = p?.nome || "Sem nome";
-                        const custo = p?.custo ? p.custo : formatarBRL(0);
-                        const venda = p?.venda ? p.venda : formatarBRL(0);
+                        const custo = p?.custo
+                            ? p.custo
+                            : formatarBRL(0);
+                        const venda = p?.venda
+                            ? p.venda
+                            : formatarBRL(0);
                         const obs = p?.obs || "-";
-                        const cadastro = formatarDataLocal(p?.data_cadastro || p?.criado_em || p?.created_at);
+                        const cadastro = formatarDataLocal(
+                            p?.data_cadastro ||
+                            p?.criado_em ||
+                            p?.created_at,
+                            formatarDataHoraBR
+                        );
+
                         const clienteNome = p?.cliente || "";
                         const vendido = !!p?.vendido;
-                        const dataVenda = formatarDataLocal(p?.data_venda);
-                        const etiquetaSelecionada = etiquetasSelecionadas.includes(codigo);
+
+                        const dataVenda = formatarDataLocal(
+                            p?.data_venda,
+                            formatarDataHoraBR
+                        );
+
+                        const etiquetaSelecionada =
+                            etiquetasSelecionadas.includes(codigo);
 
                         return (
                             <div
@@ -831,13 +963,19 @@ export default function EstoqueSection({
                                     alignContent: "start",
                                     padding: isMobile ? 9 : 11,
                                     borderRadius: isMobile ? 13 : 15,
-                                    boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
+                                    boxShadow:
+                                        "0 4px 14px rgba(15, 23, 42, 0.04)",
+                                    background: corPainel,
+                                    border: `1px solid ${corBorda}`,
+                                    color: corTexto,
                                 }}
                             >
                                 <div
                                     style={{
                                         display: "grid",
-                                        gridTemplateColumns: isMobile ? "28px 1fr" : "44px 1fr",
+                                        gridTemplateColumns: isMobile
+                                            ? "28px 1fr"
+                                            : "44px 1fr",
                                         gap: isMobile ? 8 : 12,
                                         alignItems: "start",
                                     }}
@@ -853,16 +991,21 @@ export default function EstoqueSection({
                                     >
                                         <button
                                             type="button"
-                                            onClick={() => toggleEtiqueta(codigo)}
+                                            onClick={() =>
+                                                toggleEtiqueta(codigo)
+                                            }
                                             aria-label={`Selecionar etiqueta da peça ${nome}`}
                                             style={{
                                                 width: isMobile ? 24 : 28,
                                                 height: isMobile ? 24 : 28,
                                                 borderRadius: isMobile ? 9 : 8,
                                                 border: etiquetaSelecionada
-                                                    ? "1.5px solid #e45c7d"
-                                                    : "1.5px solid #e7cbd5",
-                                                background: etiquetaSelecionada ? "#e45c7d" : "#fff",
+                                                    ? `1.5px solid ${corPrincipal}`
+                                                    : `1.5px solid ${corBorda}`,
+                                                background:
+                                                    etiquetaSelecionada
+                                                        ? corPrincipal
+                                                        : corPainel,
                                                 display: "flex",
                                                 alignItems: "center",
                                                 justifyContent: "center",
@@ -870,8 +1013,11 @@ export default function EstoqueSection({
                                                 fontSize: isMobile ? 11 : 12,
                                                 cursor: "pointer",
                                                 padding: 0,
-                                                color: "#fff",
-                                                boxShadow: "0 2px 8px rgba(15, 23, 42, 0.04)",
+                                                color: etiquetaSelecionada
+                                                    ? "#fff"
+                                                    : corTexto,
+                                                boxShadow:
+                                                    "0 2px 8px rgba(15, 23, 42, 0.04)",
                                             }}
                                         >
                                             {etiquetaSelecionada ? "✓" : ""}
@@ -881,11 +1027,11 @@ export default function EstoqueSection({
                                             <span
                                                 style={{
                                                     fontSize: 10,
-                                                    color: "#64748b",
+                                                    color: corTextoSuave,
                                                     textAlign: "center",
                                                     lineHeight: 1,
                                                     maxWidth: 44,
-                                                    opacity: 0.6,
+                                                    opacity: 0.7,
                                                 }}
                                             >
                                                 Etiq.
@@ -894,23 +1040,33 @@ export default function EstoqueSection({
                                     </div>
 
                                     <div style={{ minWidth: 0 }}>
-                                        <strong style={tituloPecaStyle}>{nome}</strong>
+                                        <strong style={tituloPecaStyle}>
+                                            {nome}
+                                        </strong>
 
                                         <div
                                             style={{
                                                 display: "grid",
-                                                gridTemplateColumns: isMobile ? "1fr" : "1fr auto",
+                                                gridTemplateColumns: isMobile
+                                                    ? "1fr"
+                                                    : "1fr auto",
                                                 gap: isMobile ? 4 : 12,
                                                 alignItems: "start",
                                             }}
                                         >
-                                            <div style={{ display: "grid", gap: isMobile ? 3 : 4 }}>
+                                            <div
+                                                style={{
+                                                    display: "grid",
+                                                    gap: isMobile ? 3 : 4,
+                                                }}
+                                            >
                                                 <div
                                                     style={{
                                                         display: "grid",
-                                                        gridTemplateColumns: isMobile
-                                                            ? "1fr"
-                                                            : "repeat(2, minmax(0, 1fr))",
+                                                        gridTemplateColumns:
+                                                            isMobile
+                                                                ? "1fr"
+                                                                : "repeat(2, minmax(0, 1fr))",
                                                         gap: isMobile
                                                             ? 3
                                                             : "4px 12px",
@@ -938,8 +1094,8 @@ export default function EstoqueSection({
                                                     <strong
                                                         style={{
                                                             color: vendido
-                                                                ? "#15803d"
-                                                                : "#334155",
+                                                                ? corSucesso
+                                                                : corTexto,
                                                         }}
                                                     >
                                                         {vendido
@@ -950,7 +1106,8 @@ export default function EstoqueSection({
 
                                                 {vendido ? (
                                                     <p style={textoCompacto}>
-                                                        Data da venda: {dataVenda}
+                                                        Data da venda:{" "}
+                                                        {dataVenda}
                                                     </p>
                                                 ) : null}
 
@@ -959,7 +1116,7 @@ export default function EstoqueSection({
                                                         style={{
                                                             ...textoCompacto,
                                                             paddingTop: 4,
-                                                            borderTop: "1px solid #f1f5f9",
+                                                            borderTop: `1px solid ${corBorda}`,
                                                         }}
                                                     >
                                                         Obs.: {obs}
@@ -969,15 +1126,25 @@ export default function EstoqueSection({
 
                                             <div
                                                 style={{
-                                                    border: "1px solid #e5e7eb",
-                                                    borderRadius: isMobile ? 10 : 12,
+                                                    border: `1px solid ${corBorda}`,
+                                                    borderRadius: isMobile
+                                                        ? 10
+                                                        : 12,
                                                     padding: isMobile ? 5 : 8,
+
+                                                    // QR precisa permanecer branco
+                                                    // para garantir contraste de leitura.
                                                     background: "#fff",
+
                                                     display: "flex",
                                                     justifyContent: "center",
                                                     alignItems: "center",
-                                                    minHeight: isMobile ? 58 : 82,
-                                                    minWidth: isMobile ? "100%" : 82,
+                                                    minHeight: isMobile
+                                                        ? 58
+                                                        : 82,
+                                                    minWidth: isMobile
+                                                        ? "100%"
+                                                        : 82,
                                                     marginTop: isMobile ? 2 : 0,
                                                 }}
                                             >
@@ -1003,15 +1170,18 @@ export default function EstoqueSection({
                                         title="Imprimir etiqueta"
                                         compact
                                         onClick={() =>
-                                            abrirPreview(PREVIEW_TIPO.ETIQUETAS, [
-                                                {
-                                                    ...p,
-                                                    id: codigo,
-                                                    nome,
-                                                    venda,
-                                                    obs,
-                                                },
-                                            ])
+                                            abrirPreview(
+                                                PREVIEW_TIPO.ETIQUETAS,
+                                                [
+                                                    {
+                                                        ...p,
+                                                        id: codigo,
+                                                        nome,
+                                                        venda,
+                                                        obs,
+                                                    },
+                                                ]
+                                            )
                                         }
                                     />
 
@@ -1028,7 +1198,9 @@ export default function EstoqueSection({
                                             icon={RotateCcw}
                                             title="Cancelar venda"
                                             compact
-                                            onClick={() => cancelarVenda(codigo)}
+                                            onClick={() =>
+                                                cancelarVenda(codigo)
+                                            }
                                         />
                                     ) : null}
 
@@ -1064,10 +1236,13 @@ export default function EstoqueSection({
                             width: "min(560px, 96vw)",
                             maxHeight: "90vh",
                             overflow: "auto",
-                            background: "#fff",
+                            background: corPainel,
+                            color: corTexto,
+                            border: `1px solid ${corBorda}`,
                             borderRadius: 18,
                             padding: isMobile ? 14 : 16,
-                            boxShadow: "0 24px 60px rgba(15, 23, 42, 0.28)",
+                            boxShadow:
+                                "0 24px 60px rgba(15, 23, 42, 0.28)",
                             display: "grid",
                             gap: 12,
                         }}
@@ -1081,10 +1256,22 @@ export default function EstoqueSection({
                             }}
                         >
                             <div>
-                                <strong style={{ fontSize: 18, color: "#111827" }}>
+                                <strong
+                                    style={{
+                                        fontSize: 18,
+                                        color: corTexto,
+                                    }}
+                                >
                                     Editar peça
                                 </strong>
-                                <div style={{ fontSize: 12, color: "#64748b", marginTop: 3 }}>
+
+                                <div
+                                    style={{
+                                        fontSize: 12,
+                                        color: corTextoSuave,
+                                        marginTop: 3,
+                                    }}
+                                >
                                     Código: {pecaEditando.id}
                                 </div>
                             </div>
@@ -1102,7 +1289,10 @@ export default function EstoqueSection({
                             placeholder="Nome da peça"
                             value={formEdicaoPeca.nome}
                             onChange={(e) =>
-                                setFormEdicaoPeca((prev) => ({ ...prev, nome: e.target.value }))
+                                setFormEdicaoPeca((prev) => ({
+                                    ...prev,
+                                    nome: e.target.value,
+                                }))
                             }
                         />
 
@@ -1113,7 +1303,9 @@ export default function EstoqueSection({
                             onChange={(e) =>
                                 setFormEdicaoPeca((prev) => ({
                                     ...prev,
-                                    custo: formatarMoeda ? formatarMoeda(e.target.value) : e.target.value,
+                                    custo: formatarMoeda
+                                        ? formatarMoeda(e.target.value)
+                                        : e.target.value,
                                 }))
                             }
                         />
@@ -1125,7 +1317,9 @@ export default function EstoqueSection({
                             onChange={(e) =>
                                 setFormEdicaoPeca((prev) => ({
                                     ...prev,
-                                    venda: formatarMoeda ? formatarMoeda(e.target.value) : e.target.value,
+                                    venda: formatarMoeda
+                                        ? formatarMoeda(e.target.value)
+                                        : e.target.value,
                                 }))
                             }
                         />
@@ -1141,7 +1335,10 @@ export default function EstoqueSection({
                             placeholder="Observações"
                             value={formEdicaoPeca.obs}
                             onChange={(e) =>
-                                setFormEdicaoPeca((prev) => ({ ...prev, obs: e.target.value }))
+                                setFormEdicaoPeca((prev) => ({
+                                    ...prev,
+                                    obs: e.target.value,
+                                }))
                             }
                         />
 
@@ -1150,21 +1347,30 @@ export default function EstoqueSection({
                             placeholder="Foto / URL / Base64 (opcional)"
                             value={formEdicaoPeca.foto || ""}
                             onChange={(e) =>
-                                setFormEdicaoPeca((prev) => ({ ...prev, foto: e.target.value }))
+                                setFormEdicaoPeca((prev) => ({
+                                    ...prev,
+                                    foto: e.target.value,
+                                }))
                             }
                         />
 
                         <div
                             style={{
                                 display: "grid",
-                                gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                                gridTemplateColumns: isMobile
+                                    ? "1fr"
+                                    : "1fr 1fr",
                                 gap: 8,
                                 marginTop: 4,
                             }}
                         >
                             <IconButton
                                 icon={Save}
-                                label={salvandoEdicaoPeca ? "Salvando..." : "Salvar alterações"}
+                                label={
+                                    salvandoEdicaoPeca
+                                        ? "Salvando..."
+                                        : "Salvar alterações"
+                                }
                                 active
                                 disabled={salvandoEdicaoPeca}
                                 onClick={salvarEdicaoPeca}

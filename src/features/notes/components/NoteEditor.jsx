@@ -220,7 +220,7 @@ export default function NoteEditor({
             bottom: 0 !important;
             margin: 0 -14px -14px !important;
             padding: 12px 14px !important;
-            background: rgba(255,255,255,0.98) !important;
+            background: var(--kc-panel, #ffffff) !important;
             backdrop-filter: blur(10px);
           }
 
@@ -436,8 +436,8 @@ const styles = {
     maxHeight: "94vh",
     overflowY: "auto",
     borderRadius: 20,
-    background: "#fff",
-    border: "1px solid #eef2f7",
+    background: "var(--kc-panel, #fff)",
+    border: "1px solid var(--kc-border, #eef2f7)",
     boxShadow: "0 28px 80px rgba(15, 23, 42, 0.28)",
   },
 
@@ -461,7 +461,7 @@ const styles = {
     fontSize: 11,
     textTransform: "uppercase",
     letterSpacing: "0.08em",
-    color: "#8f2745",
+    color: "var(--kc-primary, #8f2745)",
     fontWeight: 800,
   },
 
@@ -469,7 +469,7 @@ const styles = {
     margin: "3px 0 0",
     fontSize: 24,
     lineHeight: 1.2,
-    color: "#243746",
+    color: "var(--kc-text, #243746)",
     overflowWrap: "anywhere",
   },
 
@@ -477,10 +477,10 @@ const styles = {
     flexShrink: 0,
     width: 38,
     height: 38,
-    border: "1px solid #e2e8f0",
+    border: "1px solid var(--kc-border, #e2e8f0)",
     borderRadius: 12,
-    background: "#fff",
-    color: "#243746",
+    background: "var(--kc-panel, #fff)",
+    color: "var(--kc-text, #243746)",
     cursor: "pointer",
     fontSize: 24,
     lineHeight: 1,
@@ -503,20 +503,20 @@ const styles = {
   label: {
     fontSize: 12.5,
     fontWeight: 800,
-    color: "#243746",
+    color: "var(--kc-text, #243746)",
   },
 
   input: {
     width: "100%",
     minWidth: 0,
     minHeight: 42,
-    border: "1px solid #dfe6ee",
+    border: "1px solid var(--kc-border, #dfe6ee)",
     borderRadius: 12,
     padding: "9px 12px",
     fontSize: 14,
-    color: "#243746",
+    color: "var(--kc-text, #243746)",
     boxSizing: "border-box",
-    background: "#fff",
+    background: "var(--kc-panel, #fff)",
     outline: "none",
   },
 
@@ -530,7 +530,7 @@ const styles = {
 
   counter: {
     fontSize: 11.5,
-    color: "#94a3b8",
+    color: "var(--kc-text-muted, #94a3b8)",
     fontWeight: 600,
   },
 
@@ -539,14 +539,14 @@ const styles = {
     minHeight: 320,
     height: "clamp(320px, 43vh, 460px)",
     resize: "vertical",
-    border: "1px solid #dfe6ee",
+    border: "1px solid var(--kc-border, #dfe6ee)",
     borderRadius: 14,
     padding: "14px 15px",
     fontSize: 15,
     lineHeight: 1.55,
-    color: "#243746",
+    color: "var(--kc-text, #243746)",
     boxSizing: "border-box",
-    background: "#fff",
+    background: "var(--kc-panel, #fff)",
     outline: "none",
   },
 
@@ -562,21 +562,21 @@ const styles = {
     alignItems: "center",
     gap: 8,
     fontSize: 13.5,
-    color: "#475569",
+    color: "var(--kc-text-muted, #475569)",
     cursor: "pointer",
   },
 
   checkbox: {
     width: 17,
     height: 17,
-    accentColor: "#8f2745",
+    accentColor: "var(--kc-primary, #8f2745)",
   },
 
   itemsSection: {
     display: "flex",
     flexDirection: "column",
     gap: 9,
-    borderTop: "1px solid #eef2f7",
+    borderTop: "1px solid var(--kc-border, #eef2f7)",
     paddingTop: 13,
   },
 
@@ -592,15 +592,15 @@ const styles = {
     margin: "3px 0 0",
     fontSize: 12,
     lineHeight: 1.4,
-    color: "#64748b",
+    color: "var(--kc-text-muted, #64748b)",
   },
 
   secondaryButton: {
     minHeight: 40,
-    border: "1px solid #ead1da",
+    border: "1px solid var(--kc-border, #ead1da)",
     borderRadius: 12,
-    background: "#fff",
-    color: "#8f2745",
+    background: "var(--kc-panel, #fff)",
+    color: "var(--kc-primary, #8f2745)",
     padding: "8px 12px",
     cursor: "pointer",
     whiteSpace: "nowrap",
@@ -622,16 +622,16 @@ const styles = {
     flexWrap: "wrap",
     justifyContent: "flex-end",
     gap: 10,
-    borderTop: "1px solid #eef2f7",
+    borderTop: "1px solid var(--kc-border, #eef2f7)",
     paddingTop: 14,
   },
 
   cancelButton: {
     minHeight: 42,
-    border: "1px solid #dfe6ee",
+    border: "1px solid var(--kc-border, #dfe6ee)",
     borderRadius: 12,
-    background: "#fff",
-    color: "#243746",
+    background: "var(--kc-panel, #fff)",
+    color: "var(--kc-text, #243746)",
     padding: "9px 16px",
     cursor: "pointer",
     fontWeight: 800,
@@ -641,12 +641,12 @@ const styles = {
     minHeight: 42,
     border: "1px solid #8f2745",
     borderRadius: 12,
-    background: "#8f2745",
-    color: "#fff",
+    background: "var(--kc-primary, #8f2745)",
+    color: "var(--kc-panel, #fff)",
     padding: "9px 18px",
     cursor: "pointer",
     fontWeight: 800,
-    boxShadow: "0 8px 18px rgba(143,39,69,0.18)",
+    boxShadow: "0 8px 18px rgba(15,23,42,0.14)",
   },
 
   disabledButton: {

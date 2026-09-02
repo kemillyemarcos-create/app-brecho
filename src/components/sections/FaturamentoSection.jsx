@@ -26,7 +26,7 @@ function getDataDiasAtrasIso(dias) {
   return formatarDataParaInput(data);
 }
 
-function IconeCard({ children, background = "#f8fafc", color = "#8f2745" }) {
+function IconeCard({ children, background = "var(--kc-background)", color = "var(--kc-primary)" }) {
   return (
     <div
       style={{
@@ -38,7 +38,7 @@ function IconeCard({ children, background = "#f8fafc", color = "#8f2745" }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        border: "1px solid #e2e8f0",
+        border: "1px solid var(--kc-border)",
         flexShrink: 0,
       }}
     >
@@ -47,7 +47,7 @@ function IconeCard({ children, background = "#f8fafc", color = "#8f2745" }) {
   );
 }
 
-function BotaoIcone({ icon, children, onClick, ativo = false, background = "#fff", color = "#334155", disabled = false }) {
+function BotaoIcone({ icon, children, onClick, ativo = false, background = "var(--kc-panel)", color = "var(--kc-text)", disabled = false }) {
   return (
     <button
       type="button"
@@ -57,9 +57,9 @@ function BotaoIcone({ icon, children, onClick, ativo = false, background = "#fff
         minHeight: 40,
         padding: "9px 13px",
         borderRadius: 14,
-        border: ativo ? "1px solid #8f2745" : "1px solid #e2e8f0",
-        background: ativo ? "#fff5f8" : background,
-        color: ativo ? "#8f2745" : color,
+        border: ativo ? "1px solid var(--kc-primary)" : "1px solid var(--kc-border)",
+        background: ativo ? "var(--kc-soft)" : background,
+        color: ativo ? "var(--kc-primary)" : color,
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.65 : 1,
         display: "inline-flex",
@@ -81,20 +81,20 @@ function BotaoIcone({ icon, children, onClick, ativo = false, background = "#fff
 function CardResumoFaturamento({ icon, label, value, helper, destaque = false }) {
   return (
     <div style={{
-      border:"1px solid #eef2f7",
+      border:"1px solid var(--kc-border)",
       borderRadius:18,
-      background:"#fff",
+      background:"var(--kc-panel)",
       padding:12,
       display:"grid",
       gap:6,
       boxShadow:"0 2px 10px rgba(15,23,42,.04)"
     }}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
-        <strong style={{fontSize:26,fontWeight:900,color:destaque?"#8f2745":"#243746",lineHeight:1}}>{value}</strong>
+        <strong style={{fontSize:26,fontWeight:900,color:destaque?"var(--kc-primary)":"var(--kc-text)",lineHeight:1}}>{value}</strong>
         {icon}
       </div>
-      <span style={{fontSize:12.5,fontWeight:800,color:"#64748b"}}>{label}</span>
-      {helper ? <span style={{fontSize:11.5,color:"#94a3b8"}}>{helper}</span>:null}
+      <span style={{fontSize:12.5,fontWeight:800,color:"var(--kc-text-muted)"}}>{label}</span>
+      {helper ? <span style={{fontSize:11.5,color:"var(--kc-text-muted)"}}>{helper}</span>:null}
     </div>
   );
 }
@@ -116,6 +116,14 @@ export default function FaturamentoSection({
   ticketMedioFiltrado,
   formatarBRL,
 }) {
+  const corPrincipal = "var(--kc-primary)";
+  const corSuaveTema = "var(--kc-soft)";
+  const corFundo = "var(--kc-background)";
+  const corPainel = "var(--kc-panel)";
+  const corTexto = "var(--kc-text)";
+  const corTextoSuave = "var(--kc-text-muted)";
+  const corBorda = "var(--kc-border)";
+
   const margemLucro = faturamentoFiltrado > 0 ? (lucroFiltrado / faturamentoFiltrado) * 100 : 0;
 
   const topLives = [...(resumoFaturamentoPorLive || [])]
@@ -143,7 +151,14 @@ export default function FaturamentoSection({
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      <div style={boxGrande}>
+      <div
+        style={{
+          ...boxGrande,
+          background: corPainel,
+          border: `1px solid ${corBorda}`,
+          color: corTexto,
+        }}
+      >
         <div
           style={{
             display: "flex",
@@ -154,8 +169,8 @@ export default function FaturamentoSection({
           }}
         >
           <div>
-            <h2 style={tituloSecao}>Faturamento</h2>
-            <p style={{ margin: "-6px 0 0", color: "#64748b", fontSize: 14 }}>
+            <h2 style={{ ...tituloSecao, color: corTexto }}>Faturamento</h2>
+            <p style={{ margin: "-6px 0 0", color: corTextoSuave, fontSize: 14 }}>
               Visão financeira por período e por live.
             </p>
           </div>
@@ -163,7 +178,7 @@ export default function FaturamentoSection({
           <BotaoIcone
             icon={<Download size={17} />}
             onClick={exportarRelatorioCSV}
-            background="#111827"
+            background={corPrincipal}
             color="#fff"
           >
             Exportar relatório
@@ -181,7 +196,7 @@ export default function FaturamentoSection({
           <CardResumoFaturamento
             destaque
             icon={
-              <IconeCard background="#fff0f5" color="#8f2745">
+              <IconeCard background={corSuaveTema} color={corPrincipal}>
                 <Wallet size={19} />
               </IconeCard>
             }
@@ -229,13 +244,13 @@ export default function FaturamentoSection({
             marginTop: 12,
             padding: isMobile ? 10 : 12,
             borderRadius: 16,
-            background: "#f8fafc",
-            border: "1px solid #e2e8f0",
+            background: corFundo,
+            border: `1px solid ${corBorda}`,
             display: "grid",
             gap: 8,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#334155", fontWeight: 800 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, color: corTexto, fontWeight: 800 }}>
             <CalendarDays size={18} />
             Filtros de período
           </div>
@@ -249,20 +264,20 @@ export default function FaturamentoSection({
             }}
           >
             <div style={{ display: "grid", gap: 6 }}>
-              <label style={{ color: "#64748b", fontSize: 12, fontWeight: 700 }}>Data inicial</label>
+              <label style={{ color: corTextoSuave, fontSize: 12, fontWeight: 700 }}>Data inicial</label>
               <input
                 type="date"
-                style={{ ...input, width: "100%" }}
+                style={{ ...input, width: "100%", background: corPainel, color: corTexto, border: `1px solid ${corBorda}` }}
                 value={dataInicialFiltro}
                 onChange={(e) => setDataInicialFiltro(e.target.value)}
               />
             </div>
 
             <div style={{ display: "grid", gap: 6 }}>
-              <label style={{ color: "#64748b", fontSize: 12, fontWeight: 700 }}>Data final</label>
+              <label style={{ color: corTextoSuave, fontSize: 12, fontWeight: 700 }}>Data final</label>
               <input
                 type="date"
-                style={{ ...input, width: "100%" }}
+                style={{ ...input, width: "100%", background: corPainel, color: corTexto, border: `1px solid ${corBorda}` }}
                 value={dataFinalFiltro}
                 onChange={(e) => setDataFinalFiltro(e.target.value)}
               />
@@ -289,7 +304,7 @@ export default function FaturamentoSection({
                 30 dias
               </BotaoIcone>
 
-              <BotaoIcone icon={<Eraser size={16} />} onClick={limparFiltro} background="#fff" color="#64748b">
+              <BotaoIcone icon={<Eraser size={16} />} onClick={limparFiltro} background={corPainel} color={corTextoSuave}>
                 Limpar
               </BotaoIcone>
             </div>
@@ -305,7 +320,14 @@ export default function FaturamentoSection({
           alignItems: "start",
         }}
       >
-        <div style={boxGrande}>
+        <div
+        style={{
+          ...boxGrande,
+          background: corPainel,
+          border: `1px solid ${corBorda}`,
+          color: corTexto,
+        }}
+      >
           <div
             style={{
               display: "flex",
@@ -316,18 +338,18 @@ export default function FaturamentoSection({
               marginBottom: 10,
             }}
           >
-            <h3 style={{ margin: 0, color: "#111827" }}>Resumo por Live</h3>
-            <span style={{ color: "#64748b", fontSize: 13 }}>{resumoFaturamentoPorLive.length} live(s)</span>
+            <h3 style={{ margin: 0, color: corTexto }}>Resumo por Live</h3>
+            <span style={{ color: corTextoSuave, fontSize: 13 }}>{resumoFaturamentoPorLive.length} live(s)</span>
           </div>
 
           {resumoFaturamentoPorLive.length === 0 ? (
             <div
               style={{
-                border: "1px dashed #cbd5e1",
+                border: `1px dashed ${corBorda}`,
                 borderRadius: 16,
                 padding: 16,
-                background: "#f8fafc",
-                color: "#64748b",
+                background: corFundo,
+                color: corTextoSuave,
               }}
             >
               Nenhuma live encontrada no período.
@@ -343,9 +365,9 @@ export default function FaturamentoSection({
                   <div
                     key={live.id}
                     style={{
-                      border: "1px solid #e8edf2",
+                      border: `1px solid ${corBorda}`,
                       borderRadius: 18,
-                      background: "#fff",
+                      background: corPainel,
                       padding: isMobile ? 11 : 13,
                       display: "grid",
                       gap: 8,
@@ -362,7 +384,7 @@ export default function FaturamentoSection({
                     >
                       <div style={{ minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <IconeCard background="#fff0f5" color="#8f2745">
+                          <IconeCard background={corSuaveTema} color={corPrincipal}>
                             <BarChart3 size={18} />
                           </IconeCard>
 
@@ -370,7 +392,7 @@ export default function FaturamentoSection({
                             <strong
                               style={{
                                 display: "block",
-                                color: "#111827",
+                                color: corTexto,
                                 fontSize: isMobile ? 16 : 18,
                                 lineHeight: 1.2,
                                 wordBreak: "break-word",
@@ -378,7 +400,7 @@ export default function FaturamentoSection({
                             >
                               {live.nome || "Live sem nome"}
                             </strong>
-                            <span style={{ color: "#64748b", fontSize: 12 }}>
+                            <span style={{ color: corTextoSuave, fontSize: 12 }}>
                               {live.data || "-"} • ID: {live.id}
                             </span>
                           </div>
@@ -408,25 +430,25 @@ export default function FaturamentoSection({
                         gap: 8,
                       }}
                     >
-                      <div style={{ background: "#f8fafc", borderRadius: 14, padding: 10 }}>
-                        <div style={{ color: "#64748b", fontSize: 12 }}>Vendas</div>
+                      <div style={{ background: corFundo, borderRadius: 14, padding: 10 }}>
+                        <div style={{ color: corTextoSuave, fontSize: 12 }}>Vendas</div>
                         <strong>{live.quantidade}</strong>
                       </div>
 
-                      <div style={{ background: "#f8fafc", borderRadius: 14, padding: 10 }}>
-                        <div style={{ color: "#64748b", fontSize: 12 }}>Faturamento</div>
+                      <div style={{ background: corFundo, borderRadius: 14, padding: 10 }}>
+                        <div style={{ color: corTextoSuave, fontSize: 12 }}>Faturamento</div>
                         <strong>{formatarBRL(live.faturamento)}</strong>
                       </div>
 
-                      <div style={{ background: "#f8fafc", borderRadius: 14, padding: 10 }}>
-                        <div style={{ color: "#64748b", fontSize: 12 }}>Lucro</div>
+                      <div style={{ background: corFundo, borderRadius: 14, padding: 10 }}>
+                        <div style={{ color: corTextoSuave, fontSize: 12 }}>Lucro</div>
                         <strong>{formatarBRL(live.lucro)}</strong>
                       </div>
 
-                      <div style={{ background: "#f8fafc", borderRadius: 14, padding: 10 }}>
-                        <div style={{ color: "#64748b", fontSize: 12 }}>Ticket / Margem</div>
+                      <div style={{ background: corFundo, borderRadius: 14, padding: 10 }}>
+                        <div style={{ color: corTextoSuave, fontSize: 12 }}>Ticket / Margem</div>
                         <strong>{formatarBRL(live.ticketMedio)}</strong>
-                        <div style={{ color: "#64748b", fontSize: 11 }}>{margemLive.toFixed(1).replace(".", ",")}%</div>
+                        <div style={{ color: corTextoSuave, fontSize: 11 }}>{margemLive.toFixed(1).replace(".", ",")}%</div>
                       </div>
                     </div>
                   </div>
@@ -436,35 +458,42 @@ export default function FaturamentoSection({
           )}
         </div>
 
-        <div style={boxGrande}>
+        <div
+        style={{
+          ...boxGrande,
+          background: corPainel,
+          border: `1px solid ${corBorda}`,
+          color: corTexto,
+        }}
+      >
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
             <IconeCard background="#fff8e6" color="#b45309">
               <Trophy size={18} />
             </IconeCard>
-            <h3 style={{ margin: 0, color: "#111827" }}>Top Lives</h3>
+            <h3 style={{ margin: 0, color: corTexto }}>Top Lives</h3>
           </div>
 
           {topLives.length === 0 ? (
-            <div style={{ color: "#64748b", fontSize: 14 }}>Sem vendas para ranquear.</div>
+            <div style={{ color: corTextoSuave, fontSize: 14 }}>Sem vendas para ranquear.</div>
           ) : (
             <div style={{ display: "grid", gap: 10 }}>
               {topLives.map((live, index) => (
                 <div
                   key={live.id}
                   style={{
-                    border: "1px solid #e8edf2",
+                    border: `1px solid ${corBorda}`,
                     borderRadius: 16,
                     padding: 12,
                     display: "grid",
                     gap: 6,
-                    background: index === 0 ? "#fff8e6" : "#fff",
+                    background: index === 0 ? "#fff8e6" : corPainel,
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                    <strong style={{ color: "#111827" }}>{index + 1}º {live.nome}</strong>
-                    <strong style={{ color: index === 0 ? "#b45309" : "#334155" }}>{formatarBRL(live.faturamento)}</strong>
+                    <strong style={{ color: corTexto }}>{index + 1}º {live.nome}</strong>
+                    <strong style={{ color: index === 0 ? "#b45309" : corTexto }}>{formatarBRL(live.faturamento)}</strong>
                   </div>
-                  <div style={{ color: "#64748b", fontSize: 12 }}>
+                  <div style={{ color: corTextoSuave, fontSize: 12 }}>
                     {live.quantidade} venda(s) • Lucro {formatarBRL(live.lucro)}
                   </div>
                 </div>

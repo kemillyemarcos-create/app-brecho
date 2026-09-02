@@ -16,16 +16,62 @@ export default function SidebarERP({
   logoKchic,
   cores,
 }) {
+  const corPrimaria =
+    cores?.rosaPrincipal ||
+    "var(--kc-primary, #DF5E78)";
+
+  const corSuave =
+    cores?.rosaClaro ||
+    "var(--kc-soft, #FAE3E8)";
+
+  const corHover =
+    cores?.rosaHover ||
+    "var(--kc-soft, #FAE3E8)";
+
+  const corBorda =
+    cores?.borda ||
+    "var(--kc-border, #F2E3E8)";
+
+  const corPainel =
+    cores?.fundoPainel ||
+    "var(--kc-panel, #FFFFFF)";
+
+  const corTexto =
+    cores?.texto ||
+    "var(--kc-text, #2F2F35)";
+
+  const corTextoSuave =
+    cores?.textoSuave ||
+    "var(--kc-text-muted, #8D727B)";
+
+  const sombra =
+    cores?.sombraLeve ||
+    "var(--kc-shadow, 0 8px 24px rgba(15,23,42,0.06))";
+
   const sidebarStyle = {
-    width: isMobile ? "100%" : 246,
-    minWidth: isMobile ? 0 : 246,
+    width: isMobile
+      ? "100%"
+      : 246,
+
+    minWidth: isMobile
+      ? 0
+      : 246,
+
     maxHeight: isMobile
       ? "none"
       : "calc(100vh - 32px)",
-    position: isMobile ? "relative" : "sticky",
-    top: isMobile ? "auto" : 16,
+
+    position: isMobile
+      ? "relative"
+      : "sticky",
+
+    top: isMobile
+      ? "auto"
+      : 16,
+
     alignSelf: "start",
     overflowY: "auto",
+    overflowX: "hidden",
     boxSizing: "border-box",
 
     display: isMobile
@@ -33,43 +79,74 @@ export default function SidebarERP({
         ? "flex"
         : "none"
       : "flex",
+
     flexDirection: "column",
-    gap: 12,
+
+    gap:
+      "calc(12px * var(--kc-density, 1))",
 
     padding: isMobile
-      ? "16px 14px 18px"
-      : "16px 13px 18px",
+      ? "calc(16px * var(--kc-density, 1)) calc(14px * var(--kc-density, 1)) calc(18px * var(--kc-density, 1))"
+      : "calc(16px * var(--kc-density, 1)) calc(13px * var(--kc-density, 1)) calc(18px * var(--kc-density, 1))",
 
-    borderRadius: isMobile ? 20 : 24,
-    border: `1px solid ${cores.borda}`,
-    background: cores.fundoPainel,
-    boxShadow: cores.sombraLeve,
+    borderRadius:
+      "var(--kc-radius-xl, 20px)",
+
+    border:
+      `1px solid ${corBorda}`,
+
+    background:
+      "var(--kc-sidebar-background, var(--kc-panel, #FFFFFF))",
+
+    color:
+      "var(--kc-sidebar-text, var(--kc-text-muted, #8D727B))",
+
+    boxShadow:
+      sombra,
+
+    transition:
+      "width 180ms ease, min-width 180ms ease, padding 180ms ease, border-radius 180ms ease, background-color 180ms ease",
   };
 
   const brandBlock = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: 12,
+
+    gap:
+      "calc(12px * var(--kc-density, 1))",
   };
 
   const logoWrap = {
-    width: isMobile ? 150 : 135,
-    height: isMobile ? 95 : 85,
+    width: isMobile
+      ? 150
+      : 135,
+
+    height: isMobile
+      ? 95
+      : 85,
+
+    minHeight: isMobile
+      ? 95
+      : 62,
 
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
 
     overflow: "hidden",
+
     background: "transparent",
     border: "none",
 
+    transition:
+      "width 180ms ease, height 180ms ease",
   };
 
   const logoStyle = {
     width: "175%",
     height: "175%",
+
     objectFit: "cover",
     objectPosition: "center",
 
@@ -79,65 +156,82 @@ export default function SidebarERP({
 
   const assistantButton = {
     width: "100%",
-    minHeight: 44,
+
+    minHeight:
+      "var(--kc-control-height, 42px)",
 
     display: "grid",
+
     gridTemplateColumns:
       "19px minmax(0, 1fr) auto",
-    alignItems: "center",
-    gap: 9,
 
-    padding: "9px 10px",
-    borderRadius: 13,
+    alignItems: "center",
+
+    gap:
+      "calc(9px * var(--kc-density, 1))",
+
+    padding:
+      "calc(9px * var(--kc-density, 1)) calc(10px * var(--kc-density, 1))",
+
+    borderRadius:
+      "var(--kc-radius-md, 12px)",
+
     border:
-      abaAtiva === "assistente"
-        ? `1px solid ${cores.rosaPrincipal}`
-        : `1px solid ${cores.borda}`,
+      "1px solid var(--kc-sidebar-border, var(--kc-border, #F2E3E8))",
 
     background:
       abaAtiva === "assistente"
-        ? cores.rosaPrincipal
-        : "linear-gradient(135deg, #fff7f9 0%, #ffffff 100%)",
+        ? "var(--kc-sidebar-active-bg, var(--kc-soft, #FAE3E8))"
+        : "transparent",
 
     color:
       abaAtiva === "assistente"
-        ? "#fff"
-        : cores.rosaPrincipal,
+        ? "var(--kc-sidebar-active-text, var(--kc-primary, #DF5E78))"
+        : "var(--kc-sidebar-text, var(--kc-text-muted, #8D727B))",
 
     textAlign: "left",
     cursor: "pointer",
-    fontSize: 13,
+
+    fontSize:
+      "calc(13px * var(--kc-font-scale, 1))",
+
     fontWeight: 800,
 
     boxShadow:
       abaAtiva === "assistente"
-        ? "0 8px 18px rgba(143,39,69,0.15)"
+        ? "0 8px 18px rgba(15,23,42,0.10)"
         : "0 4px 12px rgba(15,23,42,0.04)",
 
     transition:
-      "background-color 160ms ease, color 160ms ease, transform 160ms ease",
+      "background-color 160ms ease, color 160ms ease, transform 160ms ease, border-color 160ms ease",
   };
 
   const assistantBadge = {
     justifySelf: "end",
-    padding: "4px 6px",
+
+    padding:
+      "calc(4px * var(--kc-density, 1)) calc(6px * var(--kc-density, 1))",
+
     borderRadius: 999,
+
     border:
       abaAtiva === "assistente"
         ? "1px solid rgba(255,255,255,0.25)"
-        : `1px solid ${cores.borda}`,
+        : `1px solid ${corBorda}`,
 
     background:
       abaAtiva === "assistente"
         ? "rgba(255,255,255,0.18)"
-        : cores.rosaClaro,
+        : corSuave,
 
     color:
       abaAtiva === "assistente"
-        ? "#fff"
-        : cores.rosaPrincipal,
+        ? "#ffffff"
+        : corPrimaria,
 
-    fontSize: 9,
+    fontSize:
+      "calc(9px * var(--kc-font-scale, 1))",
+
     fontWeight: 900,
     letterSpacing: "0.05em",
     lineHeight: 1,
@@ -146,57 +240,83 @@ export default function SidebarERP({
   const divider = {
     width: "100%",
     height: 1,
-    margin: "2px 0 0",
+
+    margin:
+      "calc(2px * var(--kc-density, 1)) 0 0",
+
     border: "none",
-    background: cores.borda,
+
+    background:
+      "var(--kc-sidebar-border, var(--kc-border, #F2E3E8))",
   };
 
   const menuList = {
     display: "flex",
     flexDirection: "column",
-    gap: 2,
+
+    gap:
+      "calc(2px * var(--kc-density, 1))",
   };
 
   const menuButton = (active) => ({
     width: "100%",
-    minHeight: isMobile ? 46 : 40,
+
+    minHeight: isMobile
+      ? 46
+      : "var(--kc-control-height, 42px)",
 
     display: "grid",
+
     gridTemplateColumns:
       "19px minmax(0, 1fr)",
+
     alignItems: "center",
-    gap: 10,
+
+    gap:
+      "calc(10px * var(--kc-density, 1))",
 
     padding: isMobile
-      ? "10px 11px"
-      : "8px 10px",
+      ? "calc(10px * var(--kc-density, 1)) calc(11px * var(--kc-density, 1))"
+      : "calc(8px * var(--kc-density, 1)) calc(10px * var(--kc-density, 1))",
 
-    borderRadius: 11,
-    border: "1px solid transparent",
+    borderRadius:
+      "var(--kc-radius-md, 12px)",
 
-    background: active
-      ? cores.rosaClaro
-      : "transparent",
+    border:
+      "1px solid transparent",
 
-    boxShadow: active
-      ? `inset 3px 0 0 ${cores.rosaPrincipal}`
-      : "none",
+    background:
+      active
+        ? "var(--kc-sidebar-active-bg, var(--kc-soft, #FAE3E8))"
+        : "transparent",
 
-    color: active
-      ? cores.rosaPrincipal
-      : cores.textoSuave,
+    boxShadow:
+      active
+        ? "inset 3px 0 0 var(--kc-sidebar-active-text, var(--kc-primary, #DF5E78))"
+        : "none",
+
+    color:
+      active
+        ? "var(--kc-sidebar-active-text, var(--kc-primary, #DF5E78))"
+        : "var(--kc-sidebar-text, var(--kc-text-muted, #8D727B))",
 
     textAlign: "left",
     cursor: "pointer",
-    fontSize: isMobile ? 15 : 13.5,
-    fontWeight: active ? 800 : 650,
+
+    fontSize: isMobile
+      ? "calc(15px * var(--kc-font-scale, 1))"
+      : "calc(13.5px * var(--kc-font-scale, 1))",
+
+    fontWeight:
+      active ? 800 : 650,
 
     transition:
-      "background-color 160ms ease, color 160ms ease, transform 160ms ease",
+      "background-color 160ms ease, color 160ms ease, transform 160ms ease, border-radius 180ms ease",
   });
 
   const menuLabel = {
     minWidth: 0,
+
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
@@ -204,23 +324,37 @@ export default function SidebarERP({
 
   const footer = {
     display: "grid",
-    gap: 8,
+
+    gap:
+      "calc(8px * var(--kc-density, 1))",
+
     marginTop: "auto",
-    paddingTop: 6,
+
+    paddingTop:
+      "calc(6px * var(--kc-density, 1))",
   };
 
   const logoutButton = {
     ...menuButton(false),
+
     color: "#b91c1c",
+
     border:
       "1px solid rgba(185,28,28,0.14)",
   };
 
   const userText = {
-    padding: "0 4px",
-    color: cores.textoSuave,
-    fontSize: 11,
+    padding:
+      "0 calc(4px * var(--kc-density, 1))",
+
+    color:
+      "var(--kc-sidebar-text, var(--kc-text-muted, #8D727B))",
+
+    fontSize:
+      "calc(11px * var(--kc-font-scale, 1))",
+
     lineHeight: 1.35,
+
     overflowWrap: "anywhere",
   };
 
@@ -257,11 +391,17 @@ export default function SidebarERP({
             aria-hidden="true"
           />
 
-          <span style={menuLabel}>
+          <span
+            className="sidebar-menu-label"
+            style={menuLabel}
+          >
             Assistente Virtual
           </span>
 
-          <span style={assistantBadge}>
+          <span
+            className="sidebar-assistant-badge"
+            style={assistantBadge}
+          >
             NOVO
           </span>
         </button>
@@ -293,7 +433,7 @@ export default function SidebarERP({
               onMouseEnter={(event) => {
                 if (!active) {
                   event.currentTarget.style.background =
-                    cores.rosaHover;
+                    "var(--kc-sidebar-active-bg, var(--kc-soft, #FAE3E8))";
                 }
               }}
               onMouseLeave={(event) => {
@@ -311,7 +451,10 @@ export default function SidebarERP({
                 aria-hidden="true"
               />
 
-              <span style={menuLabel}>
+              <span
+                className="sidebar-menu-label"
+                style={menuLabel}
+              >
                 {item.label}
               </span>
             </button>
@@ -331,19 +474,26 @@ export default function SidebarERP({
             aria-hidden="true"
           />
 
-          <span>Sair</span>
+          <span className="sidebar-menu-label">
+            Sair
+          </span>
         </button>
 
-        <div style={userText}>
+        <div
+          className="sidebar-user-text"
+          style={userText}
+        >
           {carregando
             ? "Carregando dados..."
-            : `${usuarioSistema?.apelido ||
-            usuarioSistema?.nome ||
-            session?.user?.email ||
-            "admin"
-            } • ${usuarioSistema?.perfil ||
-            "ADMIN"
-            }`}
+            : `${
+                usuarioSistema?.apelido ||
+                usuarioSistema?.nome ||
+                session?.user?.email ||
+                "admin"
+              } • ${
+                usuarioSistema?.perfil ||
+                "ADMIN"
+              }`}
         </div>
       </div>
     </aside>

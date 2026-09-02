@@ -32,7 +32,7 @@ function BotaoIcone({
   label,
   onClick,
   active = false,
-  color = "#8f2745",
+  color = "var(--kc-primary)",
   disabled = false,
   full = false,
 }) {
@@ -49,9 +49,9 @@ function BotaoIcone({
         width: full ? "100%" : "auto",
         padding: full ? "9px 13px" : "9px 12px",
         borderRadius: 13,
-        border: active ? `1px solid ${color}` : "1px solid #e2e8f0",
-        background: active ? color : "#fff",
-        color: active ? "#fff" : "#334155",
+        border: active ? `1px solid ${color}` : "1px solid var(--kc-border)",
+        background: active ? color : "var(--kc-panel)",
+        color: active ? "#fff" : "var(--kc-text)",
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
@@ -62,7 +62,7 @@ function BotaoIcone({
         fontSize: 13,
         lineHeight: 1,
         boxShadow: active
-          ? "0 8px 18px rgba(143,39,69,0.18)"
+          ? "0 8px 18px rgba(15,23,42,0.12)"
           : "0 2px 8px rgba(15,23,42,0.05)",
       }}
     >
@@ -79,8 +79,8 @@ function ResumoCard({ icon, label, value, accent = "#8f2745", cardResumo }) {
         ...cardResumo,
         padding: 12,
         borderRadius: 18,
-        border: "1px solid #eef2f7",
-        background: "#fff",
+        border: "1px solid var(--kc-border)",
+        background: "var(--kc-panel)",
         boxShadow: "0 2px 10px rgba(15,23,42,0.04)",
         display: "grid",
         gap: 6,
@@ -98,7 +98,7 @@ function ResumoCard({ icon, label, value, accent = "#8f2745", cardResumo }) {
           style={{
             fontSize: 26,
             lineHeight: 1,
-            color: "#243746",
+            color: "var(--kc-text)",
           }}
         >
           {value}
@@ -123,7 +123,7 @@ function ResumoCard({ icon, label, value, accent = "#8f2745", cardResumo }) {
 
       <span
         style={{
-          color: "#64748b",
+          color: "var(--kc-text-muted)",
           fontSize: 12.5,
           fontWeight: 800,
         }}
@@ -156,6 +156,17 @@ export default function PendenciasSection({
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todas");
   const [clientesExpandidas, setClientesExpandidas] = useState({});
+
+  // =====================================================
+  // TEMA GLOBAL
+  // =====================================================
+  const corPrincipal = "var(--kc-primary)";
+  const corSuaveTema = "var(--kc-soft)";
+  const corFundo = "var(--kc-background)";
+  const corPainel = "var(--kc-panel)";
+  const corTexto = "var(--kc-text)";
+  const corTextoSuave = "var(--kc-text-muted)";
+  const corBorda = "var(--kc-border)";
 
   const pendencias = useMemo(() => {
     const mapa = new Map();
@@ -285,6 +296,9 @@ export default function PendenciasSection({
     borderRadius: 14,
     boxShadow: "none",
     paddingLeft: 42,
+    border: `1px solid ${corBorda}`,
+    background: corPainel,
+    color: corTexto,
   };
 
   const cardPendente = {
@@ -294,7 +308,7 @@ export default function PendenciasSection({
     gap: 8,
     borderRadius: 18,
     boxShadow: "0 3px 12px rgba(15,23,42,0.05)",
-    border: "1px solid #eef2f7",
+    border: "1px solid var(--kc-border)",
   };
 
   const linhaCard = {
@@ -324,7 +338,14 @@ export default function PendenciasSection({
 
   return (
     <div style={{ display: "grid", gap: 6 }}>
-      <div style={boxGrande}>
+      <div
+        style={{
+          ...boxGrande,
+          background: corPainel,
+          border: `1px solid ${corBorda}`,
+          color: corTexto,
+        }}
+      >
         <div
           style={{
             display: "flex",
@@ -335,8 +356,10 @@ export default function PendenciasSection({
           }}
         >
           <div>
-            <h2 style={tituloSecao}>Pendências de Pagamento</h2>
-            <p style={{ margin: "-6px 0 0", color: "#64748b", fontSize: 14 }}>
+            <h2 style={{ ...tituloSecao, color: corTexto }}>
+              Pendências de Pagamento
+            </h2>
+            <p style={{ margin: "-6px 0 0", color: "var(--kc-text-muted)", fontSize: 14 }}>
               Controle das clientes com valores em aberto.
             </p>
           </div>
@@ -359,7 +382,7 @@ export default function PendenciasSection({
             icon={<Users size={20} />}
             label="Clientes pendentes"
             value={resumo.clientes}
-            accent="#8f2745"
+            accent="var(--kc-primary)"
             cardResumo={cardResumo}
             valorResumo={valorResumo}
           />
@@ -387,7 +410,7 @@ export default function PendenciasSection({
           style={{
             marginTop: 12,
             padding: isMobile ? 9 : 10,
-            border: "1px solid #eef2f7",
+            border: "1px solid var(--kc-border)",
             borderRadius: 16,
             background: "#fcfdff",
             boxShadow: "0 2px 10px rgba(15,23,42,0.04)",
@@ -405,7 +428,7 @@ export default function PendenciasSection({
                 left: 14,
                 top: "50%",
                 transform: "translateY(-50%)",
-                color: "#94a3b8",
+                color: corTextoSuave,
                 pointerEvents: "none",
               }}
             />
@@ -422,7 +445,7 @@ export default function PendenciasSection({
             icon={<Users size={17} />}
             label="Todas"
             active={filtro === "todas"}
-            color="#111827"
+            color={corPrincipal}
             full={isMobile}
             onClick={() => setFiltro("todas")}
           />
@@ -447,7 +470,14 @@ export default function PendenciasSection({
         </div>
       </div>
 
-      <div style={boxGrande}>
+      <div
+        style={{
+          ...boxGrande,
+          background: corPainel,
+          border: `1px solid ${corBorda}`,
+          color: corTexto,
+        }}
+      >
         <div
           style={{
             display: "flex",
@@ -458,11 +488,11 @@ export default function PendenciasSection({
             marginBottom: 10,
           }}
         >
-          <h3 style={{ margin: 0, fontSize: isMobile ? 17 : 19 }}>
+          <h3 style={{ margin: 0, fontSize: isMobile ? 17 : 19, color: corTexto }}>
             Clientes pendentes
           </h3>
 
-          <span style={{ color: "#64748b", fontSize: 13 }}>
+          <span style={{ color: "var(--kc-text-muted)", fontSize: 13 }}>
             {pendenciasFiltradas.length} resultado(s)
           </span>
         </div>
@@ -470,11 +500,11 @@ export default function PendenciasSection({
         {pendenciasFiltradas.length === 0 ? (
           <div
             style={{
-              border: "1px dashed #cbd5e1",
+              border: `1px dashed ${corBorda}`,
               borderRadius: 16,
               padding: 16,
               background: "#f8fafc",
-              color: "#64748b",
+              color: "var(--kc-text-muted)",
               textAlign: "center",
             }}
           >
@@ -509,9 +539,9 @@ export default function PendenciasSection({
                             width: 38,
                             height: 38,
                             borderRadius: 13,
-                            border: "1px solid #e2e8f0",
-                            background: expandido ? "#8f2745" : "#fff",
-                            color: expandido ? "#fff" : "#334155",
+                            border: `1px solid ${expandido ? corPrincipal : corBorda}`,
+                            background: expandido ? corPrincipal : corPainel,
+                            color: expandido ? "#fff" : corTexto,
                             cursor: "pointer",
                             display: "flex",
                             alignItems: "center",
@@ -527,7 +557,7 @@ export default function PendenciasSection({
                             style={{
                               display: "block",
                               fontSize: isMobile ? 16 : 18,
-                              color: "#111827",
+                              color: corTexto,
                               wordBreak: "break-word",
                               lineHeight: 1.15,
                             }}
@@ -535,7 +565,7 @@ export default function PendenciasSection({
                             {clienteResumo.nome}
                           </strong>
 
-                          <span style={{ color: "#64748b", fontSize: 12 }}>
+                          <span style={{ color: "var(--kc-text-muted)", fontSize: 12 }}>
                             {clienteResumo.pecas} peça(s) em aberto
                           </span>
                         </div>
@@ -553,7 +583,7 @@ export default function PendenciasSection({
                       </span>
                     </div>
 
-                    <div style={{ color: "#475569", fontSize: 13, lineHeight: 1.4 }}>
+                    <div style={{ color: corTextoSuave, fontSize: 13, lineHeight: 1.4 }}>
                       <div>
                         <strong>Lives:</strong> {livesTexto || "-"}
                         {clienteResumo.livesLista.length > 3 ? "..." : ""}
@@ -570,7 +600,7 @@ export default function PendenciasSection({
                         icon={expandido ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                         label={expandido ? "Minimizar" : "Expandir"}
                         active={expandido}
-                        color="#8f2745"
+                        color={corPrincipal}
                         onClick={(e) => {
                           if (e?.stopPropagation) e.stopPropagation();
                           toggleExpandirCliente(clienteResumo.nome);
@@ -591,8 +621,8 @@ export default function PendenciasSection({
                               borderRadius: 14,
                               display: "grid",
                               gap: 5,
-                              background: "#f8fafc",
-                              border: "1px solid #e2e8f0",
+                              background: corFundo,
+                              border: `1px solid ${corBorda}`,
                             }}
                           >
                             <div>

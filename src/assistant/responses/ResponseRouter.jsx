@@ -1,12 +1,15 @@
 // ResponseRouter.jsx
+
 // Encaminha o resultado para o builder apropriado.
+
 // Nesta primeira sprint, apenas estoque usa a nova camada.
 
 import StockResponseBuilder from "./builders/StockResponseBuilder";
 
 function build(
   resultado = {},
-  definicao = {}
+  definicao = {},
+  formatacao = {}
 ) {
   const dominio =
     resultado?.dominio ||
@@ -37,7 +40,8 @@ function build(
   if (ehEstoque) {
     return StockResponseBuilder.build(
       resultado,
-      definicao
+      definicao,
+      formatacao
     );
   }
 

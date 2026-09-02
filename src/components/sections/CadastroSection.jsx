@@ -8,6 +8,13 @@ export default function CadastroSection({
   isMobile = false,
   cores,
 }) {
+  const corPainel = "var(--kc-panel, #FFFFFF)";
+  const corFundo = "var(--kc-background, #FFF7F9)";
+  const corBorda = "var(--kc-border, #F2E3E8)";
+  const corTexto = "var(--kc-text, #2F2F35)";
+  const corTextoSuave = "var(--kc-text-muted, #8D727B)";
+  const corPrincipal = "var(--kc-primary, #DF5E78)";
+
   const sectionStyle = {
     display: "flex",
     flexDirection: "column",
@@ -15,11 +22,12 @@ export default function CadastroSection({
   };
 
   const cardStyle = {
-    border: `1px solid ${cores.borda}`,
+    border: `1px solid ${corBorda}`,
     borderRadius: isMobile ? 18 : 20,
     padding: isMobile ? 14 : 18,
-    background: cores.fundoPainel,
-    boxShadow: cores.sombraLeve,
+    background: corPainel,
+    boxShadow: cores?.sombraLeve || "0 10px 30px rgba(223,94,120,0.08)",
+    color: corTexto,
   };
 
   const headerStyle = {
@@ -31,7 +39,7 @@ export default function CadastroSection({
 
   const titleStyle = {
     margin: 0,
-    color: cores.texto,
+    color: corTexto,
     fontSize: isMobile ? 22 : 24,
     fontWeight: 800,
     lineHeight: 1.15,
@@ -40,7 +48,7 @@ export default function CadastroSection({
 
   const subtitleStyle = {
     margin: 0,
-    color: cores.textoSuave,
+    color: corTextoSuave,
     fontSize: 13,
     lineHeight: 1.4,
   };
@@ -66,7 +74,7 @@ export default function CadastroSection({
   };
 
   const labelStyle = {
-    color: cores.texto,
+    color: corTexto,
     fontSize: 12,
     fontWeight: 700,
   };
@@ -76,9 +84,9 @@ export default function CadastroSection({
     minHeight: 42,
     padding: "9px 12px",
     borderRadius: 12,
-    border: "1px solid #d7dee8",
-    background: "#fff",
-    color: cores.texto,
+    border: `1px solid ${corBorda}`,
+    background: corPainel,
+    color: corTexto,
     fontSize: 14,
     outline: "none",
     boxSizing: "border-box",
@@ -97,9 +105,9 @@ export default function CadastroSection({
     minHeight: 40,
     padding: "7px 9px",
     borderRadius: 12,
-    border: "1px solid #d7dee8",
-    background: "#fff",
-    color: cores.textoSuave,
+    border: `1px solid ${corBorda}`,
+    background: corPainel,
+    color: corTextoSuave,
     fontSize: 13,
     boxSizing: "border-box",
   };
@@ -109,29 +117,28 @@ export default function CadastroSection({
     minHeight: 42,
     marginTop: 2,
     padding: "9px 14px",
-    border: "none",
+    border: `1px solid ${corPrincipal}`,
     borderRadius: 13,
-    background: cores.rosaPrincipal,
+    background: corPrincipal,
     color: "#fff",
     cursor: "pointer",
     fontSize: 14,
     fontWeight: 800,
-    boxShadow:
-      "0 8px 18px rgba(223,94,120,0.20)",
+    boxShadow: "0 8px 18px rgba(15,23,42,0.12)",
     transition:
       "transform 160ms ease, opacity 160ms ease",
   };
 
   const previewStyle = {
-    border: `1px solid ${cores.borda}`,
+    border: `1px solid ${corBorda}`,
     borderRadius: 16,
     padding: 12,
-    background: "#fffafb",
+    background: corFundo,
   };
 
   const previewTitleStyle = {
     margin: "0 0 8px",
-    color: cores.texto,
+    color: corTexto,
     fontSize: 15,
     fontWeight: 800,
   };
@@ -144,9 +151,9 @@ export default function CadastroSection({
     justifyContent: "center",
     overflow: "hidden",
     borderRadius: 13,
-    border: "1px dashed #d3dae4",
-    background: "#fff",
-    color: "#718096",
+    border: `1px dashed ${corBorda}`,
+    background: corPainel,
+    color: corTextoSuave,
     fontSize: 13,
   };
 
@@ -172,12 +179,12 @@ export default function CadastroSection({
   };
 
   const detailLabelStyle = {
-    color: cores.texto,
+    color: corTexto,
     fontWeight: 800,
   };
 
   const detailValueStyle = {
-    color: cores.textoSuave,
+    color: corTextoSuave,
     overflowWrap: "anywhere",
   };
 

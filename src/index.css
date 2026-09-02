@@ -3,6 +3,205 @@
 @tailwind utilities;
 
 /* =========================================================
+   K.CHIC â€” VARIÃVEIS GLOBAIS DE APARÃŠNCIA
+========================================================= */
+
+:root {
+  --kc-primary: #df5e78;
+  --kc-secondary: #b94a62;
+  --kc-soft: #fae3e8;
+
+  --kc-background: #fff7f9;
+  --kc-panel: #ffffff;
+
+  --kc-text: #2f2f35;
+  --kc-text-muted: #8d727b;
+
+  --kc-border: #f2e3e8;
+
+  --kc-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+
+  --kc-radius-sm: 8px;
+  --kc-radius-md: 12px;
+  --kc-radius-lg: 16px;
+  --kc-radius-xl: 20px;
+
+  --kc-density: 1;
+  --kc-control-height: 42px;
+  --kc-font-scale: 1;
+}
+
+/* =========================================================
+   BASE GLOBAL DO ERP
+========================================================= */
+
+html {
+  background: var(--kc-background);
+  color-scheme: light;
+}
+
+html[data-kc-theme="dark"] {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+
+  background: var(--kc-background);
+  color: var(--kc-text);
+
+  font-size: calc(16px * var(--kc-font-scale));
+
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+/*
+  Estes atributos jÃ¡ sÃ£o atualizados pelo ConfigContext.
+  As variÃ¡veis abaixo deixam a infraestrutura pronta para
+  os componentes que forem migrados para densidade global.
+*/
+
+html[data-kc-sidebar="padrao"] {
+  --kc-sidebar-background: var(--kc-panel);
+  --kc-sidebar-text: var(--kc-text-muted);
+  --kc-sidebar-active-bg: var(--kc-soft);
+  --kc-sidebar-active-text: var(--kc-primary);
+  --kc-sidebar-border: var(--kc-border);
+}
+
+html[data-kc-sidebar="marca"] {
+  --kc-sidebar-background: var(--kc-primary);
+  --kc-sidebar-text: #ffffff;
+  --kc-sidebar-active-bg: rgba(255, 255, 255, 0.18);
+  --kc-sidebar-active-text: #ffffff;
+  --kc-sidebar-border: rgba(255, 255, 255, 0.22);
+}
+
+html[data-kc-sidebar="escura"] {
+  --kc-sidebar-background: var(--kc-text);
+  --kc-sidebar-text: #ffffff;
+  --kc-sidebar-active-bg: rgba(255, 255, 255, 0.14);
+  --kc-sidebar-active-text: #ffffff;
+  --kc-sidebar-border: rgba(255, 255, 255, 0.18);
+}
+
+/* =========================================================
+   CONTROLES GLOBAIS
+========================================================= */
+
+input,
+select,
+textarea {
+  color: var(--kc-text);
+
+  background: var(--kc-panel);
+
+  border-color: var(--kc-border);
+
+  accent-color: var(--kc-primary);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--kc-text-muted);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  accent-color: var(--kc-primary);
+}
+
+/*
+  Classes reutilizÃ¡veis para componentes migrados.
+  NÃ£o forÃ§amos altura em TODOS os botÃµes para nÃ£o quebrar
+  botÃµes de Ã­cone, badges e controles compactos existentes.
+*/
+
+.kc-control {
+  min-height: var(--kc-control-height);
+
+  padding:
+    calc(10px * var(--kc-density))
+    calc(12px * var(--kc-density));
+
+  color: var(--kc-text);
+
+  background: var(--kc-panel);
+
+  border: 1px solid var(--kc-border);
+  border-radius: var(--kc-radius-md);
+}
+
+.kc-card {
+  padding: calc(16px * var(--kc-density));
+
+  color: var(--kc-text);
+
+  background: var(--kc-panel);
+
+  border: 1px solid var(--kc-border);
+  border-radius: var(--kc-radius-lg);
+
+  box-shadow: var(--kc-shadow);
+}
+
+.kc-panel {
+  color: var(--kc-text);
+
+  background: var(--kc-panel);
+
+  border: 1px solid var(--kc-border);
+  border-radius: var(--kc-radius-lg);
+}
+
+.kc-muted {
+  color: var(--kc-text-muted);
+}
+
+/* =========================================================
+   TEMA ESCURO â€” CAMADA DE COMPATIBILIDADE
+========================================================= */
+
+/*
+  O ConfigContext mantÃ©m as cores personalizadas da empresa.
+  No modo escuro, esta camada escurece superfÃ­cies auxiliares
+  sem substituir a identidade visual configurada.
+
+  Os componentes principais continuam consumindo:
+  --kc-background
+  --kc-panel
+  --kc-text
+  --kc-text-muted
+  --kc-border
+
+  Uma paleta escura totalmente independente pode ser adicionada
+  futuramente no banco sem alterar a arquitetura atual.
+*/
+
+html[data-kc-theme="dark"] body {
+  background: var(--kc-background);
+  color: var(--kc-text);
+}
+
+html[data-kc-theme="dark"] input,
+html[data-kc-theme="dark"] select,
+html[data-kc-theme="dark"] textarea {
+  color: var(--kc-text);
+
+  background: var(--kc-panel);
+
+  border-color: var(--kc-border);
+}
+
+/* =========================================================
    MODAL
 ========================================================= */
 
@@ -29,8 +228,14 @@
 
   overflow: hidden;
 
-  background: #ffffff;
-  border-radius: 16px;
+  color: var(--kc-text);
+
+  background: var(--kc-panel);
+
+  border: 1px solid var(--kc-border);
+  border-radius: var(--kc-radius-lg);
+
+  box-shadow: var(--kc-shadow);
 }
 
 .preview-topo {
@@ -39,11 +244,12 @@
   align-items: center;
   flex-wrap: wrap;
 
-  gap: 12px;
-  padding: 16px;
+  gap: calc(12px * var(--kc-density));
+  padding: calc(16px * var(--kc-density));
 
-  background: #ffffff;
-  border-bottom: 1px solid #dddddd;
+  background: var(--kc-panel);
+
+  border-bottom: 1px solid var(--kc-border);
 }
 
 .preview-titulo {
@@ -53,7 +259,8 @@
 }
 
 .preview-titulo small {
-  color: #6b7280;
+  color: var(--kc-text-muted);
+
   font-size: 12px;
   font-weight: 500;
 }
@@ -63,38 +270,38 @@
   align-items: center;
   flex-wrap: wrap;
 
-  gap: 10px;
+  gap: calc(10px * var(--kc-density));
 }
 
 .comanda-acoes {
   display: flex;
   flex-wrap: wrap;
 
-  gap: 10px;
+  gap: calc(10px * var(--kc-density));
 }
 
 .preview-vazio {
   min-width: 260px;
 
-  padding: 30px;
+  padding: calc(30px * var(--kc-density));
 
-  color: #6b7280;
+  color: var(--kc-text-muted);
   text-align: center;
 
-  background: #ffffff;
+  background: var(--kc-panel);
 
-  border: 1px dashed #cbd5e1;
-  border-radius: 12px;
+  border: 1px dashed var(--kc-border);
+  border-radius: var(--kc-radius-md);
 }
 
 .area-preview-impressao {
   flex: 1;
 
-  padding: 20px;
+  padding: calc(20px * var(--kc-density));
 
   overflow: auto;
 
-  background: #f8fafc;
+  background: var(--kc-background);
 }
 
 /* =========================================================
@@ -118,6 +325,10 @@
   padding: 0;
   gap: 0;
 
+  /*
+    O papel da etiqueta permanece branco intencionalmente.
+    NÃ£o deve acompanhar o tema visual do ERP.
+  */
   background: #ffffff;
 }
 
@@ -172,15 +383,19 @@
   max-width: 780px;
 
   margin: 0 auto;
-  padding: 24px;
+  padding: calc(24px * var(--kc-density));
 
   display: grid;
-  gap: 16px;
+  gap: calc(16px * var(--kc-density));
 
-  background: #ffffff;
-  border-radius: 12px;
+  color: var(--kc-text);
 
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  background: var(--kc-panel);
+
+  border: 1px solid var(--kc-border);
+  border-radius: var(--kc-radius-md);
+
+  box-shadow: var(--kc-shadow);
 }
 
 .comanda-header {
@@ -188,48 +403,53 @@
   justify-content: space-between;
   align-items: flex-start;
 
-  gap: 20px;
-  padding-bottom: 18px;
+  gap: calc(20px * var(--kc-density));
+  padding-bottom: calc(18px * var(--kc-density));
 
-  border-bottom: 2px solid #eef2f7;
+  border-bottom: 2px solid var(--kc-border);
 }
 
 .comanda-header h1 {
   margin: 0;
 
-  font-size: 28px;
+  color: var(--kc-text);
+
+  font-size: calc(28px * var(--kc-font-scale));
 }
 
 .comanda-header small,
 .comanda-resumo small {
   display: block;
 
+  color: var(--kc-text-muted);
+
   font-size: 13px;
-  color: #6b7280;
 }
 
 .comanda-resumo {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
 
-  gap: 12px;
-  padding: 16px;
+  gap: calc(12px * var(--kc-density));
+  padding: calc(16px * var(--kc-density));
 
-  background: #f9fafb;
+  background: var(--kc-background);
 
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
+  border: 1px solid var(--kc-border);
+  border-radius: var(--kc-radius-md);
 }
 
 .comanda-box {
-  padding: 16px;
+  padding: calc(16px * var(--kc-density));
+
+  color: var(--kc-text);
 
   line-height: 1.7;
 
-  background: #f9fafb;
+  background: var(--kc-background);
 
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
+  border: 1px solid var(--kc-border);
+  border-radius: var(--kc-radius-md);
 }
 
 .comanda-box h3 {
@@ -237,12 +457,14 @@
 }
 
 .comanda-item {
-  padding: 12px;
+  padding: calc(12px * var(--kc-density));
 
-  background: #ffffff;
+  color: var(--kc-text);
 
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  background: var(--kc-panel);
+
+  border: 1px solid var(--kc-border);
+  border-radius: var(--kc-radius-sm);
 }
 
 /* =========================================================
@@ -260,7 +482,7 @@
     width: 100%;
     max-height: calc(100vh - 32px);
 
-    border-radius: 14px;
+    border-radius: var(--kc-radius-md);
   }
 
   .preview-topo {
@@ -277,7 +499,7 @@
   }
 
   .area-preview-impressao {
-    padding: 20px;
+    padding: calc(20px * var(--kc-density));
   }
 
   .comanda-header {
@@ -293,7 +515,7 @@
 }
 
 /* =========================================================
-   IMPRESSÃO
+   IMPRESSÃƒO
 ========================================================= */
 
 @media print {
@@ -309,6 +531,10 @@
     margin: 0 !important;
     padding: 0 !important;
 
+    /*
+      ImpressÃ£o nunca herda o tema visual da empresa.
+      Papel e etiqueta devem continuar brancos.
+    */
     background: #ffffff !important;
   }
 
@@ -464,7 +690,28 @@
     margin: 0 !important;
     padding: 0 !important;
 
+    /*
+      A comanda impressa tambÃ©m deve permanecer neutra,
+      independentemente do tema selecionado na aplicaÃ§Ã£o.
+    */
+    color: #111827 !important;
+    background: #ffffff !important;
+
+    border: none !important;
     box-shadow: none !important;
     border-radius: 0 !important;
+  }
+
+  .comanda-header,
+  .comanda-resumo,
+  .comanda-box,
+  .comanda-item {
+    color: #111827 !important;
+    background: #ffffff !important;
+  }
+
+  .comanda-header small,
+  .comanda-resumo small {
+    color: #6b7280 !important;
   }
 }

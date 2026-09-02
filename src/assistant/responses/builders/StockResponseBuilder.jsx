@@ -1,5 +1,7 @@
 // StockResponseBuilder.jsx
+
 // Converte resultados estruturados de estoque em respostas naturais.
+
 // As variações são determinísticas: a mesma consulta produz a mesma frase.
 
 import {
@@ -22,7 +24,10 @@ const TIPOS_SUPORTADOS = new Set([
   "listar_categorias_estoque",
 ]);
 
-function obterTipo(resultado = {}, definicao = {}) {
+function obterTipo(
+  resultado = {},
+  definicao = {}
+) {
   return (
     resultado?.tipo ||
     definicao?.operacao ||
@@ -30,7 +35,10 @@ function obterTipo(resultado = {}, definicao = {}) {
   );
 }
 
-function obterFiltros(resultado = {}, definicao = {}) {
+function obterFiltros(
+  resultado = {},
+  definicao = {}
+) {
   return {
     ...(definicao?.filtros || {}),
     ...(resultado?.dados?.filtros || {}),
@@ -41,12 +49,22 @@ function criarIndiceDeterministico(
   valor = "",
   quantidadeOpcoes = 1
 ) {
-  const texto = String(valor || "");
+  const texto = String(
+    valor || ""
+  );
+
   let total = 0;
 
-  for (let index = 0; index < texto.length; index += 1) {
+  for (
+    let index = 0;
+    index < texto.length;
+    index += 1
+  ) {
     total =
-      (total * 31 + texto.charCodeAt(index)) %
+      (
+        total * 31 +
+        texto.charCodeAt(index)
+      ) %
       2147483647;
   }
 
@@ -59,7 +77,10 @@ function escolherVariacao(
   opcoes = [],
   chave = ""
 ) {
-  if (!Array.isArray(opcoes) || opcoes.length === 0) {
+  if (
+    !Array.isArray(opcoes) ||
+    opcoes.length === 0
+  ) {
     return "";
   }
 
@@ -76,12 +97,12 @@ function possuiFiltroSecundario(
 ) {
   return Boolean(
     filtros?.categoria ||
-    filtros?.cor ||
-    filtros?.material ||
-    filtros?.genero ||
-    filtros?.tamanho ||
-    filtros?.nome ||
-    filtros?.descricao
+      filtros?.cor ||
+      filtros?.material ||
+      filtros?.genero ||
+      filtros?.tamanho ||
+      filtros?.nome ||
+      filtros?.descricao
   );
 }
 
@@ -90,41 +111,57 @@ function montarNucleoProduto(
   quantidade = 0
 ) {
   const plural =
-    normalizarQuantidade(quantidade) !== 1;
+    normalizarQuantidade(
+      quantidade
+    ) !== 1;
 
   const categoria =
-    String(filtros?.categoria || "").trim();
+    String(
+      filtros?.categoria || ""
+    ).trim();
 
-  const substantivo = categoria
-    ? pluralizar(
-      categoria.toLocaleLowerCase("pt-BR"),
-      quantidade
-    )
-    : plural
-      ? "peças"
-      : "peça";
+  const substantivo =
+    categoria
+      ? pluralizar(
+          categoria.toLocaleLowerCase(
+            "pt-BR"
+          ),
+          quantidade
+        )
+      : plural
+        ? "peças"
+        : "peça";
 
-  const feminino = categoria
-    ? categoriaEhFeminina(categoria)
-    : true;
+  const feminino =
+    categoria
+      ? categoriaEhFeminina(
+          categoria
+        )
+      : true;
 
   const adjetivos = [];
 
   if (filtros?.cor) {
     adjetivos.push(
-      ajustarAdjetivo(filtros.cor, {
-        feminino,
-        plural,
-      })
+      ajustarAdjetivo(
+        filtros.cor,
+        {
+          feminino,
+          plural,
+        }
+      )
     );
   }
 
   if (filtros?.genero) {
     adjetivos.push(
-      ajustarAdjetivo(filtros.genero, {
-        feminino,
-        plural,
-      })
+      ajustarAdjetivo(
+        filtros.genero,
+        {
+          feminino,
+          plural,
+        }
+      )
     );
   }
 
@@ -137,7 +174,9 @@ function montarNucleoProduto(
     partes.push(
       `em ${String(
         filtros.material
-      ).toLocaleLowerCase("pt-BR")}`
+      ).toLocaleLowerCase(
+        "pt-BR"
+      )}`
     );
   }
 
@@ -151,7 +190,9 @@ function montarNucleoProduto(
 
   if (filtros?.marca) {
     partes.push(
-      artigoDaMarca(filtros.marca)
+      artigoDaMarca(
+        filtros.marca
+      )
     );
   }
 
@@ -182,7 +223,12 @@ function montarDescricaoSemMarca(
 function montarFollowUpPositivo(
   filtros = {}
 ) {
-  if (filtros?.marca && possuiFiltroSecundario(filtros)) {
+  if (
+    filtros?.marca &&
+    possuiFiltroSecundario(
+      filtros
+    )
+  ) {
     return "Posso listar essas peças ou ampliar a busca removendo algum filtro.";
   }
 
@@ -214,15 +260,18 @@ function montarFollowUpNegativo({
   if (
     alternativaMaisProxima?.encontrada &&
     normalizarQuantidade(
-      alternativaMaisProxima?.quantidade
+      alternativaMaisProxima
+        ?.quantidade
     ) > 0
   ) {
     const quantidadeAlternativa =
       normalizarQuantidade(
-        alternativaMaisProxima.quantidade
+        alternativaMaisProxima
+          .quantidade
       );
 
-    return quantidadeAlternativa === 1
+    return quantidadeAlternativa ===
+      1
       ? "Posso listar essa peça para você ou continuar refinando a busca."
       : "Posso listar essas peças para você ou continuar refinando a busca.";
   }
@@ -230,7 +279,9 @@ function montarFollowUpNegativo({
   if (
     filtros?.marca &&
     quantidadeMarca > 0 &&
-    possuiFiltroSecundario(filtros)
+    possuiFiltroSecundario(
+      filtros
+    )
   ) {
     const descricaoAlternativa =
       montarDescricaoSemMarca(
@@ -247,7 +298,11 @@ function montarFollowUpNegativo({
     return "Posso verificar outras marcas ou listar as marcas disponíveis.";
   }
 
-  if (possuiFiltroSecundario(filtros)) {
+  if (
+    possuiFiltroSecundario(
+      filtros
+    )
+  ) {
     return "Posso ampliar a busca removendo algum filtro ou mostrar opções semelhantes.";
   }
 
@@ -316,16 +371,19 @@ function montarRespostaQuantidade(
      * Existe uma alternativa mais próxima.
      */
     if (
-      alternativaMaisProxima?.encontrada
+      alternativaMaisProxima
+        ?.encontrada
     ) {
       const quantidadeAlternativa =
         normalizarQuantidade(
-          alternativaMaisProxima.quantidade
+          alternativaMaisProxima
+            .quantidade
         );
 
       const descricaoAlternativa =
         montarNucleoProduto(
-          alternativaMaisProxima?.filtros || {},
+          alternativaMaisProxima
+            ?.filtros || {},
           quantidadeAlternativa
         );
 
@@ -346,9 +404,10 @@ function montarRespostaQuantidade(
     ) {
       linhas.push(
         "",
-        `Mas temos ${quantidadeMarca} ${quantidadeMarca === 1
-          ? "peça"
-          : "peças"
+        `Mas temos ${quantidadeMarca} ${
+          quantidadeMarca === 1
+            ? "peça"
+            : "peças"
         } ${artigoDaMarca(
           filtros.marca
         )} no estoque.`
@@ -393,7 +452,9 @@ function montarRespostaQuantidade(
   ].join("\n");
 }
 
-function obterNomePeca(peca = {}) {
+function obterNomePeca(
+  peca = {}
+) {
   return (
     peca?.nome ||
     peca?.descricao ||
@@ -403,7 +464,9 @@ function obterNomePeca(peca = {}) {
   );
 }
 
-function obterValorPeca(peca = {}) {
+function obterValorPeca(
+  peca = {}
+) {
   return (
     peca?.venda ??
     peca?.valor_venda ??
@@ -414,21 +477,41 @@ function obterValorPeca(peca = {}) {
   );
 }
 
-function formatarValor(valor) {
-  const numero = Number(valor);
+function formatarValor(
+  valor,
+  formatacao = {}
+) {
+  const numero =
+    Number(valor);
 
-  if (!Number.isFinite(numero)) {
+  if (
+    !Number.isFinite(
+      numero
+    )
+  ) {
     return "";
   }
 
-  return numero.toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
+  const locale =
+    formatacao?.locale ||
+    "pt-BR";
+
+  const moeda =
+    formatacao?.moeda ||
+    "BRL";
+
+  return numero.toLocaleString(
+    locale,
+    {
+      style: "currency",
+      currency: moeda,
+    }
+  );
 }
 
 function montarRespostaListaPecas(
-  resultado = {}
+  resultado = {},
+  formatacao = {}
 ) {
   const dados =
     resultado?.dados || {};
@@ -437,7 +520,9 @@ function montarRespostaListaPecas(
     dados?.filtros || {};
 
   const pecas =
-    Array.isArray(dados?.pecas)
+    Array.isArray(
+      dados?.pecas
+    )
       ? dados.pecas
       : [];
 
@@ -447,13 +532,16 @@ function montarRespostaListaPecas(
 
   const pecasAlternativas =
     Array.isArray(
-      alternativaMaisProxima?.pecas
+      alternativaMaisProxima
+        ?.pecas
     )
-      ? alternativaMaisProxima.pecas
+      ? alternativaMaisProxima
+          .pecas
       : [];
 
   const possuiAlternativa =
-    alternativaMaisProxima?.encontrada &&
+    alternativaMaisProxima
+      ?.encontrada &&
     pecasAlternativas.length > 0;
 
   /*
@@ -472,7 +560,8 @@ function montarRespostaListaPecas(
       montarFollowUpNegativo({
         filtros,
         quantidadeMarca:
-          dados?.quantidadeMarca || 0,
+          dados?.quantidadeMarca ||
+          0,
         alternativaMaisProxima,
       }),
     ].join("\n");
@@ -489,23 +578,43 @@ function montarRespostaListaPecas(
 
   const limite = 20;
 
-  const linhas = pecasParaListar
-    .slice(0, limite)
-    .map((peca, index) => {
-      const valor =
-        formatarValor(
-          obterValorPeca(peca)
-        );
+  const linhas =
+    pecasParaListar
+      .slice(
+        0,
+        limite
+      )
+      .map(
+        (
+          peca,
+          index
+        ) => {
+          const valor =
+            formatarValor(
+              obterValorPeca(
+                peca
+              ),
+              formatacao
+            );
 
-      return `${index + 1}. ${obterNomePeca(
-        peca
-      )}${valor ? ` — ${valor}` : ""}`;
-    });
+          return `${index + 1}. ${obterNomePeca(
+            peca
+          )}${
+            valor
+              ? ` — ${valor}`
+              : ""
+          }`;
+        }
+      );
 
-  if (pecasParaListar.length > limite) {
+  if (
+    pecasParaListar.length >
+    limite
+  ) {
     linhas.push(
       `… e mais ${
-        pecasParaListar.length - limite
+        pecasParaListar.length -
+        limite
       } peças.`
     );
   }
@@ -514,12 +623,14 @@ function montarRespostaListaPecas(
    * Não encontrou a combinação exata,
    * mas encontrou peças semelhantes.
    */
-  if (usandoAlternativa) {
+  if (
+    usandoAlternativa
+  ) {
     const quantidadeAlternativa =
       normalizarQuantidade(
         alternativaMaisProxima
           ?.quantidade ||
-        pecasAlternativas.length
+          pecasAlternativas.length
       );
 
     const descricaoBusca =
@@ -544,7 +655,8 @@ function montarRespostaListaPecas(
       "",
       ...linhas,
       "",
-      quantidadeAlternativa === 1
+      quantidadeAlternativa ===
+      1
         ? "Essa é a opção mais próxima disponível. Posso continuar refinando a busca."
         : "Essas são as opções mais próximas disponíveis. Posso continuar refinando a busca.",
     ].join("\n");
@@ -558,7 +670,8 @@ function montarRespostaListaPecas(
     "📦 Peças disponíveis",
     "",
     `Encontrei ${pecasParaListar.length} ${
-      pecasParaListar.length === 1
+      pecasParaListar.length ===
+      1
         ? "peça"
         : "peças"
     }:`,
@@ -575,7 +688,10 @@ function montarRespostaListaAgrupada({
   quantidadeTotal = 0,
   tipo = "",
 }) {
-  if (!Array.isArray(itens) || itens.length === 0) {
+  if (
+    !Array.isArray(itens) ||
+    itens.length === 0
+  ) {
     return [
       titulo,
       "",
@@ -584,23 +700,29 @@ function montarRespostaListaAgrupada({
   }
 
   const linhas =
-    itens.map((item, index) => {
-      const nome =
-        item?.nome ||
-        item?.marca ||
-        item?.categoria ||
-        "Não identificado";
+    itens.map(
+      (
+        item,
+        index
+      ) => {
+        const nome =
+          item?.nome ||
+          item?.marca ||
+          item?.categoria ||
+          "Não identificado";
 
-      const quantidade =
-        normalizarQuantidade(
-          item?.quantidade
-        );
+        const quantidade =
+          normalizarQuantidade(
+            item?.quantidade
+          );
 
-      return `${index + 1}. ${nome} — ${quantidade} ${quantidade === 1
-        ? "peça"
-        : "peças"
+        return `${index + 1}. ${nome} — ${quantidade} ${
+          quantidade === 1
+            ? "peça"
+            : "peças"
         }`;
-    });
+      }
+    );
 
   const followUp =
     tipo === "marcas"
@@ -612,11 +734,12 @@ function montarRespostaListaAgrupada({
     "",
     `O estoque analisado possui ${normalizarQuantidade(
       quantidadeTotal
-    )} ${normalizarQuantidade(
-      quantidadeTotal
-    ) === 1
-      ? "peça"
-      : "peças"
+    )} ${
+      normalizarQuantidade(
+        quantidadeTotal
+      ) === 1
+        ? "peça"
+        : "peças"
     }.`,
     "",
     ...linhas,
@@ -627,7 +750,8 @@ function montarRespostaListaAgrupada({
 
 function build(
   resultado = {},
-  definicao = {}
+  definicao = {},
+  formatacao = {}
 ) {
   const tipo =
     obterTipo(
@@ -635,7 +759,11 @@ function build(
       definicao
     );
 
-  if (!TIPOS_SUPORTADOS.has(tipo)) {
+  if (
+    !TIPOS_SUPORTADOS.has(
+      tipo
+    )
+  ) {
     return null;
   }
 
@@ -651,36 +779,48 @@ function build(
     case "listar_pecas":
     case "listar_pecas_estoque":
       return montarRespostaListaPecas(
-        resultado
+        resultado,
+        formatacao
       );
 
     case "listar_marcas":
     case "listar_marcas_estoque":
       return montarRespostaListaAgrupada({
-        titulo: "🏷️ Marcas do estoque",
+        titulo:
+          "🏷️ Marcas do estoque",
+
         itens:
-          resultado?.dados?.marcas ||
+          resultado?.dados
+            ?.marcas ||
           [],
+
         quantidadeTotal:
           resultado?.dados
             ?.quantidadePecas ||
           0,
-        tipo: "marcas",
+
+        tipo:
+          "marcas",
       });
 
     case "listar_categorias":
     case "listar_categorias_estoque":
       return montarRespostaListaAgrupada({
-        titulo: "🧥 Categorias do estoque",
+        titulo:
+          "🧥 Categorias do estoque",
+
         itens:
           resultado?.dados
             ?.categorias ||
           [],
+
         quantidadeTotal:
           resultado?.dados
             ?.quantidadePecas ||
           0,
-        tipo: "categorias",
+
+        tipo:
+          "categorias",
       });
 
     default:

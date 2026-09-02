@@ -19,7 +19,9 @@ import {
 
 import useNotes from "../../features/notes/hooks/useNotes.js";
 
-export default function NotesSection() {
+export default function NotesSection({
+  formatarDataHoraBR,
+}) {
   const {
     notes,
     visibleNotes,
@@ -70,17 +72,18 @@ export default function NotesSection() {
     );
   };
 
-  const corPrincipal = "#8f2745";
-  const corPrincipalClara = "#f7dce6";
-  const corBorda = "#ead1da";
-  const corTexto = "#243746";
-  const corSuave = "#64748b";
-  const corFundoSuave = "#fff7fa";
+  const corPrincipal = "var(--kc-primary)";
+  const corPrincipalClara = "var(--kc-soft)";
+  const corBorda = "var(--kc-border)";
+  const corTexto = "var(--kc-text)";
+  const corSuave = "var(--kc-text-muted)";
+  const corFundoSuave = "var(--kc-background)";
+  const corPainel = "var(--kc-panel)";
 
   const cardBase = {
-    border: "1px solid #eef2f7",
+    border: `1px solid ${corBorda}`,
     borderRadius: 18,
-    background: "#fff",
+    background: corPainel,
     boxShadow:
       "0 2px 10px rgba(15,23,42,0.04)",
   };
@@ -102,13 +105,13 @@ export default function NotesSection() {
     width: "100%",
     minWidth: 0,
     minHeight: isMobile ? 40 : 42,
-    border: "1px solid #dfe6ee",
+    border: `1px solid ${corBorda}`,
     borderRadius: 13,
     padding: isMobile
       ? "9px 12px"
       : "10px 13px",
     fontSize: isMobile ? 13 : 14,
-    background: "#fff",
+    background: corPainel,
     color: corTexto,
     boxSizing: "border-box",
     outline: "none",
@@ -138,13 +141,13 @@ export default function NotesSection() {
     background: corPrincipal,
     color: "#fff",
     boxShadow:
-      "0 8px 18px rgba(143,39,69,0.18)",
+      "0 8px 18px rgba(15,23,42,0.12)",
   };
 
   const botaoSecundario = {
     ...botaoBase,
-    border: "1px solid #dfe6ee",
-    background: "#fff",
+    border: `1px solid ${corBorda}`,
+    background: corPainel,
     color: corTexto,
     boxShadow:
       "0 2px 8px rgba(15,23,42,0.04)",
@@ -232,7 +235,7 @@ export default function NotesSection() {
             : 16,
           display: "grid",
           gap: 12,
-          background: "#fcfdff",
+          background: corFundoSuave,
         }}
       >
         <div
@@ -338,7 +341,7 @@ export default function NotesSection() {
                   top: "50%",
                   transform:
                     "translateY(-50%)",
-                  color: "#94a3b8",
+                  color: corSuave,
                   pointerEvents: "none",
                 }}
               />
@@ -698,6 +701,9 @@ export default function NotesSection() {
                   }
                   onToggleItem={
                     toggleItem
+                  }
+                  formatarDataHoraBR={
+                    formatarDataHoraBR
                   }
                 />
               );

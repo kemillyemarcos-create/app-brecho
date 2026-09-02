@@ -232,7 +232,8 @@ const styles = {
     alignItems: "flex-start",
     gap: 10,
     padding: "10px 0",
-    borderBottom: "1px solid #ece7e2",
+    borderBottom:
+      "1px solid var(--kc-border, #ece7e2)",
   },
 
   editorFields: {
@@ -254,36 +255,53 @@ const styles = {
     flexShrink: 0,
     marginTop: 4,
     cursor: "pointer",
+    accentColor:
+      "var(--kc-primary, #DF5E78)",
   },
 
   input: {
     width: "100%",
     minWidth: 0,
-    border: "1px solid #d8d0c8",
+    border:
+      "1px solid var(--kc-border, #d8d0c8)",
     borderRadius: 8,
     padding: "9px 10px",
     fontSize: 14,
     boxSizing: "border-box",
+    background:
+      "var(--kc-panel, #ffffff)",
+    color:
+      "var(--kc-text, #243746)",
   },
 
   secondaryInput: {
     width: "100%",
     minWidth: 0,
-    border: "1px solid #e2dcd6",
+    border:
+      "1px solid var(--kc-border, #e2dcd6)",
     borderRadius: 8,
     padding: "8px 10px",
     fontSize: 13,
     boxSizing: "border-box",
+    background:
+      "var(--kc-panel, #ffffff)",
+    color:
+      "var(--kc-text, #243746)",
   },
 
   smallInput: {
     width: "100%",
     minWidth: 0,
-    border: "1px solid #e2dcd6",
+    border:
+      "1px solid var(--kc-border, #e2dcd6)",
     borderRadius: 8,
     padding: "8px 10px",
     fontSize: 13,
     boxSizing: "border-box",
+    background:
+      "var(--kc-panel, #ffffff)",
+    color:
+      "var(--kc-text, #243746)",
   },
 
   removeButton: {
@@ -293,9 +311,10 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    border: "1px solid transparent",
+    border: "1px solid #fecaca",
     borderRadius: 7,
-    background: "transparent",
+    background: "#fff1f2",
+    color: "#b91c1c",
     fontSize: 25,
     lineHeight: 1,
     cursor: "pointer",
@@ -307,6 +326,8 @@ const styles = {
     alignItems: "flex-start",
     gap: 9,
     padding: "6px 0",
+    color:
+      "var(--kc-text, #243746)",
   },
 
   viewContent: {
@@ -320,6 +341,8 @@ const styles = {
     fontSize: 14,
     lineHeight: 1.35,
     overflowWrap: "anywhere",
+    color:
+      "var(--kc-text, #243746)",
   },
 
   completedText: {
@@ -332,11 +355,15 @@ const styles = {
     lineHeight: 1.35,
     opacity: 0.7,
     overflowWrap: "anywhere",
+    color:
+      "var(--kc-text-muted, #64748b)",
   },
 
   value: {
     fontSize: 12,
     fontWeight: 600,
+    color:
+      "var(--kc-text-muted, #64748b)",
   },
 
   disabledButton: {

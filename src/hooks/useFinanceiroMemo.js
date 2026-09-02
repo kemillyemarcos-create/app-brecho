@@ -11,6 +11,7 @@ export default function useFinanceiroMemo({
     buscaClienteCadastro,
     dataInicialFiltro,
     dataFinalFiltro,
+    formatarDataBR,
     listaLives,
     todasVendasLive,
     mapaPecasPorId,
@@ -60,14 +61,6 @@ export default function useFinanceiroMemo({
             getDataIsoLocal(venda?.data_venda) ||
             null
         );
-    }
-
-    function formatarDataBR(valor) {
-        const iso = getDataIsoLocal(valor);
-        if (!iso) return "";
-
-        const [ano, mes, dia] = iso.split("-");
-        return `${dia}/${mes}/${ano}`;
     }
 
     function getValorVendaPeca(peca) {
@@ -287,6 +280,7 @@ export default function useFinanceiroMemo({
             limparMoeda,
             dataInicialFiltro,
             dataFinalFiltro,
+            formatarDataBR,
         ]
     );
 

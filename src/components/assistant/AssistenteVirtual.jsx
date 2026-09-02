@@ -44,7 +44,9 @@ const sugestoes = [
   },
 ];
 
-export default function AssistenteVirtual() {
+export default function AssistenteVirtual({
+  operacao,
+}) {
   const [pergunta, setPergunta] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [mensagens, setMensagens] = useState([]);
@@ -68,7 +70,28 @@ export default function AssistenteVirtual() {
     ]);
 
     try {
-      const resultado = await assistantEngine.executar(texto);
+      const resultado = await assistantEngine.executar(
+  texto,
+  {
+    formatacao: {
+      locale:
+        operacao?.locale ||
+        "pt-BR",
+
+      moeda:
+        operacao?.moeda ||
+        "BRL",
+
+      timezone:
+        operacao?.timezone ||
+        "America/Sao_Paulo",
+
+      formatoData:
+        operacao?.formatoData ||
+        "DD/MM/YYYY",
+    },
+  }
+);
 
       setMensagens((prev) => [
         ...prev,

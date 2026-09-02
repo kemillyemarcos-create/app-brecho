@@ -60,6 +60,7 @@ export default function NoteCard({
   onTogglePin,
   onToggleArchive,
   onToggleItem,
+  formatarDataHoraBR,
 }) {
   const isMobile = useIsMobile();
 
@@ -74,7 +75,9 @@ export default function NoteCard({
     normalizedNote.criado_em;
 
   const formattedDate =
-    formatNoteDate(dateValue);
+  typeof formatarDataHoraBR === "function"
+    ? formatarDataHoraBR(dateValue)
+    : formatNoteDate(dateValue);
 
   const dateLabel = normalizedNote.atualizado_em
     ? "Atualizada em"
@@ -354,10 +357,10 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: 13,
-    border: "1px solid #e2dcd6",
+    border: "1px solid var(--kc-border, #e2dcd6)",
     borderRadius: 14,
     padding: 16,
-    background: "#ffffff",
+    background: "var(--kc-panel, #ffffff)",
     boxShadow:
       "0 2px 10px rgba(38, 28, 20, 0.05)",
   },
@@ -368,7 +371,7 @@ const styles = {
   },
 
   pinnedCard: {
-    border: "1px solid #aa866c",
+    border: "1px solid var(--kc-primary, #aa866c)",
     boxShadow:
       "0 3px 12px rgba(90, 60, 40, 0.10)",
   },
@@ -400,18 +403,19 @@ const styles = {
     padding: "3px 7px",
     borderRadius: 999,
     fontSize: 11,
-    background: "#efe4dc",
+    background: "var(--kc-soft, #efe4dc)",
   },
 
   category: {
     padding: "3px 7px",
     borderRadius: 999,
     fontSize: 11,
-    background: "#f4f2ef",
+    background: "var(--kc-background, #f4f2ef)",
   },
 
   title: {
     margin: 0,
+    color: "var(--kc-text, #243746)",
     fontSize: 18,
     lineHeight: 1.25,
     overflowWrap: "anywhere",
@@ -425,9 +429,9 @@ const styles = {
     flexShrink: 0,
     width: 34,
     height: 34,
-    border: "1px solid #ded7d1",
+    border: "1px solid var(--kc-border, #ded7d1)",
     borderRadius: 9,
-    background: "#fff",
+    background: "var(--kc-panel, #fff)",
     cursor: "pointer",
     fontSize: 19,
   },
@@ -439,6 +443,7 @@ const styles = {
 
   content: {
     margin: 0,
+    color: "var(--kc-text, #243746)",
     fontSize: 14,
     lineHeight: 1.5,
     whiteSpace: "pre-wrap",
@@ -458,6 +463,7 @@ const styles = {
 
   progressHeader: {
     display: "flex",
+    color: "var(--kc-text-muted, #64748b)",
     justifyContent: "space-between",
     gap: 10,
     fontSize: 11,
@@ -467,14 +473,14 @@ const styles = {
   progressTrack: {
     height: 5,
     borderRadius: 999,
-    background: "#eee9e5",
+    background: "var(--kc-border, #eee9e5)",
     overflow: "hidden",
   },
 
   progressBar: {
     height: "100%",
     borderRadius: 999,
-    background: "#8a654d",
+    background: "var(--kc-primary, #8a654d)",
     transition: "width 180ms ease",
   },
 
@@ -495,6 +501,7 @@ const styles = {
 
   date: {
     fontSize: 11,
+    color: "var(--kc-text-muted, #64748b)",
     opacity: 0.6,
   },
 
@@ -516,18 +523,20 @@ const styles = {
   },
 
   actionButton: {
-    border: "1px solid #d8d0c8",
+    color: "var(--kc-text, #243746)",
+    border: "1px solid var(--kc-border, #d8d0c8)",
     borderRadius: 8,
-    background: "#fff",
+    background: "var(--kc-panel, #fff)",
     padding: "7px 10px",
     cursor: "pointer",
     fontSize: 12,
   },
 
   deleteButton: {
+    color: "#991b1b",
     border: "1px solid #d5a8a8",
     borderRadius: 8,
-    background: "#fff",
+    background: "#fff1f2",
     padding: "7px 10px",
     cursor: "pointer",
     fontSize: 12,
