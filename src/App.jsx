@@ -3581,7 +3581,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     }
   }
 
-  function abrirWhatsappComanda(clienteResumo) {
+  async function abrirWhatsappComanda(clienteResumo) {
     const clienteCadastro = (clientes || []).find(
       (c) =>
         String(c?.nome || "").trim().toLowerCase() ===
@@ -3598,15 +3598,74 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       clienteResumo
     );
 
+    // Cliente sem telefone:
+    // copia a comanda e orienta a busca manual no WhatsApp.
+    if (!telefoneCliente) {
+      try {
+        if (
+          navigator.clipboard &&
+          typeof navigator.clipboard.writeText === "function"
+        ) {
+          await navigator.clipboard.writeText(texto);
+        } else {
+          const textarea =
+            document.createElement("textarea");
+
+          textarea.value = texto;
+          textarea.setAttribute("readonly", "");
+
+          textarea.style.position = "fixed";
+          textarea.style.opacity = "0";
+          textarea.style.pointerEvents = "none";
+          textarea.style.left = "-9999px";
+
+          document.body.appendChild(textarea);
+
+          textarea.focus();
+          textarea.select();
+
+          const copiado =
+            document.execCommand("copy");
+
+          document.body.removeChild(textarea);
+
+          if (!copiado) {
+            throw new Error(
+              "O navegador não permitiu copiar o texto."
+            );
+          }
+        }
+
+        alert(
+          "Esta cliente não possui telefone cadastrado.\n\n" +
+          "A comanda foi copiada. Procure a cliente no WhatsApp e cole a mensagem."
+        );
+      } catch (error) {
+        console.error(
+          "ERRO AO COPIAR COMANDA SEM TELEFONE:",
+          error
+        );
+
+        alert(
+          "Esta cliente não possui telefone cadastrado.\n\n" +
+          "Também não foi possível copiar a comanda automaticamente."
+        );
+      }
+
+      return;
+    }
+
+    // Cliente com telefone:
+    // abre diretamente a conversa no aplicativo do WhatsApp.
     const textoCodificado =
       encodeURIComponent(texto);
 
-    const urlApp = telefoneCliente
-      ? `whatsapp://send?phone=${telefoneCliente}&text=${textoCodificado}`
-      : `whatsapp://send?text=${textoCodificado}`;
+    const urlApp =
+      `whatsapp://send?phone=${telefoneCliente}&text=${textoCodificado}`;
 
     try {
-      const link = document.createElement("a");
+      const link =
+        document.createElement("a");
 
       link.href = urlApp;
       link.style.display = "none";
