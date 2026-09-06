@@ -427,6 +427,15 @@ function getSaudacaoDinamica(
   return "boa noite";
 }
 
+function normalizarNomeClienteChave(valor) {
+  return String(valor || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
+
 function normalizarTelefoneWhatsApp(valor) {
   const numeros = String(valor || "").replace(/\D/g, "");
 
@@ -463,6 +472,31 @@ function montarTextoComanda(
 
   const pago = !!clienteResumo?.pago;
 
+  const grupoVip = !!(
+    clienteResumo?.grupoVip ||
+    clienteResumo?.grupo_vip
+  );
+
+  const percentualGrupoVip = 5;
+
+  const valorOriginal = Number(
+    clienteResumo?.total || 0
+  );
+
+  const valorDescontoGrupoVip = grupoVip
+    ? Math.round(
+      valorOriginal *
+      (percentualGrupoVip / 100) *
+      100
+    ) / 100
+    : 0;
+
+  const valorTotalGrupoVip =
+    Math.round(
+      (valorOriginal - valorDescontoGrupoVip) *
+      100
+    ) / 100;
+
   const itensTexto = (
     clienteResumo.itens || []
   )
@@ -473,13 +507,33 @@ function montarTextoComanda(
         );
 
       return `${index + 1}. ${item.nomePeca}
+
 💲 ${formatarMoedaFn(item.valor)}
+
 🏷️ Código: ${item.codigo}${dataVendaFormatada
           ? `\n🕒 ${dataVendaFormatada}`
           : ""
         }`;
     })
     .join("\n\n");
+
+  const blocoVip = grupoVip
+    ? `
+
+💖 *BENEFÍCIO GRUPO VIP*
+
+Por fazer parte do nosso Grupo VIP, você tem *${percentualGrupoVip}% de desconto* nas suas comprinhas. ✨
+
+🏷️ Desconto VIP: *${formatarMoedaFn(
+      valorDescontoGrupoVip
+    )}*
+
+💰 *Total com desconto: ${formatarMoedaFn(
+      valorTotalGrupoVip
+    )}*
+
+⏰ *Importante:* o desconto de ${percentualGrupoVip}% é válido para pagamentos realizados *até o final do dia em que esta comanda foi enviada*. Após esse período, permanece o valor normal da comanda.`
+    : "";
 
   if (pago) {
     return `Oie! ${saudacao}, amiga! 🌸
@@ -496,7 +550,7 @@ Segue sua comandinha da live:${complementoLive} 🛍️
 
 💰 Valor total: *${formatarMoedaFn(
       clienteResumo.total
-    )}*
+    )}*${blocoVip}
 
 ━━━━━━━━━━━━━━
 
@@ -525,7 +579,7 @@ Segue sua comandinha da live:${complementoLive} 🛍️
 
 💰 Valor total: *${formatarMoedaFn(
     clienteResumo.total
-  )}*
+  )}*${blocoVip}
 
 ━━━━━━━━━━━━━━
 
@@ -534,9 +588,11 @@ ${itensTexto}
 ━━━━━━━━━━━━━━
 
 PIX para pagamento:
+
 Chave: *CELULAR* – *41988921085*
 
 🏦 Banco: *Nubank*
+
 👩‍💼 Nome: *Kemilly Lima*
 
 💳 Para pagamento via cartão, solicite o link de pagamento.
@@ -566,6 +622,7 @@ function AppContent() {
   const rotaPublica =
     portalClienteAtivo ||
     cadastroPublicoAtivo;
+
 
   const {
     session,
@@ -2833,45 +2890,170 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     setDadosPreview(null);
   }
 
-  function gerarComanda(clienteResumo) {
-    const comandaFormatada = {
-      ...clienteResumo,
+  async function gerarComanda(clienteResumo) {
+    try {
+      const nomeCliente = String(
+        clienteResumo?.nome || ""
+      ).trim();
 
-      // 🔥 ADICIONA DADOS DA LIVE PARA A COMANDA E WHATSAPP
-      liveNome:
-        clienteResumo?.liveNome ||
-        liveEmVisualizacao?.nome ||
-        liveSelecionada?.nome ||
-        liveAtual?.nome ||
-        "-",
+      const nomeChave =
+        normalizarNomeClienteChave(nomeCliente);
 
-      liveData:
-        clienteResumo?.liveData ||
-        liveEmVisualizacao?.data_live ||
-        liveSelecionada?.data_live ||
-        liveAtual?.data_live ||
-        liveEmVisualizacao?.criado_em ||
-        liveSelecionada?.criado_em ||
-        liveAtual?.criado_em ||
-        null,
+      let grupoVip = false;
 
-      clienteTelefone:
-        clienteResumo?.clienteTelefone ||
+      if (nomeChave) {
+        const { data, error } = await supabase
+          .from("clientes_grupo_vip")
+          .select("grupo_vip")
+          .eq("nome_chave", nomeChave)
+          .maybeSingle();
+
+        if (error) {
+          console.error(
+            "ERRO AO CONSULTAR GRUPO VIP:",
+            error
+          );
+        } else {
+          grupoVip = !!data?.grupo_vip;
+        }
+      }
+
+      const clienteCadastro =
         (clientes || []).find(
           (c) =>
-            String(c?.nome || "").trim().toLowerCase() ===
-            String(clienteResumo?.nome || "").trim().toLowerCase()
-        )?.telefone || "",
+            String(c?.nome || "")
+              .trim()
+              .toLowerCase() ===
+            nomeCliente.toLowerCase()
+        ) || null;
 
-      // Mantém a data original em ISO para o Preview formatar corretamente.
-      // Isso evita o erro "Invalid Date" quando a data já foi convertida para pt-BR antes.
-      itens: (clienteResumo.itens || []).map((item) => ({
-        ...item,
-        dataVenda: item.dataVenda || "",
-      })),
-    };
+      const comandaFormatada = {
+        ...clienteResumo,
 
-    abrirPreview(PREVIEW_TIPO.COMANDA, comandaFormatada);
+        // Grupo VIP independe de cadastro.
+        grupoVip,
+        grupo_vip: grupoVip,
+
+        // Mantemos clienteId somente se existir cadastro.
+        clienteId:
+          clienteCadastro?.id ||
+          clienteResumo?.clienteId ||
+          clienteResumo?.cliente_id ||
+          null,
+
+        // Dados da live para Preview e WhatsApp.
+        liveNome:
+          clienteResumo?.liveNome ||
+          liveEmVisualizacao?.nome ||
+          liveSelecionada?.nome ||
+          liveAtual?.nome ||
+          "-",
+
+        liveData:
+          clienteResumo?.liveData ||
+          liveEmVisualizacao?.data_live ||
+          liveSelecionada?.data_live ||
+          liveAtual?.data_live ||
+          liveEmVisualizacao?.criado_em ||
+          liveSelecionada?.criado_em ||
+          liveAtual?.criado_em ||
+          null,
+
+        // Telefone continua vindo do cadastro, quando existir.
+        clienteTelefone:
+          clienteResumo?.clienteTelefone ||
+          clienteCadastro?.telefone ||
+          "",
+
+        // Mantém a data original em ISO.
+        itens: (clienteResumo.itens || []).map(
+          (item) => ({
+            ...item,
+            dataVenda: item.dataVenda || "",
+          })
+        ),
+      };
+
+      abrirPreview(
+        PREVIEW_TIPO.COMANDA,
+        comandaFormatada
+      );
+    } catch (error) {
+      console.error(
+        "ERRO AO GERAR COMANDA:",
+        error
+      );
+
+      alert(
+        "Não foi possível preparar a comanda."
+      );
+    }
+  }
+
+  async function alterarGrupoVipComanda(
+    clienteResumo,
+    novoValor
+  ) {
+    const clienteNome = String(
+      clienteResumo?.nome || ""
+    ).trim();
+
+    const nomeChave =
+      normalizarNomeClienteChave(clienteNome);
+
+    if (!clienteNome || !nomeChave) {
+      alert(
+        "Não foi possível identificar o nome da cliente."
+      );
+
+      return false;
+    }
+
+    const grupoVip = !!novoValor;
+
+    try {
+      const { error } = await supabase
+        .from("clientes_grupo_vip")
+        .upsert(
+          {
+            cliente_nome: clienteNome,
+            nome_chave: nomeChave,
+            grupo_vip: grupoVip,
+            atualizado_em: agoraIso(),
+          },
+          {
+            onConflict: "nome_chave",
+          }
+        );
+
+      if (error) {
+        throw error;
+      }
+
+      setDadosPreview((atual) => {
+        if (!atual) return atual;
+
+        return {
+          ...atual,
+          grupoVip,
+          grupo_vip: grupoVip,
+        };
+      });
+
+      return true;
+    } catch (error) {
+      console.error(
+        "ERRO AO ALTERAR GRUPO VIP:",
+        error
+      );
+
+      alert(
+        error?.message ||
+        "Não foi possível atualizar o Grupo VIP."
+      );
+
+      return false;
+    }
   }
 
   async function carregarSacolinhasLive() {
@@ -2918,12 +3100,68 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
   async function copiarTextoComanda(clienteResumo) {
     try {
-      await navigator.clipboard.writeText(
-        montarTextoComandaEmpresa(clienteResumo)
+      const texto =
+        montarTextoComandaEmpresa(clienteResumo);
+
+      // Método moderno — disponível em HTTPS e localhost.
+      if (
+        navigator.clipboard &&
+        typeof navigator.clipboard.writeText === "function"
+      ) {
+        await navigator.clipboard.writeText(texto);
+
+        alert(
+          "Texto da comanda copiado com sucesso."
+        );
+
+        return;
+      }
+
+      // Fallback para ambientes sem Clipboard API.
+      const textarea =
+        document.createElement("textarea");
+
+      textarea.value = texto;
+
+      textarea.setAttribute(
+        "readonly",
+        ""
       );
-      alert("Texto da comanda copiado com sucesso.");
-    } catch {
-      alert("Não foi possível copiar o texto da comanda.");
+
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      textarea.style.pointerEvents = "none";
+      textarea.style.left = "-9999px";
+
+      document.body.appendChild(textarea);
+
+      textarea.focus();
+      textarea.select();
+
+      const copiado =
+        document.execCommand("copy");
+
+      document.body.removeChild(textarea);
+
+      if (!copiado) {
+        throw new Error(
+          "O navegador não permitiu copiar o texto."
+        );
+      }
+
+      alert(
+        "Texto da comanda copiado com sucesso."
+      );
+    } catch (error) {
+      console.error(
+        "ERRO AO COPIAR TEXTO DA COMANDA:",
+        error
+      );
+
+      alert(
+        `Não foi possível copiar o texto da comanda.\n\n${error?.message || "Erro desconhecido."
+        }`
+      );
     }
   }
 
@@ -3351,21 +3589,43 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     );
 
     const telefoneCliente = normalizarTelefoneWhatsApp(
-      clienteResumo?.clienteTelefone || clienteCadastro?.telefone || ""
+      clienteResumo?.clienteTelefone ||
+      clienteCadastro?.telefone ||
+      ""
     );
 
-    const textoCodificado = encodeURIComponent(
-      montarTextoComandaEmpresa(clienteResumo)
+    const texto = montarTextoComandaEmpresa(
+      clienteResumo
     );
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-    const url = telefoneCliente
-      ? `https://wa.me/${telefoneCliente}?text=${textoCodificado}`
-      : isMobile
-        ? `https://wa.me/?text=${textoCodificado}`
-        : `https://web.whatsapp.com/send?text=${textoCodificado}`;
+    const textoCodificado =
+      encodeURIComponent(texto);
 
-    window.open(url, "_blank");
+    const urlApp = telefoneCliente
+      ? `whatsapp://send?phone=${telefoneCliente}&text=${textoCodificado}`
+      : `whatsapp://send?text=${textoCodificado}`;
+
+    try {
+      const link = document.createElement("a");
+
+      link.href = urlApp;
+      link.style.display = "none";
+
+      document.body.appendChild(link);
+
+      link.click();
+
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error(
+        "ERRO AO ABRIR WHATSAPP:",
+        error
+      );
+
+      alert(
+        "Não foi possível abrir o aplicativo do WhatsApp."
+      );
+    }
   }
 
   function toggleEtiqueta(id) {
@@ -4725,12 +4985,12 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           fecharPreview={fecharPreview}
           copiarTextoComanda={copiarTextoComanda}
           abrirWhatsappComanda={abrirWhatsappComanda}
+          alterarGrupoVipComanda={alterarGrupoVipComanda}
           formatarBRL={formatarMoedaExibicao}
           formatarDataHoraBR={formatarDataHoraEmpresa}
           agruparEtiquetasEmPaginas={agruparEtiquetasEmPaginas}
           EtiquetaPrint={EtiquetaPrint}
         />
-
         {mostrarBotaoTopo && (
           <button
             type="button"
