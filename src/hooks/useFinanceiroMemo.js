@@ -114,11 +114,18 @@ export default function useFinanceiroMemo({
 
         pecasVendidas.forEach((p) => {
             const nomeCliente = String(p?.cliente || "").trim();
+            const clienteId = String(p?.cliente_id || "").trim();
+
             if (!nomeCliente) return;
 
-            if (!mapa[nomeCliente]) {
-                mapa[nomeCliente] = {
+            const chaveCliente = clienteId
+                ? `id:${clienteId}`
+                : `nome:${nomeCliente.toLowerCase()}`;
+
+            if (!mapa[chaveCliente]) {
+                mapa[chaveCliente] = {
                     nome: nomeCliente,
+                    cliente_id: clienteId || null,
                     pecas: 0,
                     total: 0,
                     itens: [],
@@ -127,9 +134,9 @@ export default function useFinanceiroMemo({
 
             const valorVenda = getValorVendaPeca(p);
 
-            mapa[nomeCliente].pecas += 1;
-            mapa[nomeCliente].total += valorVenda;
-            mapa[nomeCliente].itens.push({
+            mapa[chaveCliente].pecas += 1;
+            mapa[chaveCliente].total += valorVenda;
+            mapa[chaveCliente].itens.push({
                 codigo: p.id,
                 nomePeca: p.nome || "-",
                 valor: valorVenda,
@@ -138,10 +145,16 @@ export default function useFinanceiroMemo({
         });
 
         return Object.values(mapa)
-            .map((c) => ({
-                ...c,
-                pago: !!pagamentosClientes[c.nome],
-            }))
+            .map((c) => {
+                const chavePagamento = c.cliente_id
+                    ? `id:${c.cliente_id}`
+                    : `nome:${c.nome.toLowerCase()}`;
+
+                return {
+                    ...c,
+                    pago: !!pagamentosClientes[chavePagamento],
+                };
+            })
             .sort((a, b) => b.total - a.total);
     }, [pecasVendidas, pagamentosClientes]);
 
@@ -149,11 +162,17 @@ export default function useFinanceiroMemo({
         () =>
             Object.values(
                 (vendasLive || []).reduce((acc, venda) => {
-                    const nome = venda.cliente_nome || "Sem nome";
+                    const nome = String(venda?.cliente_nome || "Sem nome").trim();
+                    const clienteId = String(venda?.cliente_id || "").trim();
 
-                    if (!acc[nome]) {
-                        acc[nome] = {
+                    const chaveCliente = clienteId
+                        ? `id:${clienteId}`
+                        : `nome:${nome.toLowerCase()}`;
+
+                    if (!acc[chaveCliente]) {
+                        acc[chaveCliente] = {
                             nome,
+                            cliente_id: clienteId || null,
                             total: 0,
                             pecas: 0,
                             pago: true,
@@ -161,14 +180,14 @@ export default function useFinanceiroMemo({
                         };
                     }
 
-                    acc[nome].total += Number(venda.valor_venda || 0);
-                    acc[nome].pecas += 1;
+                    acc[chaveCliente].total += Number(venda.valor_venda || 0);
+                    acc[chaveCliente].pecas += 1;
 
                     if (venda.status_pagamento !== "pago") {
-                        acc[nome].pago = false;
+                        acc[chaveCliente].pago = false;
                     }
 
-                    acc[nome].itens.push({
+                    acc[chaveCliente].itens.push({
                         codigo: venda.peca_id || "-",
                         nomePeca:
                             venda.nome_peca ||

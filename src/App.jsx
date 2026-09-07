@@ -1265,19 +1265,72 @@ Qualquer dúvida, é só nos chamar! 💕`;
     try {
       const nomeCliente = String(clienteResumo.nome || "").trim();
 
-      let sacolinha = (sacolinhasLive || []).find(
-        (item) =>
+      const clienteIdResumo =
+        clienteResumo?.clienteId ||
+        clienteResumo?.cliente_id ||
+        null;
+
+      let clienteCadastro = null;
+
+      if (clienteIdResumo) {
+        clienteCadastro =
+          (clientes || []).find(
+            (c) =>
+              String(c?.id || "") ===
+              String(clienteIdResumo)
+          ) || null;
+      } else {
+        const clientesMesmoNome = (clientes || []).filter(
+          (c) =>
+            String(c?.nome || "")
+              .trim()
+              .toLowerCase() ===
+            nomeCliente.toLowerCase()
+        );
+
+        clienteCadastro =
+          clientesMesmoNome.length === 1
+            ? clientesMesmoNome[0]
+            : null;
+      }
+
+      const clienteIdPortal =
+        clienteIdResumo ||
+        clienteCadastro?.id ||
+        null;
+
+      let sacolinha = (sacolinhasLive || []).find((item) => {
+        const mesmaLive =
+          String(item?.live_id || "") === String(liveEmVisualizacao.id);
+
+        if (!mesmaLive) return false;
+
+        if (clienteIdPortal) {
+          return String(item?.cliente_id || "") === String(clienteIdPortal);
+        }
+
+        return (
+          !item?.cliente_id &&
           String(item?.cliente_nome || "").trim().toLowerCase() ===
-          nomeCliente.toLowerCase() &&
-          String(item?.live_id || "") === String(liveEmVisualizacao.id)
-      );
+          nomeCliente.toLowerCase()
+        );
+      });
 
       if (!sacolinha) {
-        const { data, error } = await supabase
+        let query = supabase
           .from("sacolinhas_live")
           .select("*")
-          .eq("cliente_nome", nomeCliente)
-          .eq("live_id", liveEmVisualizacao.id)
+          .eq("live_id", liveEmVisualizacao.id);
+
+        if (clienteIdPortal) {
+          query = query.eq("cliente_id", clienteIdPortal);
+        } else {
+          query = query
+            .is("cliente_id", null)
+            .eq("cliente_nome", nomeCliente);
+        }
+
+        const { data, error } = await query
           .order("criado_em", { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -1323,11 +1376,22 @@ Qualquer dúvida, é só nos chamar! 💕`;
     }
 
     const mapa = {};
+
     (data || []).forEach((item) => {
-      mapa[item.cliente] = !!item.pago;
+      const clienteId = String(item?.cliente_id || "").trim();
+      const clienteNome = String(item?.cliente || "").trim();
+
+      if (clienteId) {
+        mapa[`id:${clienteId}`] = !!item.pago;
+      }
+
+      if (clienteNome) {
+        mapa[`nome:${clienteNome.toLowerCase()}`] = !!item.pago;
+      }
     });
 
     setPagamentosClientes(mapa);
+
   }
 
   async function carregarPecas() {
@@ -2251,6 +2315,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         .update({
           vendido: true,
           cliente: nomeCliente,
+          cliente_id: clienteIdResolvido || null,
           data_venda: agoraIso(),
           valor_venda_final: valorFinal,
         })
@@ -2276,6 +2341,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         peca_id: codigoPeca,
         nome_peca: peca.nome || "-",
         cliente_nome: nomeCliente,
+        cliente_id: clienteIdResolvido || null,
         fila_espera_nome: String(filaEspera || "").trim() || null,
         valor_venda: valorFinal,
         data_hora: agoraIso(),
@@ -2293,6 +2359,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           .update({
             vendido: false,
             cliente: null,
+            cliente_id: null,
             data_venda: null,
             valor_venda_final: null,
           })
@@ -2384,6 +2451,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     }
 
     const clienteAnterior = String(venda.cliente_nome || "").trim();
+    const clienteAnteriorId = venda.cliente_id || null;
     const proximaCliente = String(venda.fila_espera_nome || "").trim();
     const sacolinhaAntigaId = venda.sacolinha_id || null;
 
@@ -2420,6 +2488,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       .from("vendas_live")
       .update({
         cliente_nome: proximaCliente,
+        cliente_id: proximaClienteId || null,
         fila_espera_nome: null,
         status_pagamento: "pendente",
         data_hora: novaData,
@@ -2437,6 +2506,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       .from("pecas")
       .update({
         cliente: proximaCliente,
+        cliente_id: proximaClienteId || null,
         data_venda: novaData,
         vendido: true,
       })
@@ -2449,6 +2519,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         .from("vendas_live")
         .update({
           cliente_nome: clienteAnterior,
+          cliente_id: clienteAnteriorId,
           fila_espera_nome: proximaCliente,
           sacolinha_id: sacolinhaAntigaId,
         })
@@ -2546,6 +2617,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           .update({
             vendido: false,
             cliente: null,
+            cliente_id: null,
             data_venda: null,
             valor_venda_final: null,
           })
@@ -2580,6 +2652,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         .update({
           vendido: false,
           cliente: null,
+          cliente_id: null,
           data_venda: null,
           valor_venda_final: null,
         })
@@ -2666,6 +2739,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
               ...item,
               vendido: false,
               cliente: null,
+              cliente_id: null,
               data_venda: null,
               valor_venda_final: null,
             }
@@ -2682,27 +2756,37 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   async function togglePagamentoCliente(nomeCliente, statusAtual) {
     const novoStatus = !statusAtual;
 
-    const { error } = await supabase.from("clientes_pagamento").upsert({
+    const clientesEncontrados = (clientes || []).filter(
+      (item) =>
+        String(item?.nome || "").trim().toLowerCase() ===
+        String(nomeCliente || "").trim().toLowerCase()
+    );
+
+    const clienteIdResolvido =
+      clientesEncontrados.length === 1
+        ? clientesEncontrados[0]?.id || null
+        : null;
+
+    const payload = {
       cliente: nomeCliente,
+      cliente_id: clienteIdResolvido,
       pago: novoStatus,
       updated_at: new Date().toISOString(),
-    });
+    };
+
+    const { error } = await supabase
+      .from("clientes_pagamento")
+      .upsert(payload, {
+        onConflict: "cliente",
+      });
 
     if (error) {
-      console.error(error);
-      alert("Erro ao atualizar pagamento.");
+      console.error("ERRO AO ATUALIZAR PAGAMENTO DA CLIENTE:", error);
+      alert(`Erro ao atualizar pagamento: ${error.message}`);
       return;
     }
 
-    // 🔥 mantém a live atual travada
-    const liveAtualAberta = liveSelecionada;
-
     await carregarPagamentosClientes();
-
-    // 🔥 re-aplica a live que estava aberta
-    if (liveAtualAberta?.id) {
-      setLiveSelecionada(liveAtualAberta);
-    }
   }
 
   async function iniciarLive() {
@@ -2762,7 +2846,11 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     alert("Live encerrada!");
   }
 
-  async function togglePagamentoClienteLive(nomeCliente, statusAtual) {
+  async function togglePagamentoClienteLive(
+    nomeCliente,
+    statusAtual,
+    clienteId = null
+  ) {
     if (!liveEmVisualizacao) {
       alert("Nenhuma live selecionada para atualizar pagamento.");
       return;
@@ -2770,11 +2858,34 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
     const novoStatus = statusAtual ? "pendente" : "pago";
 
-    const { error } = await supabase
+    const clienteIdInformado = String(clienteId || "").trim();
+
+    const clientesEncontrados = (clientes || []).filter(
+      (item) =>
+        String(item?.nome || "").trim().toLowerCase() ===
+        String(nomeCliente || "").trim().toLowerCase()
+    );
+
+    const clienteIdResolvido =
+      clienteIdInformado ||
+      (clientesEncontrados.length === 1
+        ? clientesEncontrados[0]?.id || null
+        : null);
+
+    let query = supabase
       .from("vendas_live")
       .update({ status_pagamento: novoStatus })
-      .eq("live_id", liveEmVisualizacao.id)
-      .eq("cliente_nome", nomeCliente);
+      .eq("live_id", liveEmVisualizacao.id);
+
+    if (clienteIdResolvido) {
+      query = query.eq("cliente_id", clienteIdResolvido);
+    } else {
+      query = query
+        .is("cliente_id", null)
+        .eq("cliente_nome", nomeCliente);
+    }
+
+    const { error } = await query;
 
     if (error) {
       console.error("ERRO AO ATUALIZAR PAGAMENTO DA LIVE:", error);
@@ -2899,18 +3010,68 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       const nomeChave =
         normalizarNomeClienteChave(nomeCliente);
 
+      const clienteIdResumo =
+        clienteResumo?.clienteId ||
+        clienteResumo?.cliente_id ||
+        null;
+
+      let clienteCadastro = null;
+
+      if (clienteIdResumo) {
+        clienteCadastro =
+          (clientes || []).find(
+            (c) =>
+              String(c?.id || "") ===
+              String(clienteIdResumo)
+          ) || null;
+      } else {
+        const clientesMesmoNome = (clientes || []).filter(
+          (c) =>
+            String(c?.nome || "")
+              .trim()
+              .toLowerCase() ===
+            nomeCliente.toLowerCase()
+        );
+
+        clienteCadastro =
+          clientesMesmoNome.length === 1
+            ? clientesMesmoNome[0]
+            : null;
+      }
+
+      const clienteIdResolvido =
+        clienteIdResumo ||
+        clienteCadastro?.id ||
+        null;
+
       let grupoVip = false;
 
-      if (nomeChave) {
+      if (clienteIdResolvido) {
         const { data, error } = await supabase
           .from("clientes_grupo_vip")
           .select("grupo_vip")
+          .eq("cliente_id", clienteIdResolvido)
+          .maybeSingle();
+
+        if (error) {
+          console.error(
+            "ERRO AO CONSULTAR GRUPO VIP POR CLIENTE_ID:",
+            error
+          );
+        } else {
+          grupoVip = !!data?.grupo_vip;
+        }
+      } else if (nomeChave) {
+        const { data, error } = await supabase
+          .from("clientes_grupo_vip")
+          .select("grupo_vip")
+          .is("cliente_id", null)
           .eq("nome_chave", nomeChave)
           .maybeSingle();
 
         if (error) {
           console.error(
-            "ERRO AO CONSULTAR GRUPO VIP:",
+            "ERRO AO CONSULTAR GRUPO VIP POR NOME:",
             error
           );
         } else {
@@ -2918,30 +3079,15 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         }
       }
 
-      const clienteCadastro =
-        (clientes || []).find(
-          (c) =>
-            String(c?.nome || "")
-              .trim()
-              .toLowerCase() ===
-            nomeCliente.toLowerCase()
-        ) || null;
-
       const comandaFormatada = {
         ...clienteResumo,
 
-        // Grupo VIP independe de cadastro.
         grupoVip,
         grupo_vip: grupoVip,
 
-        // Mantemos clienteId somente se existir cadastro.
         clienteId:
-          clienteCadastro?.id ||
-          clienteResumo?.clienteId ||
-          clienteResumo?.cliente_id ||
-          null,
+          clienteIdResolvido,
 
-        // Dados da live para Preview e WhatsApp.
         liveNome:
           clienteResumo?.liveNome ||
           liveEmVisualizacao?.nome ||
@@ -2959,13 +3105,11 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           liveAtual?.criado_em ||
           null,
 
-        // Telefone continua vindo do cadastro, quando existir.
         clienteTelefone:
           clienteResumo?.clienteTelefone ||
           clienteCadastro?.telefone ||
           "",
 
-        // Mantém a data original em ISO.
         itens: (clienteResumo.itens || []).map(
           (item) => ({
             ...item,
@@ -3009,25 +3153,127 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       return false;
     }
 
+    const clienteIdResumo =
+      clienteResumo?.clienteId ||
+      clienteResumo?.cliente_id ||
+      null;
+
+    let clienteCadastro = null;
+
+    if (clienteIdResumo) {
+      clienteCadastro =
+        (clientes || []).find(
+          (c) =>
+            String(c?.id || "") ===
+            String(clienteIdResumo)
+        ) || null;
+    } else {
+      const clientesMesmoNome = (clientes || []).filter(
+        (c) =>
+          String(c?.nome || "")
+            .trim()
+            .toLowerCase() ===
+          clienteNome.toLowerCase()
+      );
+
+      clienteCadastro =
+        clientesMesmoNome.length === 1
+          ? clientesMesmoNome[0]
+          : null;
+    }
+
+    const clienteIdResolvido =
+      clienteIdResumo ||
+      clienteCadastro?.id ||
+      null;
+
     const grupoVip = !!novoValor;
+    const atualizadoEm = agoraIso();
 
     try {
-      const { error } = await supabase
-        .from("clientes_grupo_vip")
-        .upsert(
-          {
-            cliente_nome: clienteNome,
-            nome_chave: nomeChave,
-            grupo_vip: grupoVip,
-            atualizado_em: agoraIso(),
-          },
-          {
-            onConflict: "nome_chave",
-          }
-        );
+      if (clienteIdResolvido) {
+        const { data: registroExistente, error: erroBusca } =
+          await supabase
+            .from("clientes_grupo_vip")
+            .select("id")
+            .eq("cliente_id", clienteIdResolvido)
+            .maybeSingle();
 
-      if (error) {
-        throw error;
+        if (erroBusca) {
+          throw erroBusca;
+        }
+
+        if (registroExistente?.id) {
+          const { error } = await supabase
+            .from("clientes_grupo_vip")
+            .update({
+              cliente_nome: clienteNome,
+              grupo_vip: grupoVip,
+              atualizado_em: atualizadoEm,
+            })
+            .eq("id", registroExistente.id);
+
+          if (error) {
+            throw error;
+          }
+        } else {
+          const { error } = await supabase
+            .from("clientes_grupo_vip")
+            .insert({
+              cliente_id: clienteIdResolvido,
+              cliente_nome: clienteNome,
+              nome_chave: nomeChave,
+              grupo_vip: grupoVip,
+              criado_em: atualizadoEm,
+              atualizado_em: atualizadoEm,
+            });
+
+          if (error) {
+            throw error;
+          }
+        }
+      } else {
+        const { data: registroExistente, error: erroBusca } =
+          await supabase
+            .from("clientes_grupo_vip")
+            .select("id")
+            .is("cliente_id", null)
+            .eq("nome_chave", nomeChave)
+            .maybeSingle();
+
+        if (erroBusca) {
+          throw erroBusca;
+        }
+
+        if (registroExistente?.id) {
+          const { error } = await supabase
+            .from("clientes_grupo_vip")
+            .update({
+              cliente_nome: clienteNome,
+              grupo_vip: grupoVip,
+              atualizado_em: atualizadoEm,
+            })
+            .eq("id", registroExistente.id);
+
+          if (error) {
+            throw error;
+          }
+        } else {
+          const { error } = await supabase
+            .from("clientes_grupo_vip")
+            .insert({
+              cliente_id: null,
+              cliente_nome: clienteNome,
+              nome_chave: nomeChave,
+              grupo_vip: grupoVip,
+              criado_em: atualizadoEm,
+              atualizado_em: atualizadoEm,
+            });
+
+          if (error) {
+            throw error;
+          }
+        }
       }
 
       setDadosPreview((atual) => {
@@ -3349,6 +3595,26 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
       const quantidadeEsperada = itensDoPedido.length;
 
+      const clienteIdsSacolinha = [
+        ...new Set(
+          sacolinhasElegiveis
+            .map((s) => String(s?.cliente_id || "").trim())
+            .filter(Boolean)
+        ),
+      ];
+
+      if (clienteIdsSacolinha.length > 1) {
+        alert(
+          "Foram encontradas sacolinhas vinculadas a clientes diferentes. Revise antes de criar o pedido."
+        );
+        return;
+      }
+
+      const clienteIdPedido =
+        clienteIdsSacolinha.length === 1
+          ? clienteIdsSacolinha[0]
+          : null;
+
       // 1️⃣ cria pedido
       const { error: erroPedido } = await supabase
         .from("pedidos_envio")
@@ -3356,6 +3622,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           {
             id: pedidoId,
             cliente_nome: clienteNome,
+            cliente_id: clienteIdPedido,
             status: "montagem",
             quantidade_esperada: quantidadeEsperada,
             criado_em: criadoEm,
@@ -3509,12 +3776,17 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
         if (!clienteNome || !liveId) return;
 
-        const chave = `${liveId}__${clienteNome}`;
+        const clienteIdVenda = String(venda.cliente_id || "").trim();
+
+        const chave = clienteIdVenda
+          ? `${liveId}__ID__${clienteIdVenda}`
+          : `${liveId}__NOME__${clienteNome.toLowerCase()}`;
 
         if (!grupos[chave]) {
           grupos[chave] = {
             live_id: liveId,
             cliente_nome: clienteNome,
+            cliente_id: clienteIdVenda || null,
             vendas: [],
           };
         }
@@ -3541,6 +3813,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
               id: novoIdSacolinha,
               live_id: grupo.live_id,
               cliente_nome: grupo.cliente_nome,
+              cliente_id: grupo.cliente_id || null,
               status: "aberta",
               criado_em: agoraIso(),
               portal_token: gerarPortalToken(),
@@ -3582,11 +3855,37 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   }
 
   async function abrirWhatsappComanda(clienteResumo) {
-    const clienteCadastro = (clientes || []).find(
-      (c) =>
-        String(c?.nome || "").trim().toLowerCase() ===
-        String(clienteResumo?.nome || "").trim().toLowerCase()
-    );
+    const clienteIdResumo =
+      clienteResumo?.clienteId ||
+      clienteResumo?.cliente_id ||
+      null;
+
+    let clienteCadastro = null;
+
+    if (clienteIdResumo) {
+      clienteCadastro =
+        (clientes || []).find(
+          (c) =>
+            String(c?.id || "") ===
+            String(clienteIdResumo)
+        ) || null;
+    } else {
+      const nomeCliente = String(
+        clienteResumo?.nome || ""
+      ).trim().toLowerCase();
+
+      const clientesMesmoNome = (clientes || []).filter(
+        (c) =>
+          String(c?.nome || "")
+            .trim()
+            .toLowerCase() === nomeCliente
+      );
+
+      clienteCadastro =
+        clientesMesmoNome.length === 1
+          ? clientesMesmoNome[0]
+          : null;
+    }
 
     const telefoneCliente = normalizarTelefoneWhatsApp(
       clienteResumo?.clienteTelefone ||

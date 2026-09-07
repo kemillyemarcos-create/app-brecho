@@ -15,7 +15,7 @@ import {
     XCircle,
 } from "lucide-react";
 import {
-  formatarDataHoraBR as formatarDataHoraBRPadrao,
+    formatarDataHoraBR as formatarDataHoraBRPadrao,
 } from "../../utils/dateUtils";
 
 export default function VendasSection({
@@ -85,28 +85,49 @@ export default function VendasSection({
         if (termo.length < 1) return [];
 
         const mapaSugestoes = new Map();
+        const idsClientesCadastrados = new Set();
 
-        // 1. Cadastro oficial tem prioridade.
+        // 1. Cadastro oficial sempre tem prioridade.
         (clientes || []).forEach((clienteCadastro) => {
+            const id = String(clienteCadastro?.id || "").trim();
             const nomeOriginal = String(clienteCadastro?.nome || "").trim();
             const nomeNormalizado = nomeOriginal.toLowerCase();
 
             if (!nomeOriginal) return;
 
+            if (id) {
+                idsClientesCadastrados.add(id);
+            }
+
             mapaSugestoes.set(nomeNormalizado, {
-                id: clienteCadastro?.id || null,
+                id: id || null,
                 nome: nomeOriginal,
                 origem: "cadastro",
             });
         });
 
-        // 2. Inclui clientes que já compraram, mas ainda não possuem
-        // cadastro com o mesmo nome exato.
+        // 2. Histórico.
         (todasVendasLive || []).forEach((venda) => {
             const nomeOriginal = String(venda?.cliente_nome || "").trim();
             const nomeNormalizado = nomeOriginal.toLowerCase();
+            const vendaClienteId = String(venda?.cliente_id || "").trim();
 
-            if (!nomeOriginal || mapaSugestoes.has(nomeNormalizado)) return;
+            if (!nomeOriginal) return;
+
+            // Se essa venda já está vinculada a um cadastro,
+            // não cria uma segunda sugestão "Histórico".
+            if (
+                vendaClienteId &&
+                idsClientesCadastrados.has(vendaClienteId)
+            ) {
+                return;
+            }
+
+            // Se já existe cadastro com exatamente esse nome,
+            // cadastro continua tendo prioridade.
+            if (mapaSugestoes.has(nomeNormalizado)) {
+                return;
+            }
 
             mapaSugestoes.set(nomeNormalizado, {
                 id: null,
@@ -1050,11 +1071,15 @@ export default function VendasSection({
                                     })
                             )
                             .map((c) => {
-                                const expandido = !!clientesExpandidos[c.nome];
+                                const chaveCliente = c.cliente_id
+                                    ? `id:${c.cliente_id}`
+                                    : `nome:${String(c.nome || "").trim().toLowerCase()}`;
+
+                                const expandido = !!clientesExpandidos[chaveCliente];
 
                                 return (
                                     <div
-                                        key={c.nome}
+                                        key={chaveCliente}
                                         style={{
                                             ...cardCliente,
                                             padding: isMobile ? 12 : 14,
@@ -1091,7 +1116,7 @@ export default function VendasSection({
                                                 }}
                                             >
                                                 <button
-                                                    onClick={() => toggleExpandirCliente(c.nome)}
+                                                    onClick={() => toggleExpandirCliente(chaveCliente)}
                                                     style={botaoCircular()}
                                                     title={expandido ? "Minimizar" : "Expandir"}
                                                 >
@@ -1165,7 +1190,13 @@ export default function VendasSection({
                                                         warning: !c.pago,
                                                         width: isMobile ? "100%" : "auto",
                                                     })}
-                                                    onClick={() => togglePagamentoClienteLive(c.nome, c.pago)}
+                                                    onClick={() =>
+                                                        togglePagamentoClienteLive(
+                                                            c.nome,
+                                                            c.pago,
+                                                            c.cliente_id
+                                                        )
+                                                    }
                                                     title={c.pago ? "Marcar como pendente" : "Marcar como pago"}
                                                 >
                                                     {c.pago ? <CheckCircle2 size={16} /> : <Banknote size={16} />}
