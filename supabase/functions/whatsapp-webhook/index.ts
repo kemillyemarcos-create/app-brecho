@@ -1,7 +1,10 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
+
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const VERIFY_TOKEN = Deno.env.get("WHATSAPP_VERIFY_TOKEN");
+const WHATSAPP_APP_SECRET = Deno.env.get("WHATSAPP_APP_SECRET");
+
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get(
   "SUPABASE_SERVICE_ROLE_KEY",
@@ -33,6 +36,14 @@ type ContatoMeta = {
     name?: string;
   };
   wa_id?: string;
+};
+
+type ChangeWhatsApp = {
+  phoneNumberId: string | null;
+  contatos: ContatoMeta[];
+  mensagens: MensagemWhatsApp[];
+  statuses: JsonObject[];
+  rawChange: JsonObject;
 };
 
 function respostaTexto(
@@ -157,20 +168,14 @@ function obterTextoMensagem(
   return null;
 }
 
-function extrairDadosPayload(
+function extrairChangesPayload(
   payload: JsonObject,
-): {
-  contatos: ContatoMeta[];
-  mensagens: MensagemWhatsApp[];
-  statuses: JsonObject[];
-} {
+): ChangeWhatsApp[] {
   const entry = Array.isArray(payload.entry)
     ? payload.entry
     : [];
 
-  const contatos: ContatoMeta[] = [];
-  const mensagens: MensagemWhatsApp[] = [];
-  const statuses: JsonObject[] = [];
+  const resultado: ChangeWhatsApp[] = [];
 
   for (const itemEntry of entry) {
     if (
@@ -194,9 +199,8 @@ function extrairDadosPayload(
         continue;
       }
 
-      const value = (
-        itemChange as JsonObject
-      ).value;
+      const changeObject = itemChange as JsonObject;
+      const value = changeObject.value;
 
       if (
         !value ||
@@ -207,41 +211,163 @@ function extrairDadosPayload(
 
       const valueObject = value as JsonObject;
 
-      if (Array.isArray(valueObject.contacts)) {
-        contatos.push(
-          ...valueObject.contacts as ContatoMeta[],
-        );
-      }
+      const metadata =
+        valueObject.metadata &&
+          typeof valueObject.metadata === "object"
+          ? valueObject.metadata as JsonObject
+          : null;
 
-      if (Array.isArray(valueObject.messages)) {
-        mensagens.push(
-          ...valueObject.messages as MensagemWhatsApp[],
-        );
-      }
+      const phoneNumberId =
+        typeof metadata?.phone_number_id === "string"
+          ? metadata.phone_number_id.trim()
+          : null;
 
-      if (Array.isArray(valueObject.statuses)) {
-        statuses.push(
-          ...valueObject.statuses as JsonObject[],
-        );
-      }
+      const contatos = Array.isArray(valueObject.contacts)
+        ? valueObject.contacts as ContatoMeta[]
+        : [];
+
+      const mensagens = Array.isArray(valueObject.messages)
+        ? valueObject.messages as MensagemWhatsApp[]
+        : [];
+
+      const statuses = Array.isArray(valueObject.statuses)
+        ? valueObject.statuses as JsonObject[]
+        : [];
+
+      resultado.push({
+        phoneNumberId,
+        contatos,
+        mensagens,
+        statuses,
+        rawChange: changeObject,
+      });
     }
   }
 
-  return {
-    contatos,
-    mensagens,
-    statuses,
-  };
+  return resultado;
+}
+
+function bytesParaHex(
+  bytes: Uint8Array,
+): string {
+  return Array.from(bytes)
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function compararStringsSeguro(
+  valorA: string,
+  valorB: string,
+): boolean {
+  if (valorA.length !== valorB.length) {
+    return false;
+  }
+
+  let diferenca = 0;
+
+  for (let i = 0; i < valorA.length; i += 1) {
+    diferenca |=
+      valorA.charCodeAt(i) ^
+      valorB.charCodeAt(i);
+  }
+
+  return diferenca === 0;
+}
+
+async function validarAssinaturaMeta(
+  corpoBruto: string,
+  assinaturaRecebida: string | null,
+): Promise<boolean> {
+  if (!WHATSAPP_APP_SECRET) {
+    throw new Error(
+      "WHATSAPP_APP_SECRET não configurado.",
+    );
+  }
+
+  if (!assinaturaRecebida) {
+    return false;
+  }
+
+  const prefixo = "sha256=";
+
+  if (!assinaturaRecebida.startsWith(prefixo)) {
+    return false;
+  }
+
+  const assinaturaHex = assinaturaRecebida
+    .slice(prefixo.length)
+    .toLowerCase();
+
+  const encoder = new TextEncoder();
+
+  const chave = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(WHATSAPP_APP_SECRET),
+    {
+      name: "HMAC",
+      hash: "SHA-256",
+    },
+    false,
+    ["sign"],
+  );
+
+  const assinaturaCalculada = await crypto.subtle.sign(
+    "HMAC",
+    chave,
+    encoder.encode(corpoBruto),
+  );
+
+  const assinaturaCalculadaHex = bytesParaHex(
+    new Uint8Array(assinaturaCalculada),
+  );
+
+  return compararStringsSeguro(
+    assinaturaHex,
+    assinaturaCalculadaHex,
+  );
+}
+
+async function resolverEmpresaPorPhoneNumberId(
+  supabase: ReturnType<typeof criarSupabaseAdmin>,
+  phoneNumberId: string,
+): Promise<string> {
+  const { data, error } = await supabase
+    .from("whatsapp_configuracoes")
+    .select("empresa_id, webhook_ativo")
+    .eq("phone_number_id", phoneNumberId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `Erro ao localizar configuração do WhatsApp: ${error.message}`,
+    );
+  }
+
+  if (!data?.empresa_id) {
+    throw new Error(
+      `Nenhuma empresa configurada para o phone_number_id ${phoneNumberId}.`,
+    );
+  }
+
+  if (!data.webhook_ativo) {
+    throw new Error(
+      `Webhook não está ativo para o phone_number_id ${phoneNumberId}.`,
+    );
+  }
+
+  return data.empresa_id;
 }
 
 async function registrarEventoBruto(
   supabase: ReturnType<typeof criarSupabaseAdmin>,
+  empresaId: string,
   payload: JsonObject,
   tipo: string,
 ): Promise<string> {
   const { data, error } = await supabase
     .from("whatsapp_webhook_eventos")
     .insert({
+      empresa_id: empresaId,
       tipo,
       payload,
       processado: false,
@@ -261,6 +387,7 @@ async function registrarEventoBruto(
 
 async function marcarEventoProcessado(
   supabase: ReturnType<typeof criarSupabaseAdmin>,
+  empresaId: string,
   eventoId: string,
 ): Promise<void> {
   const { error } = await supabase
@@ -270,6 +397,7 @@ async function marcarEventoProcessado(
       processado_em: new Date().toISOString(),
       erro: null,
     })
+    .eq("empresa_id", empresaId)
     .eq("id", eventoId);
 
   if (error) {
@@ -281,6 +409,7 @@ async function marcarEventoProcessado(
 
 async function marcarEventoComErro(
   supabase: ReturnType<typeof criarSupabaseAdmin>,
+  empresaId: string,
   eventoId: string,
   mensagemErro: string,
 ): Promise<void> {
@@ -291,6 +420,7 @@ async function marcarEventoComErro(
       erro: mensagemErro,
       tentativas: 1,
     })
+    .eq("empresa_id", empresaId)
     .eq("id", eventoId);
 
   if (error) {
@@ -303,6 +433,7 @@ async function marcarEventoComErro(
 
 async function obterOuCriarContato(
   supabase: ReturnType<typeof criarSupabaseAdmin>,
+  empresaId: string,
   telefone: string,
   nomeWhatsApp: string | null,
 ): Promise<string> {
@@ -313,6 +444,7 @@ async function obterOuCriarContato(
     await supabase
       .from("whatsapp_contatos")
       .select("id, nome_whatsapp")
+      .eq("empresa_id", empresaId)
       .eq(
         "telefone_normalizado",
         telefoneNormalizado,
@@ -340,6 +472,7 @@ async function obterOuCriarContato(
     const { error: erroAtualizacao } = await supabase
       .from("whatsapp_contatos")
       .update(atualizacao)
+      .eq("empresa_id", empresaId)
       .eq("id", contatoExistente.id);
 
     if (erroAtualizacao) {
@@ -355,6 +488,7 @@ async function obterOuCriarContato(
     await supabase
       .from("whatsapp_contatos")
       .insert({
+        empresa_id: empresaId,
         telefone,
         telefone_normalizado:
           telefoneNormalizado,
@@ -378,12 +512,14 @@ async function obterOuCriarContato(
 
 async function obterOuCriarConversa(
   supabase: ReturnType<typeof criarSupabaseAdmin>,
+  empresaId: string,
   contatoId: string,
 ): Promise<string> {
   const { data: conversaExistente, error: erroBusca } =
     await supabase
       .from("whatsapp_conversas")
       .select("id")
+      .eq("empresa_id", empresaId)
       .eq("contato_id", contatoId)
       .neq("status", "encerrada")
       .order("created_at", {
@@ -406,6 +542,7 @@ async function obterOuCriarConversa(
     await supabase
       .from("whatsapp_conversas")
       .insert({
+        empresa_id: empresaId,
         contato_id: contatoId,
         status: "aberta",
         modo_atendimento: "automatico",
@@ -427,11 +564,13 @@ async function obterOuCriarConversa(
 
 async function mensagemJaExiste(
   supabase: ReturnType<typeof criarSupabaseAdmin>,
+  empresaId: string,
   whatsappMessageId: string,
 ): Promise<boolean> {
   const { data, error } = await supabase
     .from("whatsapp_mensagens")
     .select("id")
+    .eq("empresa_id", empresaId)
     .eq(
       "whatsapp_message_id",
       whatsappMessageId,
@@ -449,6 +588,7 @@ async function mensagemJaExiste(
 
 async function registrarMensagemRecebida(
   supabase: ReturnType<typeof criarSupabaseAdmin>,
+  empresaId: string,
   mensagem: MensagemWhatsApp,
   nomeWhatsApp: string | null,
 ): Promise<void> {
@@ -465,12 +605,14 @@ async function registrarMensagemRecebida(
   if (
     await mensagemJaExiste(
       supabase,
+      empresaId,
       mensagem.id,
     )
   ) {
     console.log(
       "Mensagem já registrada. Evento ignorado.",
       {
+        empresaId,
         whatsappMessageId: mensagem.id,
       },
     );
@@ -480,16 +622,19 @@ async function registrarMensagemRecebida(
 
   const contatoId = await obterOuCriarContato(
     supabase,
+    empresaId,
     mensagem.from,
     nomeWhatsApp,
   );
 
   const conversaId = await obterOuCriarConversa(
     supabase,
+    empresaId,
     contatoId,
   );
 
   const texto = obterTextoMensagem(mensagem);
+
   const recebidaEm = converterTimestampMeta(
     mensagem.timestamp,
   );
@@ -497,6 +642,7 @@ async function registrarMensagemRecebida(
   const { error: erroMensagem } = await supabase
     .from("whatsapp_mensagens")
     .insert({
+      empresa_id: empresaId,
       conversa_id: conversaId,
       contato_id: contatoId,
       whatsapp_message_id: mensagem.id,
@@ -523,6 +669,7 @@ async function registrarMensagemRecebida(
     await supabase
       .from("whatsapp_conversas")
       .select("mensagens_nao_lidas")
+      .eq("empresa_id", empresaId)
       .eq("id", conversaId)
       .single();
 
@@ -545,6 +692,7 @@ async function registrarMensagemRecebida(
         naoLidasAtuais + 1,
       status: "aberta",
     })
+    .eq("empresa_id", empresaId)
     .eq("id", conversaId);
 
   if (erroAtualizacao) {
@@ -556,6 +704,7 @@ async function registrarMensagemRecebida(
   console.log(
     "Mensagem do WhatsApp processada.",
     {
+      empresaId,
       whatsappMessageId: mensagem.id,
       telefone: mensagem.from,
       tipo: mensagem.type,
@@ -563,23 +712,74 @@ async function registrarMensagemRecebida(
   );
 }
 
+function mapearStatusMeta(
+  statusMeta: string,
+): string | null {
+  if (statusMeta === "sent") {
+    return "enviada";
+  }
+
+  if (statusMeta === "delivered") {
+    return "entregue";
+  }
+
+  if (statusMeta === "read") {
+    return "lida";
+  }
+
+  if (statusMeta === "failed") {
+    return "falhou";
+  }
+
+  if (
+    statusMeta === "recebida" ||
+    statusMeta === "pendente" ||
+    statusMeta === "aceita" ||
+    statusMeta === "enviada" ||
+    statusMeta === "entregue" ||
+    statusMeta === "lida" ||
+    statusMeta === "falhou"
+  ) {
+    return statusMeta;
+  }
+
+  return null;
+}
+
 async function processarStatuses(
   supabase: ReturnType<typeof criarSupabaseAdmin>,
+  empresaId: string,
   statuses: JsonObject[],
 ): Promise<void> {
   for (const statusItem of statuses) {
     const messageId = statusItem.id;
-    const status = statusItem.status;
+    const statusMeta = statusItem.status;
 
     if (
       typeof messageId !== "string" ||
-      typeof status !== "string"
+      typeof statusMeta !== "string"
     ) {
       continue;
     }
 
+    const statusInterno =
+      mapearStatusMeta(statusMeta);
+
+    if (!statusInterno) {
+      console.warn(
+        "Status do WhatsApp não reconhecido. Ignorado.",
+        {
+          empresaId,
+          whatsappMessageId: messageId,
+          statusMeta,
+        },
+      );
+
+      continue;
+    }
+
     const atualizacao: JsonObject = {
-      status,
+      status: statusInterno,
     };
 
     const timestamp = converterTimestampMeta(
@@ -588,19 +788,19 @@ async function processarStatuses(
         : undefined,
     );
 
-    if (status === "sent") {
+    if (statusMeta === "sent") {
       atualizacao.enviada_em = timestamp;
     }
 
-    if (status === "delivered") {
+    if (statusMeta === "delivered") {
       atualizacao.entregue_em = timestamp;
     }
 
-    if (status === "read") {
+    if (statusMeta === "read") {
       atualizacao.lida_em = timestamp;
     }
 
-    if (status === "failed") {
+    if (statusMeta === "failed") {
       atualizacao.falhou_em = timestamp;
 
       const errors = Array.isArray(
@@ -632,6 +832,7 @@ async function processarStatuses(
     const { error } = await supabase
       .from("whatsapp_mensagens")
       .update(atualizacao)
+      .eq("empresa_id", empresaId)
       .eq(
         "whatsapp_message_id",
         messageId,
@@ -645,36 +846,59 @@ async function processarStatuses(
   }
 }
 
-async function processarPayload(
-  payload: JsonObject,
+async function processarChange(
+  supabase: ReturnType<typeof criarSupabaseAdmin>,
+  change: ChangeWhatsApp,
 ): Promise<void> {
-  const supabase = criarSupabaseAdmin();
+  const possuiDadosProcessaveis =
+    change.mensagens.length > 0 ||
+    change.statuses.length > 0 ||
+    change.contatos.length > 0;
 
-  const {
-    contatos,
-    mensagens,
-    statuses,
-  } = extrairDadosPayload(payload);
+  if (!possuiDadosProcessaveis) {
+    console.log(
+      "Change do WhatsApp sem dados processáveis. Ignorado.",
+    );
 
-  const tipoEvento = mensagens.length > 0
-    ? "mensagem_recebida"
-    : statuses.length > 0
-    ? "status_mensagem"
-    : "evento_desconhecido";
+    return;
+  }
+
+  if (!change.phoneNumberId) {
+    throw new Error(
+      "Change do WhatsApp sem metadata.phone_number_id.",
+    );
+  }
+
+  const empresaId =
+    await resolverEmpresaPorPhoneNumberId(
+      supabase,
+      change.phoneNumberId,
+    );
+
+  const tipoEvento =
+    change.mensagens.length > 0
+      ? "mensagem_recebida"
+      : change.statuses.length > 0
+      ? "status_mensagem"
+      : "evento_desconhecido";
 
   const eventoId = await registrarEventoBruto(
     supabase,
-    payload,
+    empresaId,
+    {
+      phone_number_id: change.phoneNumberId,
+      change: change.rawChange,
+    },
     tipoEvento,
   );
 
   try {
-    for (const mensagem of mensagens) {
+    for (const mensagem of change.mensagens) {
       const telefone = normalizarTelefone(
         mensagem.from,
       );
 
-      const contatoMeta = contatos.find(
+      const contatoMeta = change.contatos.find(
         (contato) =>
           normalizarTelefone(
             contato.wa_id ?? "",
@@ -687,6 +911,7 @@ async function processarPayload(
 
       await registrarMensagemRecebida(
         supabase,
+        empresaId,
         mensagem,
         nomeWhatsApp,
       );
@@ -694,11 +919,13 @@ async function processarPayload(
 
     await processarStatuses(
       supabase,
-      statuses,
+      empresaId,
+      change.statuses,
     );
 
     await marcarEventoProcessado(
       supabase,
+      empresaId,
       eventoId,
     );
   } catch (error) {
@@ -709,11 +936,37 @@ async function processarPayload(
 
     await marcarEventoComErro(
       supabase,
+      empresaId,
       eventoId,
       mensagemErro,
     );
 
     throw error;
+  }
+}
+
+async function processarPayload(
+  payload: JsonObject,
+): Promise<void> {
+  const supabase = criarSupabaseAdmin();
+
+  const changes = extrairChangesPayload(
+    payload,
+  );
+
+  if (changes.length === 0) {
+    console.log(
+      "Payload do WhatsApp sem changes processáveis.",
+    );
+
+    return;
+  }
+
+  for (const change of changes) {
+    await processarChange(
+      supabase,
+      change,
+    );
   }
 }
 
@@ -783,8 +1036,48 @@ export default {
           );
         }
 
-        const payload =
-          await request.json() as JsonObject;
+        const corpoBruto =
+          await request.text();
+
+        const assinaturaRecebida =
+          request.headers.get(
+            "x-hub-signature-256",
+          );
+
+        const assinaturaValida =
+          await validarAssinaturaMeta(
+            corpoBruto,
+            assinaturaRecebida,
+          );
+
+        if (!assinaturaValida) {
+          console.warn(
+            "Webhook do WhatsApp rejeitado por assinatura inválida.",
+          );
+
+          return respostaJson(
+            {
+              erro:
+                "Assinatura do webhook inválida.",
+            },
+            401,
+          );
+        }
+
+        let payload: JsonObject;
+
+        try {
+          payload =
+            JSON.parse(corpoBruto) as JsonObject;
+        } catch {
+          return respostaJson(
+            {
+              erro:
+                "JSON inválido.",
+            },
+            400,
+          );
+        }
 
         await processarPayload(payload);
 
