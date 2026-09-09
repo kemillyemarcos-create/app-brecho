@@ -636,9 +636,9 @@ function AppContent() {
     acessoLiberado,
     motivoBloqueio,
     isAdmin,
+    empresaId,
+    perfil,
   } = useUser();
-
-  const empresaId = usuarioSistema?.empresa_id || null;
 
   const {
     aparenciaEfetiva,
@@ -4976,6 +4976,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           sairDoApp={sairDoApp}
           carregando={carregando}
           usuarioSistema={usuarioSistema}
+          perfil={perfil}
           session={session}
           logoKchic={
             identidade?.logoUrl || logoKchic

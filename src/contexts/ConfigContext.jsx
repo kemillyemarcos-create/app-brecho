@@ -253,7 +253,7 @@ function montarConfiguracao(empresa, configuracao) {
 
 export function ConfigProvider({ children }) {
     const {
-        usuarioSistema,
+        empresaId,
         carregando: carregandoUsuario,
     } = useUser();
 
@@ -282,9 +282,6 @@ export function ConfigProvider({ children }) {
                 "(prefers-color-scheme: dark)"
             ).matches;
         });
-
-    const empresaId =
-        usuarioSistema?.empresa_id || null;
 
     const carregarConfiguracao =
         useCallback(async () => {

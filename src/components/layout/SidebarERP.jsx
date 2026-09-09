@@ -12,6 +12,7 @@ export default function SidebarERP({
   sairDoApp,
   carregando = false,
   usuarioSistema,
+  perfil,
   session,
   logoKchic,
   cores,
@@ -491,7 +492,7 @@ export default function SidebarERP({
                 session?.user?.email ||
                 "admin"
               } • ${
-                usuarioSistema?.perfil ||
+                perfil ||
                 "ADMIN"
               }`}
         </div>
