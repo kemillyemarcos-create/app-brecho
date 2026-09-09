@@ -638,6 +638,8 @@ function AppContent() {
     isAdmin,
   } = useUser();
 
+  const empresaId = usuarioSistema?.empresa_id || null;
+
   const {
     aparenciaEfetiva,
     identidade,
@@ -1166,6 +1168,7 @@ function AppContent() {
 
       const novaSacolinha = {
         id: novaId,
+        empresa_id: empresaId,
         cliente_id: clienteId || null,
         cliente_nome: clienteNome,
         live_id: liveId,
@@ -1967,6 +1970,10 @@ Qualquer dúvida, é só nos chamar! 💕`;
     }
 
     try {
+      if (!empresaId) {
+        throw new Error("Não foi possível identificar a empresa do usuário.");
+      }
+
       const payload = montarPayloadCliente(formCliente);
       const clienteExistente = await buscarClientePorCpf(payload.cpf, clienteEditandoId);
 
@@ -1982,6 +1989,7 @@ Qualquer dúvida, é só nos chamar! 💕`;
         await inserirCliente({
           id: gerarCodigo("CLI"),
           ...payload,
+          empresa_id: empresaId,
           criado_em: agoraIso(),
         });
         alert("Cliente salvo com sucesso.");
@@ -2142,6 +2150,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         operacao?.prefixoPeca || "KC",
         form.custo
       ),
+      empresa_id: empresaId,
       nome: form.nome.trim(),
       custo: form.custo,
       venda: form.venda,
@@ -2336,6 +2345,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
       const novaVendaLive = {
         id: gerarCodigo("VENDA"),
+        empresa_id: empresaId,
         live_id: liveAtual.id,
         sacolinha_id: sacolinhaId,
         peca_id: codigoPeca,
@@ -2768,6 +2778,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         : null;
 
     const payload = {
+      empresa_id: empresaId,
       cliente: nomeCliente,
       cliente_id: clienteIdResolvido,
       pago: novoStatus,
@@ -2777,7 +2788,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     const { error } = await supabase
       .from("clientes_pagamento")
       .upsert(payload, {
-        onConflict: "cliente",
+        onConflict: "empresa_id,cliente",
       });
 
     if (error) {
@@ -2799,6 +2810,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
     const novaLive = {
       id: gerarCodigo("LIVE"),
+      empresa_id: empresaId,
       nome: nomeNovaLive,
       data_live: agora,
       hora_inicio: agora,
@@ -3220,6 +3232,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           const { error } = await supabase
             .from("clientes_grupo_vip")
             .insert({
+              empresa_id: empresaId,
               cliente_id: clienteIdResolvido,
               cliente_nome: clienteNome,
               nome_chave: nomeChave,
@@ -3262,6 +3275,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           const { error } = await supabase
             .from("clientes_grupo_vip")
             .insert({
+              empresa_id: empresaId,
               cliente_id: null,
               cliente_nome: clienteNome,
               nome_chave: nomeChave,
@@ -3621,6 +3635,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         .insert([
           {
             id: pedidoId,
+            empresa_id: empresaId,
             cliente_nome: clienteNome,
             cliente_id: clienteIdPedido,
             status: "montagem",
@@ -3641,6 +3656,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         id: `${pedidoId}-${s.id}-${baseTimestamp}-${index}-${Math.random()
           .toString(36)
           .slice(2, 10)}`,
+        empresa_id: empresaId,
         pedido_envio_id: pedidoId,
         sacolinha_id: s.id,
       }));
@@ -3811,6 +3827,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           .insert([
             {
               id: novoIdSacolinha,
+              empresa_id: empresaId,
               live_id: grupo.live_id,
               cliente_nome: grupo.cliente_nome,
               cliente_id: grupo.cliente_id || null,
