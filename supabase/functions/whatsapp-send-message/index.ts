@@ -146,7 +146,7 @@ async function resolverUsuarioAutorizado(
   } = await supabase
     .from("usuarios")
     .select(
-      "id, empresa_id, ativo",
+      "id, ativo",
     )
     .eq(
       "auth_user_id",
@@ -172,15 +172,49 @@ async function resolverUsuarioAutorizado(
     );
   }
 
-  if (!usuario.empresa_id) {
+  const {
+    data: memberships,
+    error: erroMemberships,
+  } = await supabase
+    .from("empresa_usuarios")
+    .select(
+      "empresa_id",
+    )
+    .eq(
+      "usuario_id",
+      usuario.id,
+    )
+    .eq(
+      "ativo",
+      true,
+    )
+    .limit(2);
+
+  if (erroMemberships) {
     throw new Error(
-      "Usuário não está vinculado a uma empresa.",
+      `Erro ao localizar vínculo empresarial: ${erroMemberships.message}`,
+    );
+  }
+
+  const listaMemberships = Array.isArray(memberships)
+    ? memberships
+    : [];
+
+  if (listaMemberships.length === 0) {
+    throw new Error(
+      "Usuário não está vinculado a uma empresa ativa.",
+    );
+  }
+
+  if (listaMemberships.length > 1) {
+    throw new Error(
+      "Usuário possui acesso a mais de uma empresa. A empresa ativa precisa ser selecionada explicitamente.",
     );
   }
 
   return {
     usuarioId: usuario.id,
-    empresaId: usuario.empresa_id,
+    empresaId: listaMemberships[0].empresa_id,
   };
 }
 
