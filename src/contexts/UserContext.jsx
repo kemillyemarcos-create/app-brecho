@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+
 import { supabase } from "../lib/supabase";
+
 import { useAuth } from "./AuthContext";
 
 const UserContext = createContext(null);
@@ -24,6 +26,8 @@ export function UserProvider({ children }) {
   const { session, usuario: usuarioAuth, carregando: carregandoAuth } = useAuth();
 
   const [usuarioSistema, setUsuarioSistema] = useState(null);
+  const [membershipAtiva, setMembershipAtiva] = useState(null);
+  const [memberships, setMemberships] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
 
@@ -33,7 +37,10 @@ export function UserProvider({ children }) {
     async function carregarUsuarioSistema() {
       if (rotaPublicaAtual()) {
         if (!ativo) return;
+
         setUsuarioSistema(null);
+        setMembershipAtiva(null);
+        setMemberships([]);
         setErro("");
         setCarregando(false);
         return;
@@ -41,6 +48,7 @@ export function UserProvider({ children }) {
 
       if (carregandoAuth) {
         if (!ativo) return;
+
         setCarregando(true);
         return;
       }
@@ -49,12 +57,14 @@ export function UserProvider({ children }) {
 
       const emailSessao = normalizarEmail(session?.user?.email);
       const emailAuth = normalizarEmail(usuarioAuth?.email);
-
       const emailFinal = emailSessao || emailAuth;
 
       if (!authUserId) {
         if (!ativo) return;
+
         setUsuarioSistema(null);
+        setMembershipAtiva(null);
+        setMemberships([]);
         setErro("");
         setCarregando(false);
         return;
@@ -66,49 +76,113 @@ export function UserProvider({ children }) {
 
         console.log("AUTH USER ID:", authUserId);
 
-        const { data, error } = await supabase
+        const { data: usuarioInterno, error: erroUsuario } = await supabase
           .from("usuarios")
           .select("*")
           .eq("auth_user_id", authUserId)
           .maybeSingle();
 
-        if (error) throw error;
-
+        if (erroUsuario) throw erroUsuario;
         if (!ativo) return;
 
-        console.log("USUARIO SISTEMA:", data);
+        console.log("USUARIO INTERNO:", usuarioInterno);
 
-        if (!data) {
+        if (!usuarioInterno) {
           setUsuarioSistema(null);
+          setMembershipAtiva(null);
+          setMemberships([]);
+
           setErro(
             emailFinal
               ? `Usuário não cadastrado no painel interno: ${emailFinal}`
               : "Usuário não cadastrado no painel interno."
           );
+
           return;
         }
 
-        if (data.ativo === false) {
-          setUsuarioSistema(data);
+        if (usuarioInterno.ativo === false) {
+          setUsuarioSistema(usuarioInterno);
+          setMembershipAtiva(null);
+          setMemberships([]);
           setErro("Usuário desativado. Fale com um administrador.");
           return;
         }
 
-        setUsuarioSistema(data);
+        const { data: membershipsEncontradas, error: erroMemberships } =
+          await supabase
+            .from("empresa_usuarios")
+            .select("id, empresa_id, usuario_id, perfil, ativo, created_at")
+            .eq("usuario_id", usuarioInterno.id)
+            .eq("ativo", true)
+            .order("created_at", { ascending: true });
+
+        if (erroMemberships) throw erroMemberships;
+        if (!ativo) return;
+
+        const listaMemberships = Array.isArray(membershipsEncontradas)
+          ? membershipsEncontradas
+          : [];
+
+        if (listaMemberships.length === 0) {
+          setUsuarioSistema(usuarioInterno);
+          setMembershipAtiva(null);
+          setMemberships([]);
+          setErro("Usuário sem vínculo ativo com uma empresa.");
+          return;
+        }
+
+        /*
+         * Enquanto houver apenas uma membership, ela é automaticamente ativa.
+         *
+         * Quando habilitarmos usuários multiempresa no frontend, este ponto
+         * será substituído pela seleção explícita da empresa ativa.
+         *
+         * Não escolhemos silenciosamente uma empresa quando existem várias.
+         */
+        if (listaMemberships.length > 1) {
+          setUsuarioSistema(usuarioInterno);
+          setMembershipAtiva(null);
+          setMemberships(listaMemberships);
+          setErro(
+            "Usuário possui acesso a mais de uma empresa. Selecione a empresa ativa."
+          );
+          return;
+        }
+
+        const membership = listaMemberships[0];
+
+        const usuarioCompatibilidade = {
+          ...usuarioInterno,
+          empresa_id: membership.empresa_id,
+          perfil: membership.perfil,
+        };
+
+        console.log("MEMBERSHIP ATIVA:", membership);
+        console.log("USUARIO SISTEMA:", usuarioCompatibilidade);
+
+        setMemberships(listaMemberships);
+        setMembershipAtiva(membership);
+        setUsuarioSistema(usuarioCompatibilidade);
 
         const { error: erroUltimoAcesso } = await supabase
           .from("usuarios")
           .update({ ultimo_acesso: new Date().toISOString() })
-          .eq("id", data.id);
+          .eq("id", usuarioInterno.id);
 
         if (erroUltimoAcesso) {
-          console.error("ERRO AO ATUALIZAR ÚLTIMO ACESSO:", erroUltimoAcesso);
+          console.error(
+            "ERRO AO ATUALIZAR ÚLTIMO ACESSO:",
+            erroUltimoAcesso
+          );
         }
       } catch (error) {
         console.error("ERRO AO CARREGAR USUÁRIO DO SISTEMA:", error);
 
         if (ativo) {
           setUsuarioSistema(null);
+          setMembershipAtiva(null);
+          setMemberships([]);
           setErro("Não foi possível carregar o usuário interno.");
         }
       } finally {
@@ -131,20 +205,37 @@ export function UserProvider({ children }) {
     carregandoAuth,
   ]);
 
-  const perfil = String(usuarioSistema?.perfil || "").toUpperCase();
-  const ativo = usuarioSistema?.ativo !== false;
+  const perfil = String(
+    membershipAtiva?.perfil || usuarioSistema?.perfil || ""
+  ).toUpperCase();
 
-  const isAdmin = perfil === "ADMIN";
+  const ativo =
+    usuarioSistema?.ativo !== false && membershipAtiva?.ativo !== false;
+
+  const isProprietario = perfil === "PROPRIETARIO";
+  const isAdmin = isProprietario || perfil === "ADMIN";
   const isOperador = perfil === "OPERADOR";
-  const acessoLiberado = !!usuarioSistema && ativo && !erro;
+
+  const empresaId =
+    membershipAtiva?.empresa_id || usuarioSistema?.empresa_id || null;
+
+  const acessoLiberado =
+    !!usuarioSistema && !!membershipAtiva && ativo && !erro;
 
   const valor = useMemo(
     () => ({
       usuarioSistema,
       usuarioAuth,
+
+      membershipAtiva,
+      memberships,
+      empresaId,
+
       perfil,
+      isProprietario,
       isAdmin,
       isOperador,
+
       ativo,
       carregando,
       erro,
@@ -154,7 +245,11 @@ export function UserProvider({ children }) {
     [
       usuarioSistema,
       usuarioAuth,
+      membershipAtiva,
+      memberships,
+      empresaId,
       perfil,
+      isProprietario,
       isAdmin,
       isOperador,
       ativo,
