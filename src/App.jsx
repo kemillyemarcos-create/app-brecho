@@ -1967,6 +1967,12 @@ Qualquer dúvida, é só nos chamar! 💕`;
     }
 
     try {
+      const empresaId = usuarioSistema?.empresa_id;
+
+      if (!empresaId) {
+        throw new Error("Não foi possível identificar a empresa do usuário.");
+      }
+
       const payload = montarPayloadCliente(formCliente);
       const clienteExistente = await buscarClientePorCpf(payload.cpf, clienteEditandoId);
 
@@ -1982,6 +1988,7 @@ Qualquer dúvida, é só nos chamar! 💕`;
         await inserirCliente({
           id: gerarCodigo("CLI"),
           ...payload,
+          empresa_id: empresaId,
           criado_em: agoraIso(),
         });
         alert("Cliente salvo com sucesso.");
