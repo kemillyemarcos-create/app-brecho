@@ -2778,6 +2778,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         : null;
 
     const payload = {
+      empresa_id: empresaId,
       cliente: nomeCliente,
       cliente_id: clienteIdResolvido,
       pago: novoStatus,
@@ -2787,7 +2788,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     const { error } = await supabase
       .from("clientes_pagamento")
       .upsert(payload, {
-        onConflict: "cliente",
+        onConflict: "empresa_id,cliente",
       });
 
     if (error) {
@@ -3231,6 +3232,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           const { error } = await supabase
             .from("clientes_grupo_vip")
             .insert({
+              empresa_id: empresaId,
               cliente_id: clienteIdResolvido,
               cliente_nome: clienteNome,
               nome_chave: nomeChave,
@@ -3273,6 +3275,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           const { error } = await supabase
             .from("clientes_grupo_vip")
             .insert({
+              empresa_id: empresaId,
               cliente_id: null,
               cliente_nome: clienteNome,
               nome_chave: nomeChave,
@@ -3632,6 +3635,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         .insert([
           {
             id: pedidoId,
+            empresa_id: empresaId,
             cliente_nome: clienteNome,
             cliente_id: clienteIdPedido,
             status: "montagem",
@@ -3652,6 +3656,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         id: `${pedidoId}-${s.id}-${baseTimestamp}-${index}-${Math.random()
           .toString(36)
           .slice(2, 10)}`,
+        empresa_id: empresaId,
         pedido_envio_id: pedidoId,
         sacolinha_id: s.id,
       }));
