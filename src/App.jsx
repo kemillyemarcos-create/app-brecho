@@ -638,6 +638,8 @@ function AppContent() {
     isAdmin,
   } = useUser();
 
+  const empresaId = usuarioSistema?.empresa_id || null;
+
   const {
     aparenciaEfetiva,
     identidade,
@@ -1166,6 +1168,7 @@ function AppContent() {
 
       const novaSacolinha = {
         id: novaId,
+        empresa_id: empresaId,
         cliente_id: clienteId || null,
         cliente_nome: clienteNome,
         live_id: liveId,
@@ -1967,8 +1970,6 @@ Qualquer dúvida, é só nos chamar! 💕`;
     }
 
     try {
-      const empresaId = usuarioSistema?.empresa_id;
-
       if (!empresaId) {
         throw new Error("Não foi possível identificar a empresa do usuário.");
       }
@@ -2149,6 +2150,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         operacao?.prefixoPeca || "KC",
         form.custo
       ),
+      empresa_id: empresaId,
       nome: form.nome.trim(),
       custo: form.custo,
       venda: form.venda,
@@ -2343,6 +2345,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
       const novaVendaLive = {
         id: gerarCodigo("VENDA"),
+        empresa_id: empresaId,
         live_id: liveAtual.id,
         sacolinha_id: sacolinhaId,
         peca_id: codigoPeca,
@@ -2806,6 +2809,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
     const novaLive = {
       id: gerarCodigo("LIVE"),
+      empresa_id: empresaId,
       nome: nomeNovaLive,
       data_live: agora,
       hora_inicio: agora,
@@ -3818,6 +3822,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
           .insert([
             {
               id: novoIdSacolinha,
+              empresa_id: empresaId,
               live_id: grupo.live_id,
               cliente_nome: grupo.cliente_nome,
               cliente_id: grupo.cliente_id || null,
