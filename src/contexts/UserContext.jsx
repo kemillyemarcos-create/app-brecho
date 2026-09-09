@@ -45,12 +45,14 @@ export function UserProvider({ children }) {
         return;
       }
 
+      const authUserId = session?.user?.id || usuarioAuth?.id || null;
+
       const emailSessao = normalizarEmail(session?.user?.email);
       const emailAuth = normalizarEmail(usuarioAuth?.email);
 
       const emailFinal = emailSessao || emailAuth;
 
-      if (!emailFinal) {
+      if (!authUserId) {
         if (!ativo) return;
         setUsuarioSistema(null);
         setErro("");
@@ -62,12 +64,12 @@ export function UserProvider({ children }) {
         setCarregando(true);
         setErro("");
 
-        console.log("EMAIL AUTH:", emailFinal);
+        console.log("AUTH USER ID:", authUserId);
 
         const { data, error } = await supabase
           .from("usuarios")
           .select("*")
-          .ilike("email", emailFinal)
+          .eq("auth_user_id", authUserId)
           .maybeSingle();
 
         if (error) throw error;
@@ -78,7 +80,11 @@ export function UserProvider({ children }) {
 
         if (!data) {
           setUsuarioSistema(null);
-          setErro(`Usuário não cadastrado no painel interno: ${emailFinal}`);
+          setErro(
+            emailFinal
+              ? `Usuário não cadastrado no painel interno: ${emailFinal}`
+              : "Usuário não cadastrado no painel interno."
+          );
           return;
         }
 
@@ -117,7 +123,13 @@ export function UserProvider({ children }) {
     return () => {
       ativo = false;
     };
-  }, [session?.user?.email, usuarioAuth?.email, usuarioAuth?.id, carregandoAuth]);
+  }, [
+    session?.user?.id,
+    session?.user?.email,
+    usuarioAuth?.id,
+    usuarioAuth?.email,
+    carregandoAuth,
+  ]);
 
   const perfil = String(usuarioSistema?.perfil || "").toUpperCase();
   const ativo = usuarioSistema?.ativo !== false;
