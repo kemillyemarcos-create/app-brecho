@@ -1417,16 +1417,27 @@ Qualquer dúvida, é só nos chamar! 💕`;
     let from = 0;
     const pageSize = 1000;
 
+    if (!empresaId) {
+      setPecas([]);
+      return;
+    }
+
     while (true) {
       const { data, error } = await supabase
         .from("pecas")
         .select("*")
-        .order("data_cadastro", { ascending: false })
+        .eq("empresa_id", empresaId)
+        .order("data_cadastro_ts", {
+          ascending: false,
+          nullsFirst: false,
+        })
         .range(from, from + pageSize - 1);
 
       if (error) {
         console.error("ERRO AO CARREGAR PEÇAS:", error);
-        throw new Error(`Erro ao carregar peças: ${error.message}`);
+        throw new Error(
+          `Erro ao carregar peças: ${error.message}`
+        );
       }
 
       if (!data || data.length === 0) break;
@@ -1439,34 +1450,6 @@ Qualquer dúvida, é só nos chamar! 💕`;
     }
 
     setPecas(todas);
-  }
-
-  async function carregarClientes() {
-    const { data, error } = await supabase
-      .from("clientes")
-      .select("*")
-      .order("criado_em", { ascending: false });
-
-    if (error) {
-      console.error("ERRO AO CARREGAR CLIENTES:", error);
-      throw new Error(`Erro ao carregar clientes: ${error.message}`);
-    }
-
-    setClientes(data || []);
-  }
-
-  async function carregarLives() {
-    const { data, error } = await supabase
-      .from("lives")
-      .select("*")
-      .order("criado_em", { ascending: false });
-
-    if (error) {
-      console.error("ERRO AO CARREGAR LIVES:", error);
-      throw new Error(`Erro ao carregar lives: ${error.message}`);
-    }
-
-    setListaLives(data || []);
   }
 
   async function carregarLiveAberta() {
