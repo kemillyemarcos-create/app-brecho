@@ -5425,12 +5425,16 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 setDataFinalFiltro={setDataFinalFiltro}
 
                 exportarRelatorioCSV={exportarRelatorioCSV}
-                resumoFaturamentoPorLive={resumoFaturamentoPorLive}
+                resumoFaturamentoPorLive={dadosFaturamento.resumo_por_live}
 
-                faturamentoFiltrado={faturamentoFiltrado}
-                lucroFiltrado={lucroFiltrado}
-                quantidadeVendidaFiltrada={quantidadeVendidaFiltrada}
-                ticketMedioFiltrado={ticketMedioFiltrado}
+                faturamentoFiltrado={dadosFaturamento.indicadores.faturamento}
+                lucroFiltrado={dadosFaturamento.indicadores.lucro}
+                quantidadeVendidaFiltrada={
+                  dadosFaturamento.indicadores.quantidade_vendida
+                }
+                ticketMedioFiltrado={
+                  dadosFaturamento.indicadores.ticket_medio
+                }
 
                 formatarBRL={formatarMoedaExibicao}
               />
