@@ -1452,6 +1452,50 @@ Qualquer dúvida, é só nos chamar! 💕`;
     setPecas(todas);
   }
 
+  async function carregarClientes() {
+    if (!empresaId) {
+      setClientes([]);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("clientes")
+      .select("*")
+      .eq("empresa_id", empresaId)
+      .order("criado_em", { ascending: false });
+
+    if (error) {
+      console.error("ERRO AO CARREGAR CLIENTES:", error);
+      throw new Error(
+        `Erro ao carregar clientes: ${error.message}`
+      );
+    }
+
+    setClientes(data || []);
+  }
+
+  async function carregarLives() {
+    if (!empresaId) {
+      setListaLives([]);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("lives")
+      .select("*")
+      .eq("empresa_id", empresaId)
+      .order("criado_em", { ascending: false });
+
+    if (error) {
+      console.error("ERRO AO CARREGAR LIVES:", error);
+      throw new Error(
+        `Erro ao carregar lives: ${error.message}`
+      );
+    }
+
+    setListaLives(data || []);
+  }
+
   async function carregarLiveAberta() {
     const { data, error } = await supabase
       .from("lives")
