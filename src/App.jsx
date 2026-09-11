@@ -974,9 +974,13 @@ function AppContent() {
   const [dataFinalFiltro, setDataFinalFiltro] = useState("");
 
   const [dadosFaturamento, setDadosFaturamento] = useState({
-    pecas_vendidas: [],
-    vendas_live: [],
-    lives: [],
+    indicadores: {
+      faturamento: 0,
+      lucro: 0,
+      quantidade_vendida: 0,
+      ticket_medio: 0,
+    },
+    resumo_por_live: [],
     limite_historico: null,
     periodo_aplicado: null,
   });
@@ -1624,17 +1628,20 @@ Qualquer dúvida, é só nos chamar! 💕`;
         setCarregandoFaturamento(true);
         setErroFaturamento("");
 
-        // Evita exibir dados antigos durante troca de empresa/período.
         setDadosFaturamento({
-          pecas_vendidas: [],
-          vendas_live: [],
-          lives: [],
+          indicadores: {
+            faturamento: 0,
+            lucro: 0,
+            quantidade_vendida: 0,
+            ticket_medio: 0,
+          },
+          resumo_por_live: [],
           limite_historico: null,
           periodo_aplicado: null,
         });
 
         const { data, error } = await supabase.rpc(
-          "obter_dados_faturamento",
+          "obter_resumo_faturamento",
           {
             p_empresa_id: empresaId,
             p_data_inicial: dataInicialFiltro || null,
@@ -1649,17 +1656,56 @@ Qualquer dúvida, é só nos chamar! 💕`;
         }
 
         setDadosFaturamento({
-          pecas_vendidas: Array.isArray(data?.pecas_vendidas)
-            ? data.pecas_vendidas
+          indicadores: {
+            faturamento: Number(
+              data?.indicadores?.faturamento || 0
+            ),
+            lucro: Number(
+              data?.indicadores?.lucro || 0
+            ),
+            quantidade_vendida: Number(
+              data?.indicadores?.quantidade_vendida || 0
+            ),
+            ticket_medio: Number(
+              data?.indicadores?.ticket_medio || 0
+            ),
+          },
+
+          resumo_por_live: Array.isArray(
+            data?.resumo_por_live
+          )
+            ? data.resumo_por_live.map((live) => ({
+              id: live?.id,
+              nome: live?.nome,
+              data:
+                formatarDataEmpresa(
+                  live?.data_live
+                ) || "-",
+              dataTimestamp:
+                parseDataFlex(
+                  live?.data_live
+                )?.getTime() || 0,
+              status: live?.status || "-",
+              quantidade: Number(
+                live?.quantidade || 0
+              ),
+              faturamento: Number(
+                live?.faturamento || 0
+              ),
+              lucro: Number(
+                live?.lucro || 0
+              ),
+              ticketMedio: Number(
+                live?.ticket_medio || 0
+              ),
+            }))
             : [],
-          vendas_live: Array.isArray(data?.vendas_live)
-            ? data.vendas_live
-            : [],
-          lives: Array.isArray(data?.lives)
-            ? data.lives
-            : [],
-          limite_historico: data?.limite_historico || null,
-          periodo_aplicado: data?.periodo_aplicado || null,
+
+          limite_historico:
+            data?.limite_historico || null,
+
+          periodo_aplicado:
+            data?.periodo_aplicado || null,
         });
       } catch (error) {
         if (!ativo) return;
