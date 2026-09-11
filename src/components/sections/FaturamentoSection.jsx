@@ -81,20 +81,20 @@ function BotaoIcone({ icon, children, onClick, ativo = false, background = "var(
 function CardResumoFaturamento({ icon, label, value, helper, destaque = false }) {
   return (
     <div style={{
-      border:"1px solid var(--kc-border)",
-      borderRadius:18,
-      background:"var(--kc-panel)",
-      padding:12,
-      display:"grid",
-      gap:6,
-      boxShadow:"0 2px 10px rgba(15,23,42,.04)"
+      border: "1px solid var(--kc-border)",
+      borderRadius: 18,
+      background: "var(--kc-panel)",
+      padding: 12,
+      display: "grid",
+      gap: 6,
+      boxShadow: "0 2px 10px rgba(15,23,42,.04)"
     }}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
-        <strong style={{fontSize:26,fontWeight:900,color:destaque?"var(--kc-primary)":"var(--kc-text)",lineHeight:1}}>{value}</strong>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+        <strong style={{ fontSize: 26, fontWeight: 900, color: destaque ? "var(--kc-primary)" : "var(--kc-text)", lineHeight: 1 }}>{value}</strong>
         {icon}
       </div>
-      <span style={{fontSize:12.5,fontWeight:800,color:"var(--kc-text-muted)"}}>{label}</span>
-      {helper ? <span style={{fontSize:11.5,color:"var(--kc-text-muted)"}}>{helper}</span>:null}
+      <span style={{ fontSize: 12.5, fontWeight: 800, color: "var(--kc-text-muted)" }}>{label}</span>
+      {helper ? <span style={{ fontSize: 11.5, color: "var(--kc-text-muted)" }}>{helper}</span> : null}
     </div>
   );
 }
@@ -115,6 +115,10 @@ export default function FaturamentoSection({
   quantidadeVendidaFiltrada,
   ticketMedioFiltrado,
   formatarBRL,
+  carregandoFaturamento,
+  erroFaturamento,
+  limiteHistorico,
+  periodoAplicado,
 }) {
   const corPrincipal = "var(--kc-primary)";
   const corSuaveTema = "var(--kc-soft)";
@@ -148,6 +152,18 @@ export default function FaturamentoSection({
   }
 
   const periodoSelecionado = dataInicialFiltro || dataFinalFiltro;
+  const historicoLimitado =
+    limiteHistorico?.tipo === "integer" &&
+    limiteHistorico?.ilimitado !== true &&
+    Number(limiteHistorico?.dias) > 0;
+
+  const diasHistorico = historicoLimitado
+    ? Number(limiteHistorico.dias)
+    : null;
+
+  const textoHistorico = historicoLimitado
+    ? `Seu plano permite consultar até ${diasHistorico} dias de histórico de faturamento.`
+    : "Seu plano possui histórico de faturamento ilimitado.";
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
@@ -184,6 +200,77 @@ export default function FaturamentoSection({
             Exportar relatório
           </BotaoIcone>
         </div>
+
+        {historicoLimitado && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: "10px 12px",
+              borderRadius: 14,
+              background: corFundo,
+              border: `1px solid ${corBorda}`,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              color: corTextoSuave,
+              fontSize: 13,
+              lineHeight: 1.4,
+            }}
+          >
+            <CalendarDays
+              size={17}
+              style={{
+                flexShrink: 0,
+                color: corPrincipal,
+              }}
+            />
+
+            <div>
+              <strong style={{ color: corTexto }}>
+                Histórico do plano
+              </strong>
+
+              <div>{textoHistorico}</div>
+            </div>
+          </div>
+        )}
+
+        {carregandoFaturamento && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: "10px 12px",
+              borderRadius: 14,
+              background: corFundo,
+              border: `1px solid ${corBorda}`,
+              color: corTextoSuave,
+              fontSize: 13,
+              fontWeight: 700,
+            }}
+          >
+            Atualizando dados de faturamento...
+          </div>
+        )}
+
+        {!!erroFaturamento && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: "10px 12px",
+              borderRadius: 14,
+              background: "rgba(220, 38, 38, 0.06)",
+              border: "1px solid rgba(220, 38, 38, 0.18)",
+              color: "#b91c1c",
+              fontSize: 13,
+              lineHeight: 1.4,
+            }}
+          >
+            <strong>Não foi possível carregar o faturamento.</strong>
+            <div style={{ marginTop: 2 }}>
+              {erroFaturamento}
+            </div>
+          </div>
+        )}
 
         <div
           style={{
@@ -321,13 +408,13 @@ export default function FaturamentoSection({
         }}
       >
         <div
-        style={{
-          ...boxGrande,
-          background: corPainel,
-          border: `1px solid ${corBorda}`,
-          color: corTexto,
-        }}
-      >
+          style={{
+            ...boxGrande,
+            background: corPainel,
+            border: `1px solid ${corBorda}`,
+            color: corTexto,
+          }}
+        >
           <div
             style={{
               display: "flex",
@@ -459,13 +546,13 @@ export default function FaturamentoSection({
         </div>
 
         <div
-        style={{
-          ...boxGrande,
-          background: corPainel,
-          border: `1px solid ${corBorda}`,
-          color: corTexto,
-        }}
-      >
+          style={{
+            ...boxGrande,
+            background: corPainel,
+            border: `1px solid ${corBorda}`,
+            color: corTexto,
+          }}
+        >
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
             <IconeCard background="#fff8e6" color="#b45309">
               <Trophy size={18} />

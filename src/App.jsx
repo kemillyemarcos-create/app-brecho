@@ -5478,6 +5478,10 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 ticketMedioFiltrado={
                   dadosFaturamento.indicadores.ticket_medio
                 }
+                carregandoFaturamento={carregandoFaturamento}
+                erroFaturamento={erroFaturamento}
+                limiteHistorico={dadosFaturamento.limite_historico}
+                periodoAplicado={dadosFaturamento.periodo_aplicado}
 
                 formatarBRL={formatarMoedaExibicao}
               />
