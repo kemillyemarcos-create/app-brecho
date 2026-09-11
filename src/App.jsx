@@ -3089,33 +3089,76 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     }
   }
 
-  function exportarRelatorioCSV() {
-    const linhas = [
-      [
-        "codigo",
-        "nome",
-        "custo",
-        "venda",
-        "observacoes",
-        "status",
-        "cliente",
-        "data_cadastro",
-        "data_venda",
-      ],
-      ...pecas.map((p) => [
-        p.id,
-        p.nome,
-        limparMoeda(p.custo).toFixed(2),
-        limparMoeda(p.venda).toFixed(2),
-        p.obs || "",
-        p.vendido ? "Vendido" : "Disponivel",
-        p.cliente || "",
-        formatarDataHoraEmpresa(p.data_cadastro) || "",
-        formatarDataHoraEmpresa(p.data_venda) || "",
-      ]),
-    ];
+  async function exportarRelatorioCSV() {
+    try {
+      if (!empresaId) {
+        alert("Empresa não identificada.");
+        return;
+      }
 
-    baixarCSV("relatorio-brecho.csv", linhas);
+      const { data, error } = await supabase.rpc(
+        "exportar_dados_faturamento",
+        {
+          p_empresa_id: empresaId,
+          p_data_inicial: dataInicialFiltro || null,
+          p_data_final: dataFinalFiltro || null,
+        }
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      const itens = Array.isArray(data?.itens)
+        ? data.itens
+        : [];
+
+      const linhas = [
+        [
+          "codigo",
+          "nome",
+          "custo",
+          "venda",
+          "valor_venda_final",
+          "observacoes",
+          "cliente",
+          "data_cadastro",
+          "data_venda",
+        ],
+
+        ...itens.map((p) => [
+          p.id || "",
+          p.nome || "",
+          limparMoeda(p.custo).toFixed(2),
+          limparMoeda(p.venda).toFixed(2),
+          Number(p.valor_venda_final ?? 0).toFixed(2),
+          p.obs || "",
+          p.cliente || "",
+          formatarDataHoraEmpresa(p.data_cadastro) || "",
+          formatarDataHoraEmpresa(p.data_venda) || "",
+        ]),
+      ];
+
+      const sufixoPeriodo =
+        dataInicialFiltro || dataFinalFiltro
+          ? `-${dataInicialFiltro || "inicio"}-${dataFinalFiltro || "fim"}`
+          : "";
+
+      baixarCSV(
+        `relatorio-faturamento${sufixoPeriodo}.csv`,
+        linhas
+      );
+    } catch (error) {
+      console.error(
+        "ERRO AO EXPORTAR FATURAMENTO:",
+        error
+      );
+
+      alert(
+        error?.message ||
+        "Não foi possível exportar o relatório de faturamento."
+      );
+    }
   }
 
   function exportarClienteCSV(clienteResumo) {
