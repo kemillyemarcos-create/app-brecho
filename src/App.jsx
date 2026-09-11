@@ -973,6 +973,17 @@ function AppContent() {
   const [dataInicialFiltro, setDataInicialFiltro] = useState("");
   const [dataFinalFiltro, setDataFinalFiltro] = useState("");
 
+  const [dadosFaturamento, setDadosFaturamento] = useState({
+    pecas_vendidas: [],
+    vendas_live: [],
+    lives: [],
+    limite_historico: null,
+    periodo_aplicado: null,
+  });
+
+  const [carregandoFaturamento, setCarregandoFaturamento] = useState(false);
+  const [erroFaturamento, setErroFaturamento] = useState("");
+
   const [sacolinhasLive, setSacolinhasLive] = useState([]);
   const [carregandoSacolinhas, setCarregandoSacolinhas] = useState(false);
   const [sacolinhasExpandidas, setSacolinhasExpandidas] = useState({});
@@ -1596,6 +1607,91 @@ Qualquer dúvida, é só nos chamar! 💕`;
       carregarTodasVendasLive(),
     ]);
   }
+
+  useEffect(() => {
+    if (
+      !podeAcessarDadosAdministrativos ||
+      abaAtiva !== "faturamento" ||
+      !empresaId
+    ) {
+      return undefined;
+    }
+
+    let ativo = true;
+
+    async function carregarDadosFaturamento() {
+      try {
+        setCarregandoFaturamento(true);
+        setErroFaturamento("");
+
+        // Evita exibir dados antigos durante troca de empresa/período.
+        setDadosFaturamento({
+          pecas_vendidas: [],
+          vendas_live: [],
+          lives: [],
+          limite_historico: null,
+          periodo_aplicado: null,
+        });
+
+        const { data, error } = await supabase.rpc(
+          "obter_dados_faturamento",
+          {
+            p_empresa_id: empresaId,
+            p_data_inicial: dataInicialFiltro || null,
+            p_data_final: dataFinalFiltro || null,
+          }
+        );
+
+        if (!ativo) return;
+
+        if (error) {
+          throw error;
+        }
+
+        setDadosFaturamento({
+          pecas_vendidas: Array.isArray(data?.pecas_vendidas)
+            ? data.pecas_vendidas
+            : [],
+          vendas_live: Array.isArray(data?.vendas_live)
+            ? data.vendas_live
+            : [],
+          lives: Array.isArray(data?.lives)
+            ? data.lives
+            : [],
+          limite_historico: data?.limite_historico || null,
+          periodo_aplicado: data?.periodo_aplicado || null,
+        });
+      } catch (error) {
+        if (!ativo) return;
+
+        console.error(
+          "ERRO AO CARREGAR FATURAMENTO:",
+          error
+        );
+
+        setErroFaturamento(
+          error?.message ||
+          "Não foi possível carregar os dados de faturamento."
+        );
+      } finally {
+        if (ativo) {
+          setCarregandoFaturamento(false);
+        }
+      }
+    }
+
+    carregarDadosFaturamento();
+
+    return () => {
+      ativo = false;
+    };
+  }, [
+    podeAcessarDadosAdministrativos,
+    abaAtiva,
+    empresaId,
+    dataInicialFiltro,
+    dataFinalFiltro,
+  ]);
 
   useEffect(() => {
     if (rotaPublica) {
