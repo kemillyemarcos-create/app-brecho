@@ -100,6 +100,21 @@ export default function LoginAdmin() {
       window.clearInterval(intervalo);
       script?.removeEventListener("load", aoCarregar);
       script?.removeEventListener("error", aoFalhar);
+
+      if (
+        window.hcaptcha &&
+        captchaWidgetIdRef.current !== null &&
+        captchaWidgetIdRef.current !== undefined
+      ) {
+        try {
+          window.hcaptcha.remove(captchaWidgetIdRef.current);
+        } catch {
+          // O widget pode já ter sido removido pelo próprio hCaptcha.
+        }
+      }
+
+      captchaWidgetIdRef.current = null;
+      captchaRenderizadoRef.current = false;
     };
   }, [hcaptchaSiteKey]);
 
@@ -134,7 +149,18 @@ export default function LoginAdmin() {
       return;
     }
 
-    if (!captchaToken) {
+    const tokenCaptcha =
+      captchaToken ||
+      (
+        window.hcaptcha &&
+        captchaWidgetIdRef.current !== null &&
+        captchaWidgetIdRef.current !== undefined
+          ? window.hcaptcha.getResponse(captchaWidgetIdRef.current)
+          : ""
+      ) ||
+      "";
+
+    if (!tokenCaptcha) {
       setErro("Confirme que você não é um robô antes de entrar.");
       return;
     }
@@ -147,7 +173,7 @@ export default function LoginAdmin() {
         email: email.trim(),
         password: senha,
         options: {
-          captchaToken,
+          captchaToken: tokenCaptcha,
         },
       });
 
@@ -169,8 +195,7 @@ export default function LoginAdmin() {
     !!email.trim() &&
     !!senha.trim() &&
     !!hcaptchaSiteKey &&
-    captchaPronto &&
-    !!captchaToken;
+    captchaPronto;
 
   return (
     <div

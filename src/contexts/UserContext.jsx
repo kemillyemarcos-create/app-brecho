@@ -31,6 +31,12 @@ export function UserProvider({ children }) {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
 
+  const [versaoRecarga, setVersaoRecarga] = useState(0);
+
+  function recarregarUsuario() {
+    setVersaoRecarga((valorAtual) => valorAtual + 1);
+  }
+
   useEffect(() => {
     let ativo = true;
 
@@ -203,6 +209,7 @@ export function UserProvider({ children }) {
     usuarioAuth?.id,
     usuarioAuth?.email,
     carregandoAuth,
+    versaoRecarga,
   ]);
 
   const perfil = String(
@@ -222,6 +229,18 @@ export function UserProvider({ children }) {
   const acessoLiberado =
     !!usuarioSistema && !!membershipAtiva && ativo && !erro;
 
+  const precisaOnboarding =
+    !!session &&
+    !carregando &&
+    (
+      !usuarioSistema ||
+      (
+        !!usuarioSistema &&
+        usuarioSistema.ativo !== false &&
+        memberships.length === 0
+      )
+    );
+
   const valor = useMemo(
     () => ({
       usuarioSistema,
@@ -240,6 +259,8 @@ export function UserProvider({ children }) {
       carregando,
       erro,
       acessoLiberado,
+      precisaOnboarding,
+      recarregarUsuario,
       motivoBloqueio: erro,
     }),
     [
@@ -256,6 +277,8 @@ export function UserProvider({ children }) {
       carregando,
       erro,
       acessoLiberado,
+      precisaOnboarding,
+      recarregarUsuario,
     ]
   );
 

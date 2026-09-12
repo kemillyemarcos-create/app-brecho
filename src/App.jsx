@@ -634,6 +634,8 @@ function AppContent() {
     usuarioSistema,
     carregando: carregandoUsuario,
     acessoLiberado,
+    precisaOnboarding,
+    recarregarUsuario,
     motivoBloqueio,
     isAdmin,
     empresaId,
@@ -928,6 +930,15 @@ function AppContent() {
     !carregandoUsuario &&
     acessoLiberado;
 
+  const [nomeUsuarioOnboarding, setNomeUsuarioOnboarding] = useState("");
+
+  const [nomeEmpresaOnboarding, setNomeEmpresaOnboarding] = useState("");
+
+  const [nomeFantasiaOnboarding, setNomeFantasiaOnboarding] = useState("");
+
+  const [salvandoOnboarding, setSalvandoOnboarding] = useState(false);
+
+  const [erroOnboarding, setErroOnboarding] = useState("");
   const [abaAtiva, setAbaAtiva] = useState("cadastro");
   const [carregando, setCarregando] = useState(true);
 
@@ -1017,6 +1028,62 @@ function AppContent() {
   const scannerElementId = "reader";
 
   const liveEmVisualizacao = liveSelecionada || liveAtual;
+
+  async function concluirOnboarding(e) {
+    e?.preventDefault?.();
+
+    if (salvandoOnboarding) return;
+
+    const nomeUsuario = String(nomeUsuarioOnboarding || "").trim();
+    const nomeEmpresa = String(nomeEmpresaOnboarding || "").trim();
+    const nomeFantasia = String(nomeFantasiaOnboarding || "").trim();
+
+    if (nomeUsuario.length < 2) {
+      setErroOnboarding("Informe seu nome.");
+      return;
+    }
+
+    if (nomeEmpresa.length < 2) {
+      setErroOnboarding("Informe o nome do brechó.");
+      return;
+    }
+
+    try {
+      setSalvandoOnboarding(true);
+      setErroOnboarding("");
+
+      const { error } = await supabase.rpc(
+        "provisionar_empresa_trial",
+        {
+          p_nome_usuario: nomeUsuario,
+          p_nome_empresa: nomeEmpresa,
+          p_nome_fantasia: nomeFantasia,
+          p_plano_codigo: "essencial",
+        }
+      );
+
+      if (error) {
+        console.error("ERRO AO CONCLUIR ONBOARDING:", error);
+
+        setErroOnboarding(
+          error?.message ||
+          "Não foi possível criar seu brechó. Tente novamente."
+        );
+
+        return;
+      }
+
+      recarregarUsuario();
+    } catch (error) {
+      console.error("ERRO INESPERADO NO ONBOARDING:", error);
+
+      setErroOnboarding(
+        "Não foi possível criar seu brechó. Tente novamente."
+      );
+    } finally {
+      setSalvandoOnboarding(false);
+    }
+  }
 
   const obterOuCriarSacolinha = async (
     clienteNome,
@@ -4774,6 +4841,218 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         }}
       >
         Carregando usuário...
+      </div>
+    );
+  }
+
+  if (precisaOnboarding) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: coresApp.fundo,
+          fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+          padding: 24,
+        }}
+      >
+        <form
+          onSubmit={concluirOnboarding}
+          style={{
+            width: "min(460px, 100%)",
+            background: "#fff",
+            border: `1px solid ${coresApp.borda}`,
+            boxShadow: coresApp.sombraLeve,
+            borderRadius: 24,
+            padding: 24,
+            display: "grid",
+            gap: 16,
+          }}
+        >
+          <div style={{ textAlign: "center", display: "grid", gap: 8 }}>
+            <strong
+              style={{
+                fontSize: 22,
+                color: coresApp.textoPrincipal,
+              }}
+            >
+              Configure seu brechó
+            </strong>
+
+            <p
+              style={{
+                margin: 0,
+                color: coresApp.textoSuave,
+                lineHeight: 1.5,
+              }}
+            >
+              Sua conta foi confirmada. Preencha os dados abaixo para criar sua empresa e iniciar o período de teste.
+            </p>
+          </div>
+
+          <label style={{ display: "grid", gap: 7 }}>
+            <span
+              style={{
+                fontSize: 13,
+                fontWeight: 700,
+                color: coresApp.textoPrincipal,
+              }}
+            >
+              Seu nome
+            </span>
+
+            <input
+              type="text"
+              value={nomeUsuarioOnboarding}
+              onChange={(e) => {
+                setNomeUsuarioOnboarding(e.target.value);
+                setErroOnboarding("");
+              }}
+              placeholder="Ex.: Marcos Lima"
+              autoComplete="name"
+              disabled={salvandoOnboarding}
+              style={{
+                width: "100%",
+                height: 46,
+                border: `1px solid ${coresApp.borda}`,
+                borderRadius: 14,
+                padding: "0 14px",
+                fontSize: 15,
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+          </label>
+
+          <label style={{ display: "grid", gap: 7 }}>
+            <span
+              style={{
+                fontSize: 13,
+                fontWeight: 700,
+                color: coresApp.textoPrincipal,
+              }}
+            >
+              Nome do brechó
+            </span>
+
+            <input
+              type="text"
+              value={nomeEmpresaOnboarding}
+              onChange={(e) => {
+                setNomeEmpresaOnboarding(e.target.value);
+                setErroOnboarding("");
+              }}
+              placeholder="Ex.: K.Chic Brechó"
+              disabled={salvandoOnboarding}
+              style={{
+                width: "100%",
+                height: 46,
+                border: `1px solid ${coresApp.borda}`,
+                borderRadius: 14,
+                padding: "0 14px",
+                fontSize: 15,
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+          </label>
+
+          <label style={{ display: "grid", gap: 7 }}>
+            <span
+              style={{
+                fontSize: 13,
+                fontWeight: 700,
+                color: coresApp.textoPrincipal,
+              }}
+            >
+              Nome fantasia
+              <span
+                style={{
+                  fontWeight: 500,
+                  color: coresApp.textoSuave,
+                }}
+              >
+                {" "}— opcional
+              </span>
+            </span>
+
+            <input
+              type="text"
+              value={nomeFantasiaOnboarding}
+              onChange={(e) => {
+                setNomeFantasiaOnboarding(e.target.value);
+                setErroOnboarding("");
+              }}
+              placeholder="Como seus clientes conhecem sua loja"
+              disabled={salvandoOnboarding}
+              style={{
+                width: "100%",
+                height: 46,
+                border: `1px solid ${coresApp.borda}`,
+                borderRadius: 14,
+                padding: "0 14px",
+                fontSize: 15,
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+          </label>
+
+          {erroOnboarding ? (
+            <div
+              style={{
+                background: "#fef2f2",
+                border: "1px solid #fecaca",
+                color: "#b91c1c",
+                borderRadius: 14,
+                padding: "10px 12px",
+                fontSize: 13,
+                lineHeight: 1.4,
+              }}
+            >
+              {erroOnboarding}
+            </div>
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={salvandoOnboarding}
+            style={{
+              border: "none",
+              borderRadius: 14,
+              background: salvandoOnboarding
+                ? "#94a3b8"
+                : coresApp.rosaPrincipal,
+              color: "#fff",
+              fontWeight: 800,
+              padding: "13px 16px",
+              cursor: salvandoOnboarding ? "not-allowed" : "pointer",
+            }}
+          >
+            {salvandoOnboarding
+              ? "Criando seu brechó..."
+              : "Criar meu brechó"}
+          </button>
+
+          <button
+            type="button"
+            onClick={sairDoApp}
+            disabled={salvandoOnboarding}
+            style={{
+              border: `1px solid ${coresApp.borda}`,
+              borderRadius: 14,
+              background: "#fff",
+              color: coresApp.textoPrincipal,
+              fontWeight: 700,
+              padding: "11px 16px",
+              cursor: salvandoOnboarding ? "not-allowed" : "pointer",
+            }}
+          >
+            Sair
+          </button>
+        </form>
       </div>
     );
   }
