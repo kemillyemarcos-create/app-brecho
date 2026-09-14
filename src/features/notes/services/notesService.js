@@ -116,8 +116,18 @@ export async function listarNotas({
   return sortNotes(normalizedNotes);
 }
 
-export async function criarNota(noteInput = {}) {
-  const notePayload = sanitizeNotePayload(noteInput);
+export async function criarNota(noteInput = {}, empresaId) {
+  if (!empresaId) {
+    throw new Error(
+      "A empresa ativa é obrigatória para criar uma nota."
+    );
+  }
+
+  const notePayload = {
+    ...sanitizeNotePayload(noteInput),
+    empresa_id: empresaId,
+  };
+
   const validItems = sanitizeItems(noteInput.nota_itens);
 
   const {
@@ -138,6 +148,7 @@ export async function criarNota(noteInput = {}) {
     const itemsPayload = validItems.map((item, index) => ({
       ...item,
       nota_id: createdNote.id,
+      empresa_id: empresaId,
       ordem: index,
     }));
 
@@ -168,9 +179,15 @@ export async function criarNota(noteInput = {}) {
   return fetchNoteById(createdNote.id);
 }
 
-export async function editarNota(noteId, noteInput = {}) {
+export async function editarNota(noteId, noteInput = {}, empresaId) {
   if (!noteId) {
     throw new Error("O ID da nota é obrigatório.");
+  }
+
+  if (!empresaId) {
+    throw new Error(
+      "A empresa ativa é obrigatória para editar uma nota."
+    );
   }
 
   const notePayload = sanitizeNotePayload(noteInput);
@@ -188,7 +205,8 @@ export async function editarNota(noteId, noteInput = {}) {
   if (Array.isArray(noteInput.nota_itens)) {
     await sincronizarItensNota(
       noteId,
-      noteInput.nota_itens
+      noteInput.nota_itens,
+      empresaId
     );
   }
 
@@ -389,10 +407,17 @@ export async function excluirItemNota(itemId) {
 
 export async function sincronizarItensNota(
   noteId,
-  items = []
+  items = [],
+  empresaId
 ) {
   if (!noteId) {
     throw new Error("O ID da nota é obrigatório.");
+  }
+
+  if (!empresaId) {
+    throw new Error(
+      "A empresa ativa é obrigatória para sincronizar os itens da nota."
+    );
   }
 
   const sourceItems = Array.isArray(items)
@@ -459,6 +484,7 @@ export async function sincronizarItensNota(
       ({ payload }) => ({
         ...payload,
         nota_id: noteId,
+        empresa_id: empresaId,
       })
     );
 

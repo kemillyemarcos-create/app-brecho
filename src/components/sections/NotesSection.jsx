@@ -20,6 +20,7 @@ import {
 import useNotes from "../../features/notes/hooks/useNotes.js";
 
 export default function NotesSection({
+  empresaId,
   formatarDataHoraBR,
 }) {
   const {
@@ -52,7 +53,7 @@ export default function NotesSection({
     togglePin,
     toggleArchive,
     toggleItem,
-  } = useNotes();
+  } = useNotes(empresaId);
 
   const isMobile =
     typeof window !== "undefined"

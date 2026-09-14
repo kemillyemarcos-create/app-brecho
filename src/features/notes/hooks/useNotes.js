@@ -28,7 +28,7 @@ import {
   sortNotes,
 } from "../utils/notesUtils.js";
 
-export default function useNotes() {
+export default function useNotes(empresaId) {
   const [notes, setNotes] = useState([]);
 
   const [
@@ -211,10 +211,12 @@ export default function useNotes() {
           normalizedInput.id
             ? await editarNota(
               normalizedInput.id,
-              normalizedInput
+              normalizedInput,
+              empresaId
             )
             : await criarNota(
-              normalizedInput
+              normalizedInput,
+              empresaId
             );
 
         const normalizedSavedNote =
@@ -268,7 +270,7 @@ export default function useNotes() {
         setSaving(false);
       }
     },
-    [saving]
+    [saving, empresaId]
   );
 
   const removeNote = useCallback(

@@ -5712,6 +5712,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
             {abaAtiva === "notes" && (
               <NotesSection
+                empresaId={empresaAtiva?.id || ""}
                 formatarDataHoraBR={formatarDataHoraEmpresa}
               />
             )}
