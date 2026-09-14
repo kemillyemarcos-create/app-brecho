@@ -612,14 +612,14 @@ function AppContent() {
       )
       : new URLSearchParams();
 
-  const portalClienteAtivo =
-    paramsPortal.has("portal") ||
-    paramsPortal.get("portal") === "cliente";
-
   const empresaSlugPublico =
     String(paramsPortal.get("empresa") || "")
       .trim()
       .toLowerCase();
+
+  const portalClienteAtivo =
+    paramsPortal.get("portal") === "cliente" &&
+    Boolean(empresaSlugPublico);
 
   const cadastroPublicoAtivo =
     paramsPortal.get("cadastro") === "cliente" &&
