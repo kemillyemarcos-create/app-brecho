@@ -298,10 +298,17 @@ export async function editarCampoNota(
 
 export async function criarItemNota(
   noteId,
-  itemInput = {}
+  itemInput = {},
+  empresaId
 ) {
   if (!noteId) {
     throw new Error("O ID da nota é obrigatório.");
+  }
+
+  if (!empresaId) {
+    throw new Error(
+      "A empresa ativa é obrigatória para criar um item de nota."
+    );
   }
 
   const itemPayload =
@@ -318,6 +325,7 @@ export async function criarItemNota(
     .insert({
       ...itemPayload,
       nota_id: noteId,
+      empresa_id: empresaId,
     })
     .select("*")
     .single();
