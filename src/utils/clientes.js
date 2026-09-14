@@ -100,6 +100,7 @@ export async function buscarClientePorCpf(cpf, idIgnorar = null) {
 
 export async function cadastrarClientePublico(payload) {
     const { data, error } = await supabase.rpc("cadastrar_cliente_publico", {
+        p_empresa_slug: String(payload?.empresaSlug || "").trim().toLowerCase(),
         p_nome: String(payload?.nome || "").trim(),
         p_cpf: normalizarCPF(payload?.cpf),
         p_telefone: normalizarTelefone(payload?.telefone),

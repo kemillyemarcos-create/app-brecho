@@ -616,8 +616,14 @@ function AppContent() {
     paramsPortal.has("portal") ||
     paramsPortal.get("portal") === "cliente";
 
+  const empresaSlugPublico =
+    String(paramsPortal.get("empresa") || "")
+      .trim()
+      .toLowerCase();
+
   const cadastroPublicoAtivo =
-    paramsPortal.get("cadastro") === "cliente";
+    paramsPortal.get("cadastro") === "cliente" &&
+    Boolean(empresaSlugPublico);
 
   const rotaPublica =
     portalClienteAtivo ||
@@ -2193,11 +2199,6 @@ Qualquer dúvida, é só nos chamar! 💕`;
     }, 0);
   }
 
-  function modoCadastroPublicoAtivo() {
-    if (typeof window === "undefined") return false;
-    const params = new URLSearchParams(window.location.search);
-    return params.get("cadastro") === "cliente";
-  }
 
   async function salvarCliente() {
     if (!formCliente.nome.trim()) {
@@ -2243,7 +2244,10 @@ Qualquer dúvida, é só nos chamar! 💕`;
     try {
       setSalvandoCadastroPublico(true);
 
-      const payload = montarPayloadCliente(formCliente, { exigirCpf: true });
+      const payload = {
+        ...montarPayloadCliente(formCliente, { exigirCpf: true }),
+        empresaSlug: empresaSlugPublico,
+      };
       const resultado = await cadastrarClientePublico(payload);
 
       if (!resultado?.ok && resultado?.code === "CPF_JA_CADASTRADO") {
@@ -4790,7 +4794,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     return <PortalCliente />;
   }
 
-  if (modoCadastroPublicoAtivo()) {
+  if (cadastroPublicoAtivo) {
     return (
       <CadastroPublicoCliente
         logoKchic={logoKchic}
