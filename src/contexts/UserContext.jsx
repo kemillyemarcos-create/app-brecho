@@ -10,12 +10,17 @@ function rotaPublicaAtual() {
   if (typeof window === "undefined") return false;
 
   const params = new URLSearchParams(window.location.search);
+  const empresaSlug = String(params.get("empresa") || "").trim();
 
-  return (
-    params.has("portal") ||
-    params.get("portal") === "cliente" ||
-    params.get("cadastro") === "cliente"
-  );
+  const portalCliente =
+    params.get("portal") === "cliente" &&
+    Boolean(empresaSlug);
+
+  const cadastroCliente =
+    params.get("cadastro") === "cliente" &&
+    Boolean(empresaSlug);
+
+  return portalCliente || cadastroCliente;
 }
 
 function normalizarEmail(email) {
