@@ -28,6 +28,8 @@ export function UserProvider({ children }) {
   const [usuarioSistema, setUsuarioSistema] = useState(null);
   const [membershipAtiva, setMembershipAtiva] = useState(null);
   const [memberships, setMemberships] = useState([]);
+
+  const [empresaAtiva, setEmpresaAtiva] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
 
@@ -47,6 +49,7 @@ export function UserProvider({ children }) {
         setUsuarioSistema(null);
         setMembershipAtiva(null);
         setMemberships([]);
+        setEmpresaAtiva(null);
         setErro("");
         setCarregando(false);
         return;
@@ -71,6 +74,7 @@ export function UserProvider({ children }) {
         setUsuarioSistema(null);
         setMembershipAtiva(null);
         setMemberships([]);
+        setEmpresaAtiva(null);
         setErro("");
         setCarregando(false);
         return;
@@ -158,6 +162,16 @@ export function UserProvider({ children }) {
 
         const membership = listaMemberships[0];
 
+        const { data: empresaEncontrada, error: erroEmpresa } = await supabase
+          .from("empresas")
+          .select("id, nome, nome_fantasia, slug_publico, ativo")
+          .eq("id", membership.empresa_id)
+          .maybeSingle();
+
+        if (erroEmpresa) throw erroEmpresa;
+
+        if (!ativo) return;
+
         const usuarioCompatibilidade = {
           ...usuarioInterno,
           empresa_id: membership.empresa_id,
@@ -169,6 +183,7 @@ export function UserProvider({ children }) {
 
         setMemberships(listaMemberships);
         setMembershipAtiva(membership);
+        setEmpresaAtiva(empresaEncontrada);
         setUsuarioSistema(usuarioCompatibilidade);
 
         const { error: erroUltimoAcesso } = await supabase
@@ -248,6 +263,7 @@ export function UserProvider({ children }) {
 
       membershipAtiva,
       memberships,
+      empresaAtiva,
       empresaId,
 
       perfil,
@@ -268,6 +284,7 @@ export function UserProvider({ children }) {
       usuarioAuth,
       membershipAtiva,
       memberships,
+      empresaAtiva,
       empresaId,
       perfil,
       isProprietario,

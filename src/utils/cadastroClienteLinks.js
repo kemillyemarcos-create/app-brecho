@@ -1,10 +1,19 @@
 // src/utils/cadastroClienteLinks.js
 
-export function gerarLinkCadastroCliente() {
+export function gerarLinkCadastroCliente(empresaSlug = "") {
   if (typeof window === "undefined") return "";
 
+  const slug = String(empresaSlug || "")
+    .trim()
+    .toLowerCase();
+
   const url = new URL(window.location.origin);
+
   url.searchParams.set("cadastro", "cliente");
+
+  if (slug) {
+    url.searchParams.set("empresa", slug);
+  }
 
   return url.toString();
 }
@@ -26,8 +35,8 @@ export async function copiarTexto(texto, mensagemSucesso, mensagemErro) {
   }
 }
 
-export async function copiarLinkCadastroCliente() {
-  const link = gerarLinkCadastroCliente();
+export async function copiarLinkCadastroCliente(empresaSlug = "") {
+  const link = gerarLinkCadastroCliente(empresaSlug);
 
   return copiarTexto(
     link,
@@ -36,13 +45,14 @@ export async function copiarLinkCadastroCliente() {
   );
 }
 
-export function gerarMensagemWhatsAppCadastroCliente() {
-  const link = gerarLinkCadastroCliente();
+export function gerarMensagemWhatsAppCadastroCliente(empresaSlug = "") {
+  const link = gerarLinkCadastroCliente(empresaSlug);
+
   return `Oi! Para agilizar seu atendimento, preencha seu cadastro neste link: ${link}`;
 }
 
-export async function copiarMensagemWhatsAppCadastroCliente() {
-  const mensagem = gerarMensagemWhatsAppCadastroCliente();
+export async function copiarMensagemWhatsAppCadastroCliente(empresaSlug = "") {
+  const mensagem = gerarMensagemWhatsAppCadastroCliente(empresaSlug);
 
   return copiarTexto(
     mensagem,

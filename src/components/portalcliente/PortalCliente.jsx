@@ -59,6 +59,10 @@ export default function PortalCliente() {
     normalizarCodigo(getParametroUrl("token")) ||
     normalizarCodigo(getParametroUrl("sacolinha"));
 
+  const empresaSlugPublico = String(getParametroUrl("empresa") || "")
+    .trim()
+    .toLowerCase();
+
   const [lives, setLives] = useState([]);
   const [liveId, setLiveId] = useState("");
   const [temLiveAberta, setTemLiveAberta] = useState(false);
@@ -142,6 +146,7 @@ export default function PortalCliente() {
 
       const { data, error } = await supabase.rpc("portal_cliente_dados", {
         p_codigo: null,
+        p_empresa_slug: empresaSlugPublico || null,
       });
 
       if (error) throw error;
@@ -176,6 +181,7 @@ export default function PortalCliente() {
       const { data, error } = await supabase.rpc("portal_cliente_dados", {
         p_codigo: codigo,
         p_live_id: liveIdSelecionada || null,
+        p_empresa_slug: empresaSlugPublico || null,
       });
 
       if (error) throw error;

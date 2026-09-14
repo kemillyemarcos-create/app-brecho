@@ -645,6 +645,7 @@ function AppContent() {
     motivoBloqueio,
     isAdmin,
     empresaId,
+    empresaAtiva,
     perfil,
   } = useUser();
 
@@ -1321,8 +1322,24 @@ function AppContent() {
   }
 
   function gerarUrlPortalCliente(portalToken) {
+
     const origem = typeof window !== "undefined" ? window.location.origin : "";
-    return `${origem}/?portal=cliente&t=${encodeURIComponent(portalToken)}`;
+
+    const slugEmpresa = String(empresaAtiva?.slug_publico || "")
+      .trim()
+      .toLowerCase();
+
+    const params = new URLSearchParams({
+      portal: "cliente",
+      t: String(portalToken || ""),
+    });
+
+    if (slugEmpresa) {
+      params.set("empresa", slugEmpresa);
+    }
+
+    return `${origem}/?${params.toString()}`;
+
   }
 
   function montarMensagemPortalCliente({ clienteNome, liveNome, portalToken }) {
@@ -5661,11 +5678,17 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 buscaClienteCadastro={buscaClienteCadastro}
                 setBuscaClienteCadastro={setBuscaClienteCadastro}
 
-                copiarLinkCadastroCliente={copiarLinkCadastroCliente}
-                copiarMensagemWhatsAppCadastroCliente={
-                  copiarMensagemWhatsAppCadastroCliente
+                copiarLinkCadastroCliente={() =>
+                  copiarLinkCadastroCliente(empresaAtiva?.slug_publico || "")
                 }
-                gerarLinkCadastroCliente={gerarLinkCadastroCliente}
+                copiarMensagemWhatsAppCadastroCliente={() =>
+                  copiarMensagemWhatsAppCadastroCliente(
+                    empresaAtiva?.slug_publico || ""
+                  )
+                }
+                gerarLinkCadastroCliente={() =>
+                  gerarLinkCadastroCliente(empresaAtiva?.slug_publico || "")
+                }
 
                 formCliente={formCliente}
                 setFormCliente={setFormCliente}
