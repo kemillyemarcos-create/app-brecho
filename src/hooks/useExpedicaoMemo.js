@@ -28,28 +28,13 @@ function limparValor(valor) {
     return Number.isNaN(numero) ? 0 : numero;
 }
 
-function getValorItemExpedicao(item, mapaPecasPorId = {}) {
-    const valorDireto =
+function getValorItemExpedicao(item) {
+    return (
         limparValor(item?.valor_venda) ||
         limparValor(item?.valor_venda_final) ||
         limparValor(item?.valor) ||
         limparValor(item?.venda) ||
-        limparValor(item?.preco);
-
-    if (valorDireto > 0) return valorDireto;
-
-    const peca =
-        mapaPecasPorId[String(item?.peca_id)] ||
-        mapaPecasPorId[String(item?.id)] ||
-        mapaPecasPorId[String(item?.codigo)] ||
-        null;
-
-    return (
-        limparValor(peca?.valor_venda_final) ||
-        limparValor(peca?.valor_venda) ||
-        limparValor(peca?.venda) ||
-        limparValor(peca?.valor) ||
-        limparValor(peca?.preco) ||
+        limparValor(item?.preco) ||
         0
     );
 }
@@ -59,7 +44,6 @@ export default function useExpedicaoMemo({
     sacolinhasLive,
     pedidoEnvioSacolinhas,
     pedidosEnvio,
-    mapaPecasPorId = {},
 }) {
     const pecaIdsEnviados = useMemo(() => {
         const sacolinhasEnviadasIds = new Set(
@@ -103,7 +87,7 @@ export default function useExpedicaoMemo({
                 const itensValidos = Array.isArray(itens) ? itens : [];
 
                 const valorTotal = itensValidos.reduce((acc, item) => {
-                    return acc + getValorItemExpedicao(item, mapaPecasPorId);
+                    return acc + getValorItemExpedicao(item);
                 }, 0);
 
                 const quantidade = itensValidos.length;
@@ -140,7 +124,7 @@ export default function useExpedicaoMemo({
                     { sensitivity: "base" }
                 )
             );
-    }, [sacolinhasLive, vendasPorSacolinhaId, mapaPecasPorId]);
+    }, [sacolinhasLive, vendasPorSacolinhaId]);
 
     const sacolinhasAbertas = useMemo(() => {
         return sacolinhasAgrupadas.filter((s) => s.status === "aberta");
@@ -188,7 +172,7 @@ export default function useExpedicaoMemo({
                 const valorTotal =
                     Number(sacolinha.valorTotal) ||
                     itens.reduce((acc, item) => {
-                        return acc + getValorItemExpedicao(item, mapaPecasPorId);
+                        return acc + getValorItemExpedicao(item);
                     }, 0);
 
                 return {
@@ -226,8 +210,7 @@ export default function useExpedicaoMemo({
         pedidosEnvio,
         pedidoEnvioSacolinhas,
         mapaSacolinhasPorId,
-        mapaPecasPorId,
-    ]);
+        ]);
 
     const pedidosEnvioEmMontagem = useMemo(() => {
         return pedidosEnvioAgrupados.filter((p) => pedidoEstaEmMontagem(p));

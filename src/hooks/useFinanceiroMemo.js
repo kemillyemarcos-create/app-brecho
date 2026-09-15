@@ -14,8 +14,7 @@ export default function useFinanceiroMemo({
     formatarDataBR,
     listaLives,
     todasVendasLive,
-    mapaPecasPorId,
-    limparMoeda,
+     limparMoeda,
     formatarCPF,
     formatarTelefone,
     converterDataPtBrParaIso,
@@ -191,7 +190,6 @@ export default function useFinanceiroMemo({
                         codigo: venda.peca_id || "-",
                         nomePeca:
                             venda.nome_peca ||
-                            mapaPecasPorId[String(venda.peca_id)]?.nome ||
                             venda.peca_id ||
                             "-",
                         valor: Number(venda.valor_venda || 0),
@@ -202,7 +200,7 @@ export default function useFinanceiroMemo({
                     return acc;
                 }, {})
             ),
-        [vendasLive, mapaPecasPorId]
+        [vendasLive]
     );
 
     const clientesFiltrados = useMemo(
@@ -268,8 +266,7 @@ export default function useFinanceiroMemo({
                     );
 
                     const lucroDaLive = vendasDaLive.reduce((acc, v) => {
-                        const pecaOriginal = mapaPecasPorId[String(v.peca_id)];
-                        const custo = limparMoeda(pecaOriginal?.custo || 0);
+                        const custo = Number(v.custo_peca ?? 0);
                         return acc + (Number(v.valor_venda || 0) - custo);
                     }, 0);
 
@@ -295,8 +292,6 @@ export default function useFinanceiroMemo({
         [
             livesFiltradas,
             vendasFiltradasPeriodo,
-            mapaPecasPorId,
-            limparMoeda,
             dataInicialFiltro,
             dataFinalFiltro,
             formatarDataBR,
@@ -325,8 +320,7 @@ export default function useFinanceiroMemo({
     );
 
     const lucroEstimadoLive = (vendasLive || []).reduce((acc, venda) => {
-        const pecaOriginal = mapaPecasPorId[String(venda.peca_id)];
-        const custo = limparMoeda(pecaOriginal?.custo || 0);
+        const custo = Number(venda.custo_peca ?? 0);
         return acc + (Number(venda.valor_venda || 0) - custo);
     }, 0);
 

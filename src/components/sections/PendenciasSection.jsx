@@ -146,7 +146,6 @@ export default function PendenciasSection({
   botaoPequeno,
   isMobile,
   todasVendasLive,
-  mapaPecasPorId,
   mapaLivesPorId,
   liveAtual,
   formatarBRL,
@@ -177,7 +176,6 @@ export default function PendenciasSection({
 
       const nomeCliente = String(venda?.cliente_nome || "Sem nome").trim() || "Sem nome";
       const chaveCliente = normalizarTexto(nomeCliente) || nomeCliente;
-      const peca = mapaPecasPorId?.[String(venda?.peca_id)] || {};
       const live = mapaLivesPorId?.[String(venda?.live_id)] || {};
       const valor = Number(venda?.valor_venda || 0);
       const dataVenda = venda?.data_hora || venda?.criado_em || venda?.data_venda || "";
@@ -221,7 +219,7 @@ export default function PendenciasSection({
       grupo.itens.push({
         vendaId: venda.id,
         codigo: venda.peca_id || "-",
-        nomePeca: venda.nome_peca || peca?.nome || venda.peca_id || "-",
+        nomePeca: venda.nome_peca || venda.peca_id || "-",
         valor,
         dataVenda,
         liveId: venda.live_id || "",
@@ -240,7 +238,7 @@ export default function PendenciasSection({
         ),
       }))
       .sort((a, b) => b.total - a.total);
-  }, [todasVendasLive, mapaPecasPorId, mapaLivesPorId]);
+  }, [todasVendasLive, mapaLivesPorId]);
 
   const pendenciasFiltradas = useMemo(() => {
     const termo = normalizarTexto(busca);

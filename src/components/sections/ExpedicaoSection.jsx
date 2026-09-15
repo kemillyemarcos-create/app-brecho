@@ -313,7 +313,7 @@ function ExpandButton({ expandido, onClick }) {
     );
 }
 
-function ListaItensSacolinha({ itens, mapaPecasPorId, formatarBRL, isMobile }) {
+function ListaItensSacolinha({ itens, formatarBRL, isMobile }) {
     if (!itens || itens.length === 0) {
         return <EmptyState>Nenhum item encontrado nessa sacolinha.</EmptyState>;
     }
@@ -321,8 +321,7 @@ function ListaItensSacolinha({ itens, mapaPecasPorId, formatarBRL, isMobile }) {
     return (
         <div style={{ display: "grid", gap: 8 }}>
             {itens.map((item, index) => {
-                const peca = mapaPecasPorId[String(item.peca_id)] || {};
-                const nome = peca.nome || item.nome_peca || item.nome || "-";
+                const nome = item.nome_peca || item.nome || item.peca_id || "-";
                 const pago = item.status_pagamento === "pago";
 
                 return (
@@ -394,7 +393,6 @@ function SacolinhaCard({
     expandido,
     onExpandir,
     mapaLivesPorId,
-    mapaPecasPorId,
     formatarBRL,
     itens,
     pago,
@@ -476,7 +474,6 @@ function SacolinhaCard({
                 <div style={{ marginTop: 10 }}>
                     <ListaItensSacolinha
                         itens={itens}
-                        mapaPecasPorId={mapaPecasPorId}
                         formatarBRL={formatarBRL}
                         isMobile={isMobile}
                     />
@@ -509,7 +506,6 @@ export default function ExpedicaoSection({
     pedidosEnvioExpandidos,
     toggleExpandirPedidoEnvio,
     mapaLivesPorId,
-    mapaPecasPorId,
     todasVendasLive,
     getStatusSacolinha,
     sacolinhaPodeIrParaExpedicao,
@@ -987,7 +983,6 @@ export default function ExpedicaoSection({
                                             expandido={!!sacolinhasExpandidas[s.id]}
                                             onExpandir={() => toggleExpandirSacolinha(s.id)}
                                             mapaLivesPorId={mapaLivesPorId}
-                                            mapaPecasPorId={mapaPecasPorId}
                                             formatarBRL={formatarBRL}
                                             itens={sacolinhaAtualizada.itens}
                                             pago={pago}
@@ -1053,7 +1048,6 @@ export default function ExpedicaoSection({
                                             expandido={!!sacolinhasExpandidas[s.id]}
                                             onExpandir={() => toggleExpandirSacolinha(s.id)}
                                             mapaLivesPorId={mapaLivesPorId}
-                                            mapaPecasPorId={mapaPecasPorId}
                                             formatarBRL={formatarBRL}
                                             itens={sacolinhaAtualizada.itens}
                                             pago={pago}
@@ -1205,7 +1199,7 @@ export default function ExpedicaoSection({
                                                                 {pedido.itens.map((item, index) => {
                                                                     const itemKey = item.id || `${item.peca_id}-${index}`;
                                                                     const checked = itensConferidosPedido[pedido.id]?.includes(itemKey) || false;
-                                                                    const peca = mapaPecasPorId[String(item.peca_id)];
+
 
                                                                     return (
                                                                         <label
@@ -1227,7 +1221,7 @@ export default function ExpedicaoSection({
                                                                                 onChange={() => toggleItemConferidoPedido(pedido.id, itemKey)}
                                                                             />
                                                                             <div>
-                                                                                <strong>{peca?.nome || item.nome_peca || item.nome || "-"}</strong>
+                                                                                <strong>{item.nome_peca || item.nome || item.peca_id || "-"}</strong>
                                                                                 <div style={{ fontSize: 12, color: "var(--kc-text-muted, #64748b)", marginTop: 4 }}>Código: {item.peca_id || "-"}</div>
                                                                                 <div style={{ fontSize: 12, color: "var(--kc-text-muted, #64748b)" }}>Valor: {formatarBRL(item.valor_venda || item.valor || 0)}</div>
                                                                             </div>

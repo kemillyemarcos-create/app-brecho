@@ -4361,12 +4361,11 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   const pecasVendidasLiveCronologicas = useMemo(() => {
     return [...(vendasLive || [])]
       .map((venda) => {
-        const peca = mapaPecasPorId[String(venda.peca_id)] || {};
         const dataVenda = venda.data_hora || venda.criado_em || venda.data_venda || "";
 
         return {
           ...venda,
-          nomePeca: venda.nome_peca || peca.nome || venda.peca_id || "-",
+          nomePeca: venda.nome_peca || venda.peca_id || "-",
           codigo: venda.peca_id || "-",
           valor: Number(venda.valor_venda || 0),
           horario: dataVenda,
@@ -4381,7 +4380,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         numeroCronologico: index + 1,
       }))
       .sort((a, b) => b.timestamp - a.timestamp);
-  }, [vendasLive, mapaPecasPorId]);
+  }, [vendasLive]);
 
   const {
     pecaIdsEnviados,
@@ -4399,7 +4398,6 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     sacolinhasLive,
     pedidoEnvioSacolinhas,
     pedidosEnvio,
-    mapaPecasPorId,
   });
 
   const {
@@ -4434,7 +4432,6 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     dataFinalFiltro,
     listaLives,
     todasVendasLive,
-    mapaPecasPorId,
     limparMoeda,
     formatarCPF,
     formatarTelefone,
@@ -5675,7 +5672,6 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
                 isMobile={isMobile}
                 todasVendasLive={todasVendasLive}
-                mapaPecasPorId={mapaPecasPorId}
                 mapaLivesPorId={mapaLivesPorId}
                 clientes={clientes}
                 liveAtual={liveAtual}
@@ -5755,7 +5751,6 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 toggleExpandirPedidoEnvio={toggleExpandirPedidoEnvio}
 
                 mapaLivesPorId={mapaLivesPorId}
-                mapaPecasPorId={mapaPecasPorId}
                 todasVendasLive={todasVendasLive}
 
                 getStatusSacolinha={getStatusSacolinha}
