@@ -1880,15 +1880,11 @@ Qualquer dúvida, é só nos chamar! 💕`;
         await carregarVendasLive(liveAtual);
         if (!ativo) return;
 
-        await carregarTodasVendasLive();
-        if (!ativo) return;
-
         setLiveSelecionada(liveAtual);
         return;
       }
 
       setVendasLive([]);
-      await carregarTodasVendasLive();
     }
 
     sincronizarLiveAtual();
