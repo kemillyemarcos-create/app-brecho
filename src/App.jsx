@@ -2837,182 +2837,88 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     const confirmar = window.confirm(
       "Deseja cancelar essa venda e devolver a peça para disponível?"
     );
+
     if (!confirmar) return;
+
+    if (!empresaId) {
+      alert("Não foi possível identificar a empresa ativa.");
+      return;
+    }
+
     try {
-      let queryVenda = supabase
-        .from("vendas_live")
-        .select("*")
-        .eq("peca_id", id)
-        .order("data_hora", { ascending: false })
-        .limit(1);
+      const { data: resultado, error } = await supabase.rpc(
+        "cancelar_venda_saas",
+        {
+          p_empresa_id: empresaId,
+          p_peca_id: id,
+          p_live_id: liveEmVisualizacao?.id || null,
+        }
+      );
 
-      if (liveEmVisualizacao?.id) {
-        queryVenda = queryVenda.eq("live_id", liveEmVisualizacao.id);
-      }
-      const { data: vendaAlvo, error: erroBuscaVenda } = await queryVenda.maybeSingle();
-      if (erroBuscaVenda) {
-        console.error("ERRO AO BUSCAR VENDA PARA CANCELAMENTO:", erroBuscaVenda);
-        alert(`Erro ao localizar venda: ${erroBuscaVenda.message}`);
+      if (error) {
+        console.error("ERRO AO CANCELAR VENDA:", error);
+        alert(`Erro ao cancelar venda: ${error.message}`);
         return;
       }
 
-      if (!vendaAlvo) {
-        const { data: pecaAlvo, error: erroBuscaPeca } = await supabase
-          .from("pecas")
-          .select("id, vendido")
-          .eq("id", id)
-          .maybeSingle();
-
-        if (erroBuscaPeca) {
-          console.error("ERRO AO BUSCAR PEÇA PARA CANCELAMENTO:", erroBuscaPeca);
-          alert(`Erro ao localizar peça: ${erroBuscaPeca.message}`);
-          return;
-        }
-
-        if (!pecaAlvo) {
-          alert("Não encontrei essa peça no estoque.");
-          return;
-        }
-
-        if (!pecaAlvo.vendido) {
-          alert("Essa peça já está disponível.");
-          return;
-        }
-
-        const { error: errorPecaSemVenda } = await supabase
-          .from("pecas")
-          .update({
-            vendido: false,
-            cliente: null,
-            cliente_id: null,
-            data_venda: null,
-            valor_venda_final: null,
-          })
-          .eq("id", id);
-
-        if (errorPecaSemVenda) {
-          console.error("ERRO AO LIMPAR PEÇA SEM VENDA_LIVE:", errorPecaSemVenda);
-          alert(`Erro ao limpar peça: ${errorPecaSemVenda.message}`);
-          return;
-        }
-
-        await recarregarDadosGerais();
-        await recarregarLiveEmVisualizacaoAtual();
-
-        alert("Venda cancelada na peça. Nenhum registro em vendas_live foi encontrado.");
+      if (!resultado?.ok) {
+        console.error("RESPOSTA INESPERADA AO CANCELAR VENDA:", resultado);
+        alert("Não foi possível cancelar a venda.");
         return;
       }
 
-      const sacolinhaId = vendaAlvo.sacolinha_id || null;
-      const { data: removidas, error: errorVendaLive } = await supabase
-        .from("vendas_live")
-        .delete()
-        .eq("id", vendaAlvo.id)
-        .select();
-      if (errorVendaLive) {
-        console.error("ERRO AO REMOVER VENDA DA LIVE:", errorVendaLive);
-        alert(`Erro ao remover da live: ${errorVendaLive.message}`);
-        return;
-      }
-      const { error: errorPeca } = await supabase
-        .from("pecas")
-        .update({
-          vendido: false,
-          cliente: null,
-          cliente_id: null,
-          data_venda: null,
-          valor_venda_final: null,
-        })
-        .eq("id", id);
-      if (errorPeca) {
-        console.error("ERRO AO VOLTAR PEÇA:", errorPeca);
+      const vendaId = resultado?.venda_id || null;
 
-        if (removidas && removidas.length > 0) {
-          const { error: rollbackError } = await supabase
-            .from("vendas_live")
-            .insert(removidas);
-
-          if (rollbackError) {
-            console.error("ERRO NO ROLLBACK DA VENDA CANCELADA:", rollbackError);
-          }
-        }
-
-        alert(`Erro ao cancelar venda: ${errorPeca.message}`);
-
-        await Promise.all([
-          carregarPecas(),
-          carregarTodasVendasLive(),
-          carregarSacolinhasLive(),
-        ]);
-
-        return;
-      }
-      if (sacolinhaId) {
-        const existemOutrasVendasLocais = (todasVendasLive || []).some(
-          (venda) =>
-            String(venda?.sacolinha_id || "") === String(sacolinhaId) &&
-            String(venda?.id || "") !== String(vendaAlvo.id)
+      if (vendaId) {
+        setVendasLive((prev) =>
+          (prev || []).filter(
+            (item) => String(item?.id) !== String(vendaId)
+          )
         );
 
-        // Se já sabemos localmente que a sacolinha ainda possui itens,
-        // evitamos uma consulta desnecessária ao banco.
-        // Quando parece ser a última peça, confirmamos no Supabase
-        // antes de excluir a sacolinha.
-        if (!existemOutrasVendasLocais) {
-          const { data: vendasRestantes, error: erroRestantes } = await supabase
-            .from("vendas_live")
-            .select("id")
-            .eq("sacolinha_id", sacolinhaId)
-            .limit(1);
-
-          if (erroRestantes) {
-            console.error(
-              "ERRO AO VERIFICAR SACOLINHA RESTANTE:",
-              erroRestantes
-            );
-          } else if (!vendasRestantes || vendasRestantes.length === 0) {
-            const { error: erroExcluirSacolinha } = await supabase
-              .from("sacolinhas_live")
-              .delete()
-              .eq("id", sacolinhaId);
-
-            if (erroExcluirSacolinha) {
-              console.error(
-                "ERRO AO EXCLUIR SACOLINHA VAZIA:",
-                erroExcluirSacolinha
-              );
-            }
-          }
-        }
+        setTodasVendasLive((prev) =>
+          (prev || []).filter(
+            (item) => String(item?.id) !== String(vendaId)
+          )
+        );
       }
-      // Atualização local imediata.
-      // O Realtime fará a mesma sincronização nos demais dispositivos.
-      setVendasLive((prev) =>
-        (prev || []).filter(
-          (item) => String(item?.id) !== String(vendaAlvo.id)
-        )
-      );
-
-      setTodasVendasLive((prev) =>
-        (prev || []).filter(
-          (item) => String(item?.id) !== String(vendaAlvo.id)
-        )
-      );
 
       setPecas((prev) =>
         (prev || []).map((item) =>
           String(item?.id) === String(id)
             ? {
-              ...item,
-              vendido: false,
-              cliente: null,
-              cliente_id: null,
-              data_venda: null,
-              valor_venda_final: null,
-            }
+                ...item,
+                vendido: false,
+                cliente: null,
+                cliente_id: null,
+                data_venda: null,
+                valor_venda_final: null,
+              }
             : item
         )
       );
+
+      if (resultado?.sacolinha_excluida && resultado?.sacolinha_id) {
+        setSacolinhasLive((prev) =>
+          (prev || []).filter(
+            (item) =>
+              String(item?.id) !== String(resultado.sacolinha_id)
+          )
+        );
+      }
+
+      if (resultado.resultado === "ja_disponivel") {
+        alert("Essa peça já está disponível.");
+        return;
+      }
+
+      if (resultado.resultado === "peca_liberada_sem_venda") {
+        alert(
+          "Venda cancelada na peça. Nenhum registro em vendas_live foi encontrado."
+        );
+        return;
+      }
+
       alert("Venda cancelada com sucesso.");
     } catch (error) {
       console.error("ERRO GERAL AO CANCELAR VENDA:", error);
