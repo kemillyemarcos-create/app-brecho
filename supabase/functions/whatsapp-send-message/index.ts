@@ -218,6 +218,39 @@ async function resolverUsuarioAutorizado(
   };
 }
 
+async function validarRecursoWhatsapp(
+  empresaId: string,
+): Promise<void> {
+  const supabase = criarSupabaseAdmin();
+
+  const {
+    data: recurso,
+    error,
+  } = await supabase.rpc(
+    "resolver_recurso_empresa",
+    {
+      p_empresa_id: empresaId,
+      p_recurso: "whatsapp",
+    },
+  );
+
+  if (error) {
+    throw new Error(
+      `Erro ao validar recurso WhatsApp do plano: ${error.message}`,
+    );
+  }
+
+  if (
+    !recurso ||
+    recurso.tipo !== "boolean" ||
+    recurso.valor !== true
+  ) {
+    throw new Error(
+      "O plano atual não inclui integração WhatsApp API.",
+    );
+  }
+}
+
 async function resolverConfiguracaoWhatsapp(
   empresaId: string,
 ): Promise<ConfiguracaoWhatsapp> {
@@ -827,6 +860,10 @@ export default {
         );
       }
 
+      await validarRecursoWhatsapp(
+        usuario.empresaId,
+      );
+
       const configuracao =
         await resolverConfiguracaoWhatsapp(
           usuario.empresaId,
@@ -885,7 +922,14 @@ export default {
         mensagem ===
           "Usuário autenticado não possui cadastro interno." ||
         mensagem ===
-          "Usuário não está vinculado a uma empresa.";
+          "Usuário não está vinculado a uma empresa." ||
+        mensagem ===
+          "Usuário não está vinculado a uma empresa ativa." ||
+        mensagem ===
+          "O plano atual não inclui integração WhatsApp API." ||
+        mensagem.includes(
+          "Assinatura sem acesso operacional vigente.",
+        );
 
       return respostaJson(
         {
