@@ -35,6 +35,7 @@ export function UserProvider({ children }) {
   const [memberships, setMemberships] = useState([]);
 
   const [empresaAtiva, setEmpresaAtiva] = useState(null);
+  const [contextoAssinatura, setContextoAssinatura] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
 
@@ -55,6 +56,7 @@ export function UserProvider({ children }) {
         setMembershipAtiva(null);
         setMemberships([]);
         setEmpresaAtiva(null);
+        setContextoAssinatura(null);
         setErro("");
         setCarregando(false);
         return;
@@ -80,6 +82,7 @@ export function UserProvider({ children }) {
         setMembershipAtiva(null);
         setMemberships([]);
         setEmpresaAtiva(null);
+        setContextoAssinatura(null);
         setErro("");
         setCarregando(false);
         return;
@@ -107,6 +110,8 @@ export function UserProvider({ children }) {
           setMembershipAtiva(null);
           setMemberships([]);
 
+          setContextoAssinatura(null);
+
           setErro(
             emailFinal
               ? `Usuário não cadastrado no painel interno: ${emailFinal}`
@@ -120,6 +125,7 @@ export function UserProvider({ children }) {
           setUsuarioSistema(usuarioInterno);
           setMembershipAtiva(null);
           setMemberships([]);
+          setContextoAssinatura(null);
           setErro("Usuário desativado. Fale com um administrador.");
           return;
         }
@@ -143,6 +149,7 @@ export function UserProvider({ children }) {
           setUsuarioSistema(usuarioInterno);
           setMembershipAtiva(null);
           setMemberships([]);
+          setContextoAssinatura(null);
           setErro("Usuário sem vínculo ativo com uma empresa.");
           return;
         }
@@ -159,6 +166,7 @@ export function UserProvider({ children }) {
           setUsuarioSistema(usuarioInterno);
           setMembershipAtiva(null);
           setMemberships(listaMemberships);
+          setContextoAssinatura(null);
           setErro(
             "Usuário possui acesso a mais de uma empresa. Selecione a empresa ativa."
           );
@@ -177,6 +185,17 @@ export function UserProvider({ children }) {
 
         if (!ativo) return;
 
+        const {
+          data: contextoAssinaturaEncontrado,
+          error: erroContextoAssinatura,
+        } = await supabase.rpc("obter_contexto_assinatura", {
+          p_empresa_id: membership.empresa_id,
+        });
+
+        if (erroContextoAssinatura) throw erroContextoAssinatura;
+
+        if (!ativo) return;
+
         const usuarioCompatibilidade = {
           ...usuarioInterno,
           empresa_id: membership.empresa_id,
@@ -189,6 +208,7 @@ export function UserProvider({ children }) {
         setMemberships(listaMemberships);
         setMembershipAtiva(membership);
         setEmpresaAtiva(empresaEncontrada);
+        setContextoAssinatura(contextoAssinaturaEncontrado || null);
         setUsuarioSistema(usuarioCompatibilidade);
 
         const { error: erroUltimoAcesso } = await supabase
@@ -209,6 +229,7 @@ export function UserProvider({ children }) {
           setUsuarioSistema(null);
           setMembershipAtiva(null);
           setMemberships([]);
+          setContextoAssinatura(null);
           setErro("Não foi possível carregar o usuário interno.");
         }
       } finally {
@@ -246,8 +267,15 @@ export function UserProvider({ children }) {
   const empresaId =
     membershipAtiva?.empresa_id || usuarioSistema?.empresa_id || null;
 
+  const assinaturaOperacional =
+    contextoAssinatura?.acesso_operacional === true;
+
   const acessoLiberado =
-    !!usuarioSistema && !!membershipAtiva && ativo && !erro;
+    !!usuarioSistema &&
+    !!membershipAtiva &&
+    ativo &&
+    assinaturaOperacional &&
+    !erro;
 
   const precisaOnboarding =
     !!session &&
@@ -270,6 +298,8 @@ export function UserProvider({ children }) {
       memberships,
       empresaAtiva,
       empresaId,
+      contextoAssinatura,
+      assinaturaOperacional,
 
       perfil,
       isProprietario,
@@ -282,7 +312,11 @@ export function UserProvider({ children }) {
       acessoLiberado,
       precisaOnboarding,
       recarregarUsuario,
-      motivoBloqueio: erro,
+      motivoBloqueio:
+        erro ||
+        (!assinaturaOperacional
+          ? "Assinatura sem acesso operacional vigente."
+          : ""),
     }),
     [
       usuarioSistema,
@@ -291,6 +325,8 @@ export function UserProvider({ children }) {
       memberships,
       empresaAtiva,
       empresaId,
+      contextoAssinatura,
+      assinaturaOperacional,
       perfil,
       isProprietario,
       isAdmin,
