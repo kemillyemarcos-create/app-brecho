@@ -358,6 +358,40 @@ async function resolverEmpresaPorPhoneNumberId(
   return data.empresa_id;
 }
 
+async function empresaPodeUsarWhatsapp(
+  supabase: ReturnType<typeof criarSupabaseAdmin>,
+  empresaId: string,
+): Promise<boolean> {
+  const {
+    data: recurso,
+    error,
+  } = await supabase.rpc(
+    "resolver_recurso_empresa",
+    {
+      p_empresa_id: empresaId,
+      p_recurso: "whatsapp",
+    },
+  );
+
+  if (error) {
+    if (error.code === "42501") {
+      console.log(
+        `Webhook ignorado: empresa ${empresaId} sem assinatura operacional vigente.`,
+      );
+      return false;
+    }
+
+    throw new Error(
+      `Erro ao validar recurso WhatsApp do plano: ${error.message}`,
+    );
+  }
+
+  return (
+    recurso?.tipo === "boolean" &&
+    recurso?.valor === true
+  );
+}
+
 async function registrarEventoBruto(
   supabase: ReturnType<typeof criarSupabaseAdmin>,
   empresaId: string,
@@ -874,6 +908,19 @@ async function processarChange(
       supabase,
       change.phoneNumberId,
     );
+
+  const whatsappPermitido =
+    await empresaPodeUsarWhatsapp(
+      supabase,
+      empresaId,
+    );
+
+  if (!whatsappPermitido) {
+    console.log(
+      `Webhook ignorado: plano da empresa ${empresaId} não inclui WhatsApp API.`,
+    );
+    return;
+  }
 
   const tipoEvento =
     change.mensagens.length > 0
