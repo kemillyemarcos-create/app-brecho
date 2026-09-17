@@ -1700,16 +1700,14 @@ Qualquer dúvida, é só nos chamar! 💕`;
     try {
       setCarregando(true);
 
-      await Promise.all([
-        carregarPecas(),
-        carregarClientes(),
-        carregarLives(),
-        carregarPagamentosClientes(),
-        carregarTodasVendasLive(),
-        carregarSacolinhasLive(),
-        carregarPedidosEnvio(),
-        carregarPedidoEnvioSacolinhas(),
-      ]);
+      await carregarPecas();
+      await carregarClientes();
+      await carregarLives();
+      await carregarPagamentosClientes();
+      await carregarTodasVendasLive();
+      await carregarSacolinhasLive();
+      await carregarPedidosEnvio();
+      await carregarPedidoEnvioSacolinhas();
 
       await carregarLiveAberta();
     } catch (error) {
