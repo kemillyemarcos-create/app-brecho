@@ -1032,6 +1032,7 @@ function AppContent() {
   const [mostrarBotaoTopo, setMostrarBotaoTopo] = useState(false);
 
   const scannerRef = useRef(null);
+  const abasCarregadasRef = useRef(new Set());
   const scannerElementId = "reader";
 
   const liveEmVisualizacao = liveSelecionada || liveAtual;
@@ -1697,25 +1698,7 @@ Qualquer dúvida, é só nos chamar! 💕`;
   }
 
   async function carregarTudoInicial() {
-    try {
-      setCarregando(true);
-
-      await carregarPecas();
-      await carregarClientes();
-      await carregarLives();
-      await carregarPagamentosClientes();
-      await carregarTodasVendasLive();
-      await carregarSacolinhasLive();
-      await carregarPedidosEnvio();
-      await carregarPedidoEnvioSacolinhas();
-
-      await carregarLiveAberta();
-    } catch (error) {
-      console.error("ERRO NO CARREGAMENTO INICIAL:", error);
-      alert(error.message || "Erro ao carregar dados iniciais.");
-    } finally {
-      setCarregando(false);
-    }
+    setCarregando(false);
   }
 
   async function recarregarExpedicao() {
@@ -1867,6 +1850,125 @@ Qualquer dúvida, é só nos chamar! 💕`;
 
     carregarTudoInicial();
   }, [rotaPublica, podeAcessarDadosAdministrativos]);
+
+  useEffect(() => {
+    if (
+      rotaPublica ||
+      !podeAcessarDadosAdministrativos ||
+      !empresaId ||
+      abaAtiva !== "pecas"
+    ) {
+      return;
+    }
+
+    if (abasCarregadasRef.current.has("pecas")) {
+      return;
+    }
+
+    carregarPecas()
+      .then(() => {
+        abasCarregadasRef.current.add("pecas");
+      })
+      .catch((error) => {
+        console.error("ERRO AO CARREGAR ESTOQUE SOB DEMANDA:", error);
+        alert(error.message || "Erro ao carregar o estoque.");
+      });
+  }, [
+    rotaPublica,
+    podeAcessarDadosAdministrativos,
+    empresaId,
+    abaAtiva,
+  ]);
+
+  useEffect(() => {
+    abasCarregadasRef.current.clear();
+  }, [empresaId]);
+
+  useEffect(() => {
+    if (
+      rotaPublica ||
+      !podeAcessarDadosAdministrativos ||
+      !empresaId
+    ) {
+      return;
+    }
+
+    if (
+      ![
+        "clientes",
+        "lives",
+        "vendas",
+        "pendencias",
+        "expedicao",
+      ].includes(abaAtiva)
+    ) {
+      return;
+    }
+
+    if (abasCarregadasRef.current.has(abaAtiva)) {
+      return;
+    }
+
+    let ativo = true;
+
+    async function carregarDadosDaAba() {
+      try {
+        setCarregando(true);
+
+        if (abaAtiva === "clientes") {
+          await carregarClientes();
+        } else if (abaAtiva === "lives") {
+          await carregarLives();
+          await carregarLiveAberta();
+        } else if (abaAtiva === "vendas") {
+          await carregarPecas();
+          await carregarClientes();
+          await carregarLives();
+          await carregarPagamentosClientes();
+          await carregarTodasVendasLive();
+          await carregarLiveAberta();
+        } else if (abaAtiva === "pendencias") {
+          await carregarClientes();
+          await carregarLives();
+          await carregarTodasVendasLive();
+        } else if (abaAtiva === "expedicao") {
+          await carregarLives();
+          await carregarTodasVendasLive();
+          await carregarSacolinhasLive();
+          await carregarPedidosEnvio();
+          await carregarPedidoEnvioSacolinhas();
+        }
+
+        if (ativo) {
+          abasCarregadasRef.current.add(abaAtiva);
+        }
+      } catch (error) {
+        console.error("ERRO AO CARREGAR DADOS DA ABA:", error);
+
+        if (ativo) {
+          alert(
+            error?.message ||
+            "Não foi possível carregar os dados desta área."
+          );
+        }
+      } finally {
+        if (ativo) {
+          setCarregando(false);
+        }
+      }
+    }
+
+    carregarDadosDaAba();
+
+    return () => {
+      ativo = false;
+    };
+  }, [
+    rotaPublica,
+    podeAcessarDadosAdministrativos,
+    empresaId,
+    abaAtiva,
+  ]);
 
   useEffect(() => {
     if (!podeAcessarDadosAdministrativos) return undefined;

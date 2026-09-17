@@ -293,6 +293,7 @@ export default function EstoqueSection({
     const [dataFinalLocal, setDataFinalLocal] = useState("");
     const [filtroObservacao, setFiltroObservacao] = useState("todas");
     const [filtroFoto, setFiltroFoto] = useState("todas");
+    const [limiteExibicao, setLimiteExibicao] = useState("100");
 
     const filtrosAvancadosAtivos =
         !!dataInicialLocal ||
@@ -405,6 +406,11 @@ export default function EstoqueSection({
         filtroObservacao,
         filtroFoto,
     ]);
+
+    const pecasVisiveis =
+        limiteExibicao === "all"
+            ? pecasOrdenadas
+            : pecasOrdenadas.slice(0, Number(limiteExibicao));
 
     const textoCompacto = {
         ...textoItem,
@@ -853,14 +859,45 @@ export default function EstoqueSection({
                                 flexWrap: "wrap",
                             }}
                         >
-                            <span
+                            <div
                                 style={{
-                                    color: corTextoSuave,
-                                    fontSize: 13,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    flexWrap: "wrap",
                                 }}
                             >
-                                {pecasOrdenadas.length} peça(s) encontrada(s)
-                            </span>
+                                <span
+                                    style={{
+                                        color: corTextoSuave,
+                                        fontSize: 13,
+                                    }}
+                                >
+                                    {pecasOrdenadas.length} peça(s) encontrada(s)
+                                </span>
+
+                                <select
+                                    value={limiteExibicao}
+                                    onChange={(e) => setLimiteExibicao(e.target.value)}
+                                    style={{
+                                        border: `1px solid ${corBorda}`,
+                                        borderRadius: 10,
+                                        background: corPainel,
+                                        color: corTexto,
+                                        padding: "6px 9px",
+                                        fontSize: 13,
+                                        fontWeight: 700,
+                                    }}
+                                >
+                                    <option value="100">Mostrar 100</option>
+                                    <option value="500">Mostrar 500</option>
+                                    <option value="all" disabled={isMobile}>
+                                        {isMobile
+                                            ? "Mostrar tudo — disponível no computador"
+                                            : "Mostrar tudo"}
+                                    </option>
+                                </select>
+                            </div>
 
                             <IconButton
                                 icon={Eraser}
@@ -923,7 +960,7 @@ export default function EstoqueSection({
                         gap: isMobile ? 10 : gridPecas.gap,
                     }}
                 >
-                    {pecasOrdenadas.map((p, index) => {
+                    {pecasVisiveis.map((p, index) => {
                         const codigo = String(
                             p?.id || `sem-codigo-${index}`
                         );
