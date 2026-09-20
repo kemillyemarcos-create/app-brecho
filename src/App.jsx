@@ -2710,9 +2710,11 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         data_hora: agoraIso(),
         status_pagamento: "pendente",
       };
-      const { error: errorVendaLive } = await supabase
+      const { data: vendaLiveSalva, error: errorVendaLive } = await supabase
         .from("vendas_live")
-        .insert(novaVendaLive);
+        .insert(novaVendaLive)
+        .select()
+        .single();
       if (errorVendaLive) {
         console.error("ERRO AO SALVAR EM vendas_live:", errorVendaLive);
 
@@ -2753,16 +2755,16 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
       const adicionarOuAtualizarVendaLocal = (listaAtual) => {
         const lista = listaAtual || [];
         const indice = lista.findIndex(
-          (item) => String(item?.id) === String(novaVendaLive.id)
+          (item) => String(item?.id) === String(vendaLiveSalva.id)
         );
 
         if (indice === -1) {
-          return [...lista, novaVendaLive];
+          return [...lista, vendaLiveSalva];
         }
 
         return lista.map((item, index) =>
           index === indice
-            ? { ...item, ...novaVendaLive }
+            ? { ...item, ...vendaLiveSalva }
             : item
         );
       };
