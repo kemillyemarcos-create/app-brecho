@@ -2398,24 +2398,14 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   async function adicionarPeca() {
     if (!form.nome.trim()) return;
 
-    const nova = {
-      id: gerarCodigo(
-        operacao?.prefixoPeca || "KC",
-        form.custo
-      ),
-      empresa_id: empresaId,
-      nome: form.nome.trim(),
-      custo: form.custo,
-      venda: form.venda,
-      obs: form.obs.trim(),
-      foto: form.foto || "",
-      vendido: false,
-      cliente: "",
-      data_cadastro: agoraIso(),
-      data_venda: "",
-    };
-
-    const { error } = await supabase.from("pecas").insert(nova);
+    const { error } = await supabase.rpc("criar_peca", {
+      p_empresa_id: empresaId,
+      p_nome: form.nome.trim(),
+      p_custo: form.custo || "",
+      p_venda: form.venda || "",
+      p_obs: form.obs.trim(),
+      p_foto: form.foto || "",
+    });
 
     if (error) {
       console.error(error);
