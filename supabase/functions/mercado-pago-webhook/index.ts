@@ -314,7 +314,7 @@ async function validarAssinaturaWebhook(
   );
 
   const dataIdAssinatura =
-    dataId.toLowerCase();
+    dataId;
 
   const manifesto =
     `id:${dataIdAssinatura};` +

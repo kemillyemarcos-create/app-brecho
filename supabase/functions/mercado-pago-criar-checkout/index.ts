@@ -18,6 +18,11 @@ const MERCADO_PAGO_ACCESS_TOKEN =
     "MERCADO_PAGO_ACCESS_TOKEN",
   );
 
+const MERCADO_PAGO_PAYER_EMAIL_TEST =
+  Deno.env.get(
+    "MERCADO_PAGO_PAYER_EMAIL_TEST",
+  );
+
 const MERCADO_PAGO_ORDERS_URL =
   "https://" + "api.mercadopago.com/v1/orders";
 
@@ -55,6 +60,9 @@ type RespostaMercadoPago = {
   error?: string;
   status_code?: number;
   cause?: unknown[];
+  integration_data?: {
+    application_id?: string | number;
+  };
 };
 
 function respostaJson(
@@ -224,6 +232,14 @@ async function criarOrderMercadoPago(
       pagamento.pagamento_id,
     description:
       `Pedido K.Chic ${pagamento.pedido_id}`,
+    ...(MERCADO_PAGO_PAYER_EMAIL_TEST
+      ? {
+          payer: {
+            email:
+              MERCADO_PAGO_PAYER_EMAIL_TEST,
+          },
+        }
+      : {}),
   };
 
   const response = await fetch(
@@ -480,6 +496,10 @@ export default {
             pagamento.pagamento_id,
           providerCheckoutId:
             order.id,
+          applicationId:
+            order.integration_data
+              ?.application_id ??
+            null,
         },
       );
 
