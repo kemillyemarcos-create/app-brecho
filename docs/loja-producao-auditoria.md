@@ -4,7 +4,7 @@ Data: 2026-10-02. Raiz: ~/app-brecho. Branch preservada: feature/loja-online.
 
 ## Conclusão
 
-Implementação avançada com fluxo ponta a ponta VALIDADO em Sandbox do Mercado Pago. Houve deploy controlado das Edge Functions, alteração controlada de secrets, pagamentos Sandbox e validação real do Webhook. Isso NÃO certifica produção: credenciais produtivas, RLS multiempresa, concorrência, antiabuso e headers da hospedagem ainda precisam ser validados.
+Implementação avançada com fluxo ponta a ponta VALIDADO em Sandbox do Mercado Pago. Houve deploy controlado das Edge Functions, alteração controlada de secrets, pagamentos Sandbox e validação real do Webhook. Isso NÃO certifica produção: credenciais produtivas, antiabuso e headers da hospedagem ainda precisam ser validados. A concorrência de reserva da mesma publicação foi validada no banco remoto. O isolamento RLS multiempresa entre usuários autenticados de tenants distintos foi validado no banco remoto.
 
 A primeira venda produtiva controlada depende de configuração do vendedor de produção, validação de segurança operacional e execução acompanhada. As migrations 20260930141429 e 20261002010000 estão aplicadas no remoto; isso ainda não certifica produção.
 
@@ -21,7 +21,7 @@ B. Faltavam ligação visual ao pagamento, consulta do pedido e administração 
 C. Botão de pagamento permanentemente disabled; CORS do gateway incompatível com headers do Supabase JS; parser visual falhava com preço como R$ 1.299,90. Vitest capturava indevidamente testes node:test.
 D. Além dessas falhas, credenciais de produção e estado das migrations remotas não estão comprovados.
 E. Testes locais, build e navegação somente de leitura puderam ser executados imediatamente.
-F. Segurança contra abuso, dependências, validação real de RLS/concorrência e conciliação operacional precisam ser concluídas antes de abertura pública.
+F. Segurança contra abuso e conciliação operacional ainda precisam ser concluídas antes de abertura pública. A concorrência de reserva da mesma publicação foi validada no banco remoto. O isolamento RLS multiempresa entre usuários autenticados foi validado no banco remoto.
 
 ## Correções desta missão
 
@@ -108,7 +108,7 @@ Arquivos editados/criados nesta missão:
 - git diff --check: aprovado.
 - Após a correção de dependências: npm audit --omit=dev = 0 vulnerabilidades; npm audit completo ainda aponta vulnerabilidades apenas no conjunto de desenvolvimento.
 - Navegador: catálogo, sacola, checkout e acompanhamento exercitados. Foram criados pedidos Sandbox e realizados pagamentos controlados para validar o fluxo ponta a ponta.
-- NÃO executados: pagamento de PRODUÇÃO, teste real de RLS entre tenants, teste concorrente simultâneo, validação produtiva de headers/antiabuso e Deno typecheck local. Edge Functions necessárias foram publicadas no projeto Supabase durante a validação Sandbox.
+- NÃO executados: pagamento de PRODUÇÃO, venda concorrente completa até confirmação financeira, validação produtiva de headers/antiabuso, teste específico como anon nas superfícies administrativas e Deno typecheck local. O teste simultâneo de reserva da mesma publicação foi executado com duas conexões independentes ao banco remoto. O isolamento entre dois tenants autenticados foi exercitado no banco remoto; Edge Functions necessárias foram publicadas durante a validação Sandbox.
 
 ## Matriz de liberação
 
@@ -117,16 +117,16 @@ VERDE = evidência local suficiente para o item indicado; AMARELO = depende de c
 | Item | Status | Evidência | Ação |
 |---|---|---|---|
 | Loja / produto | VERDE (local) | Navegação mobile e catálogo reais somente leitura | Revisão de conteúdo e cadastro final |
-| Carrinho | AMARELO | Reserva e expiração de lock validadas em Sandbox; antiabuso não comprovado | Mitigação de abuso/rate limit e teste concorrente |
+| Carrinho | AMARELO | Reserva, expiração de lock e contenção concorrente da mesma publicação validadas no banco remoto; antiabuso não comprovado | Mitigação de abuso/rate limit |
 | Checkout | VERDE em Sandbox | Interface, CORS, criação de pedido e checkout validados ponta a ponta | Revalidar com credenciais de produção |
-| Pedido / banco | VERDE para fluxo Sandbox | Estados pago/expirado, consulta e persistência validados no banco remoto | Ainda validar isolamento RLS entre tenants |
-| RLS | VERMELHO (validação pendente) | Revisão estática favorável | Exercitar anon, empresa A e empresa B no banco |
+| Pedido / banco | VERDE para fluxo Sandbox | Estados pago/expirado, consulta e persistência validados no banco remoto; painel administrativo isolado por tenant | Manter validação na primeira operação produtiva controlada |
+| RLS | VERDE para isolamento autenticado | Usuário K.Chic acessou apenas K.Chic; usuário BRECHO TESTE SAAS acessou apenas sua empresa; chamadas cruzadas de loja_painel_pedidos foram negadas com 42501; loja_publicacoes retornou somente linhas do tenant autenticado | Teste específico de anon permanece separado para superfícies administrativas |
 | Pagamento | AMARELO | Token por env, vínculo do vendedor | Configurar credenciais de produção e empresa |
 | Webhook Sandbox | VERDE | HMAC validado com notificação real, consulta oficial e confirmação server-side | Configurar e validar separadamente o Webhook de produção |
 | ERP recebe venda | VERDE em Sandbox | vendas_loja criada, pecas.vendido=true e publicação removida do catálogo | Revalidar na primeira venda produtiva controlada |
-| Estoque / concorrência | VERMELHO até teste DB | Row locks, unique e trigger | Duas compras concorrentes da mesma peça; apenas uma reserva/venda |
+| Estoque / concorrência | VERDE para reserva concorrente | Duas conexões independentes disputaram a mesma publicação: a segunda aguardou o FOR UPDATE e, após o COMMIT da primeira, recebeu 55P03; somente uma reserva permaneceu válida e o lock expirou normalmente | Venda concorrente completa até confirmação financeira permanece para validação controlada |
 | Mercado Pago | AMARELO | Configuração manual de produção pendente | Access Token e chave de Webhooks produtivos |
-| Supabase | AMARELO | Edge Functions publicadas e secrets Sandbox validados; produção ainda não configurada | Revisar migrations/secrets produtivos e RLS multiempresa |
+| Supabase | AMARELO | Edge Functions publicadas, secrets Sandbox validados e isolamento multiempresa autenticado exercitado no banco remoto; produção ainda não configurada | Revisar migrations e secrets produtivos |
 | Dependências | VERDE para produção | npm audit --omit=dev = 0 vulnerabilidades; npm ci, 254 testes e build passaram após a atualização | Tratar vulnerabilidades restantes de desenvolvimento separadamente, sem bloquear produção |
 
 ## Configuração manual posterior, sem compartilhar secrets
