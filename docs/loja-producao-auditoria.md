@@ -32,7 +32,7 @@ F. Segurança contra abuso, dependências, validação real de RLS/concorrência
 - mercado-pago-criar-checkout: CORS e vinculação obrigatória do token global ao tenant via MERCADO_PAGO_EMPRESA_ID. Sem configuração retorna 503; tenant diferente retorna 403 antes de POST no gateway.
 - mercado-pago-webhook: validação do total oficial e total pago contra pagamentos_loja.valor/BRL; HMAC ajustado para aceitar somente assinatura criptograficamente válida usando data.id original ou lowercase, conforme comportamento real observado no Sandbox; diagnósticos temporários removidos.
 - vitest.config.js separa testes de aplicação dos testes node:test.
-- package-lock.json sofreu atualização transitiva durante a investigação, mas foi restaurado antes do commit porque package.json não mudou. No lockfile versionado, npm audit apontou 20 vulnerabilidades no total e 16 com --omit=dev; a correção ficou separada deste commit.
+- No commit anterior da Loja Online, package-lock.json foi restaurado porque package.json não havia mudado; naquele estado, npm audit apontava 20 vulnerabilidades no total e 16 com --omit=dev. A correção foi tratada posteriormente em alteração separada e controlada de dependências.
 - Migration aditiva 20261002010000_loja_consulta_pedido_e_painel.sql cria consulta mínima por token (service_role) e painel tenant-aware (authenticated).
 
 Arquivos editados/criados nesta missão:
@@ -95,7 +95,7 @@ Arquivos editados/criados nesta missão:
 | Abuso | Não há rate limit distribuído/CAPTCHA nos endpoints auditados; reserva de peça única pode ser abusada. Bloqueia abertura pública sem mitigação |
 | Logs | Diagnósticos HMAC temporários removidos após a investigação; não permanece log de assinatura completa nem secrets MP_HMAC_DIAGNOSTICO_* |
 | Replay/duplicidade | Sem tolerância temporal do ts; GET oficial e RPC idempotente. Não aceitar corpo como fonte da verdade |
-| Dependências | No lockfile versionado: npm audit = 20 vulnerabilidades (10 high, 7 moderate, 3 low); npm audit --omit=dev = 16 vulnerabilidades (9 high, 4 moderate, 3 low) | Correções disponíveis via npm audit fix, mas atualização deve ser feita e validada separadamente antes de produção |
+| Dependências | Após atualização controlada: shadcn movido para devDependencies, @supabase/supabase-js atualizado para 2.117.2 e npm audit --omit=dev = 0 vulnerabilidades | Permanecem vulnerabilidades apenas em dependências de desenvolvimento; não bloqueiam a execução produtiva da aplicação |
 
 ## Testes executados
 
@@ -106,7 +106,7 @@ Arquivos editados/criados nesta missão:
 - Lint dos módulos da Loja e vitest.config.js: zero erros, um aviso preexistente de dependências de hook.
 - npm run lint global: 116 erros e 8 avisos na avaliação inicial; dívida preexistente fora desta correção.
 - git diff --check: aprovado.
-- npm audit no estado versionado: 20 vulnerabilidades (10 high, 7 moderate, 3 low).
+- Após a correção de dependências: npm audit --omit=dev = 0 vulnerabilidades; npm audit completo ainda aponta vulnerabilidades apenas no conjunto de desenvolvimento.
 - Navegador: catálogo, sacola, checkout e acompanhamento exercitados. Foram criados pedidos Sandbox e realizados pagamentos controlados para validar o fluxo ponta a ponta.
 - NÃO executados: pagamento de PRODUÇÃO, teste real de RLS entre tenants, teste concorrente simultâneo, validação produtiva de headers/antiabuso e Deno typecheck local. Edge Functions necessárias foram publicadas no projeto Supabase durante a validação Sandbox.
 
@@ -127,7 +127,7 @@ VERDE = evidência local suficiente para o item indicado; AMARELO = depende de c
 | Estoque / concorrência | VERMELHO até teste DB | Row locks, unique e trigger | Duas compras concorrentes da mesma peça; apenas uma reserva/venda |
 | Mercado Pago | AMARELO | Configuração manual de produção pendente | Access Token e chave de Webhooks produtivos |
 | Supabase | AMARELO | Edge Functions publicadas e secrets Sandbox validados; produção ainda não configurada | Revisar migrations/secrets produtivos e RLS multiempresa |
-| Dependências | VERMELHO para produção | npm audit --omit=dev: 16 vulnerabilidades (9 high, 4 moderate, 3 low) | Atualizar dependências em tarefa separada, repetir testes/build/audit e só então liberar produção |
+| Dependências | VERDE para produção | npm audit --omit=dev = 0 vulnerabilidades; npm ci, 254 testes e build passaram após a atualização | Tratar vulnerabilidades restantes de desenvolvimento separadamente, sem bloquear produção |
 
 ## Configuração manual posterior, sem compartilhar secrets
 
