@@ -23,6 +23,9 @@ const MERCADO_PAGO_PAYER_EMAIL_TEST =
     "MERCADO_PAGO_PAYER_EMAIL_TEST",
   );
 
+// Um token global representa um vendedor, não todos os tenants do ERP.
+const MERCADO_PAGO_EMPRESA_ID = Deno.env.get("MERCADO_PAGO_EMPRESA_ID");
+
 const MERCADO_PAGO_ORDERS_URL =
   "https://" + "api.mercadopago.com/v1/orders";
 
@@ -77,7 +80,7 @@ function respostaJson(
         "Cache-Control": "no-store",
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers":
-          "content-type",
+          "authorization, x-client-info, apikey, content-type",
         "Access-Control-Allow-Methods":
           "POST, OPTIONS",
       },
@@ -359,6 +362,8 @@ async function registrarCheckout(
 function classificarErroHttp(
   mensagem: string,
 ): number {
+  if (mensagem === "Empresa não habilitada para este vendedor.") return 403;
+  if (mensagem === "Empresa do vendedor não configurada.") return 503;
   if (
     mensagem.includes(
       "Token do pedido obrigatório",
@@ -403,7 +408,7 @@ export default {
             "Access-Control-Allow-Origin":
               "*",
             "Access-Control-Allow-Headers":
-              "content-type",
+              "authorization, x-client-info, apikey, content-type",
             "Access-Control-Allow-Methods":
               "POST, OPTIONS",
             "Cache-Control":
@@ -467,6 +472,10 @@ export default {
           body.pedidoToken,
         );
 
+      if (!MERCADO_PAGO_EMPRESA_ID) {
+        throw new Error("Empresa do vendedor não configurada.");
+      }
+
       const supabase =
         criarSupabaseAdmin();
 
@@ -475,6 +484,10 @@ export default {
           supabase,
           pedidoToken,
         );
+
+      if (pagamento.empresa_id !== MERCADO_PAGO_EMPRESA_ID) {
+        throw new Error("Empresa não habilitada para este vendedor.");
+      }
 
       const order =
         await criarOrderMercadoPago(

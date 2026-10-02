@@ -87,6 +87,8 @@ import {
   useConfig,
 } from "./contexts/ConfigContext";
 import ConfiguracaoSection from "./components/sections/ConfiguracaoSection";
+import LojaPublica from "./features/loja/LojaPublica";
+import LojaGestao from "./features/loja/LojaGestao";
 
 const FORM_INICIAL_PECA = {
   nome: "",
@@ -625,9 +627,14 @@ function AppContent() {
     paramsPortal.get("cadastro") === "cliente" &&
     Boolean(empresaSlugPublico);
 
+  const lojaPublicaAtiva =
+    paramsPortal.get("loja") === "online" &&
+    Boolean(empresaSlugPublico);
+
   const rotaPublica =
     portalClienteAtivo ||
-    cadastroPublicoAtivo;
+    cadastroPublicoAtivo ||
+    lojaPublicaAtiva;
 
 
   const {
@@ -4486,6 +4493,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   }, [pecas, buscaPeca, filtroEstoque, pecaIdsEnviados]);
 
   const MENU_ITEMS = [
+    { id: "loja", label: "Loja Online", icon: Boxes, adminOnly: true },
     { id: "cadastro", label: "Cadastro", icon: Package, adminOnly: false },
     { id: "pecas", label: "Estoque", icon: Boxes, adminOnly: false },
     { id: "vendas", label: "Vendas", icon: ShoppingBag, adminOnly: false },
@@ -4501,6 +4509,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   const menuVisivel = MENU_ITEMS.filter((item) => !item.adminOnly || isAdmin);
 
   function getTituloAba(aba) {
+    if (aba === "loja") return "Loja Online";
     if (aba === "cadastro") return "Cadastro";
     if (aba === "pecas") return "Estoque";
     if (aba === "vendas") return "Vendas";
@@ -4709,6 +4718,14 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         cadastroPublicoConcluido={cadastroPublicoConcluido}
         salvandoCadastroPublico={salvandoCadastroPublico}
         salvarCadastroClientePublico={salvarCadastroClientePublico}
+      />
+    );
+  }
+
+  if (lojaPublicaAtiva) {
+    return (
+      <LojaPublica
+        empresaSlug={empresaSlugPublico}
       />
     );
   }
@@ -5413,6 +5430,8 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
                 </p>
               </div>
             </div>
+
+            {abaAtiva === "loja" && isAdmin && <LojaGestao key={empresaAtiva?.id} empresaId={empresaAtiva?.id} pecas={pecas} />}
 
             {abaAtiva === "configuracao" && (
               <ConfiguracaoSection

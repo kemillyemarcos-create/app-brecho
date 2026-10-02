@@ -313,25 +313,43 @@ async function validarAssinaturaWebhook(
     xSignature,
   );
 
-  const dataIdAssinatura =
-    dataId;
-
-  const manifesto =
-    `id:${dataIdAssinatura};` +
+  const manifestoOriginal =
+    `id:${dataId};` +
     `request-id:${xRequestId};` +
     `ts:${ts};`;
 
-  const assinaturaEsperada =
+  const manifestoLowercase =
+    `id:${dataId.toLowerCase()};` +
+    `request-id:${xRequestId};` +
+    `ts:${ts};`;
+
+  const assinaturaOriginal =
     await hmacSha256Hex(
       MERCADO_PAGO_WEBHOOK_SECRET,
-      manifesto,
+      manifestoOriginal,
+    );
+
+  const assinaturaLowercase =
+    await hmacSha256Hex(
+      MERCADO_PAGO_WEBHOOK_SECRET,
+      manifestoLowercase,
+    );
+
+  const assinaturaOriginalConfere =
+    comparacaoConstanteHex(
+      assinaturaOriginal,
+      v1,
+    );
+
+  const assinaturaLowercaseConfere =
+    comparacaoConstanteHex(
+      assinaturaLowercase,
+      v1,
     );
 
   if (
-    !comparacaoConstanteHex(
-      assinaturaEsperada,
-      v1,
-    )
+    !assinaturaOriginalConfere &&
+    !assinaturaLowercaseConfere
   ) {
     throw new Error(
       "Assinatura do webhook inválida.",
@@ -436,6 +454,7 @@ async function validarPagamentoInterno(
   supabase: SupabaseClient,
   pagamentoId: string,
   orderId: string,
+  order: MercadoPagoOrder,
 ): Promise<void> {
   const {
     data,
@@ -443,7 +462,7 @@ async function validarPagamentoInterno(
   } = await supabase
     .from("pagamentos_loja")
     .select(
-      "id, provider, provider_checkout_id",
+      "id, provider, provider_checkout_id, valor, moeda",
     )
     .eq(
       "id",
@@ -479,6 +498,22 @@ async function validarPagamentoInterno(
     throw new Error(
       "Order do Mercado Pago não corresponde ao checkout registrado.",
     );
+  }
+
+  const centavos = (valor: unknown): number | null => {
+    const texto = String(valor ?? "");
+    if (!/^\d+(\.\d{1,2})?$/.test(texto)) return null;
+    const [inteiro, fracao = ""] = texto.split(".");
+    const resultado = Number(inteiro) * 100 + Number(fracao.padEnd(2, "0"));
+    return Number.isSafeInteger(resultado) && resultado > 0 ? resultado : null;
+  };
+  const esperado = centavos(data.valor);
+  if (data.moeda !== "BRL" || esperado === null || centavos(order.total_amount) !== esperado) {
+    throw new Error("Valor da Order não corresponde ao pagamento interno.");
+  }
+  if (order.status === "processed" && order.status_detail === "accredited" &&
+      centavos(order.total_paid_amount) !== esperado) {
+    throw new Error("Valor acreditado não corresponde ao pagamento interno.");
   }
 }
 
@@ -727,38 +762,17 @@ export default {
         );
       }
 
-      const providerEventId =
-        String(
-          body.id ?? "",
-        ).trim();
-
-      if (!providerEventId) {
-        const dataExpandida =
-          body.data &&
-          typeof body.data === "object" &&
-          "status" in body.data &&
-          "transactions" in body.data;
-
-        if (dataExpandida) {
-          return respostaJson({
-            recebido: true,
-            simulacao: true,
-          });
-        }
-
-        return respostaJson(
-          {
-            erro:
-              "Identificador do evento ausente.",
-          },
-          400,
-        );
-      }
-
       const payloadHashHex =
         await sha256Hex(
           rawBody,
         );
+
+      // Orders sem ID de evento usam uma chave estável entre reentregas.
+      const providerEventId =
+        String(
+          body.id ?? "",
+        ).trim() ||
+        `order:${bodyOrderId}:${body.action ?? "order"}:${payloadHashHex}`;
 
       const order =
         await buscarOrderOficial(
@@ -777,6 +791,7 @@ export default {
         supabase,
         pagamentoId,
         bodyOrderId,
+        order,
       );
 
       const evento =
