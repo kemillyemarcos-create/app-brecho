@@ -1,0 +1,1 @@
+drop index if exists public.clientes_empresa_cpf_normalizado_unique;
