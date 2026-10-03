@@ -191,10 +191,14 @@ function gerarCodigo(prefixo = "KC", custo = "") {
 
 function gerarPortalToken() {
   const caracteres = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const aleatorios = new Uint8Array(12);
+
+  globalThis.crypto.getRandomValues(aleatorios);
+
   let token = "KC";
 
-  for (let i = 0; i < 6; i += 1) {
-    token += caracteres[Math.floor(Math.random() * caracteres.length)];
+  for (const valor of aleatorios) {
+    token += caracteres[valor % caracteres.length];
   }
 
   return token;
