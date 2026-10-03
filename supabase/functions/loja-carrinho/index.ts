@@ -611,57 +611,40 @@ async function removerItem(
 function classificarErroHttp(
   mensagem: string,
 ): number {
-  if (
-    mensagem.includes(
-      "não informada",
-    ) ||
-    mensagem.includes(
-      "inválida",
-    ) ||
-    mensagem.includes(
-      "inválido",
-    ) ||
-    mensagem.includes(
-      "obrigatório",
-    )
-  ) {
+  const erros400 = new Set([
+    "Loja não informada.",
+    "Loja inválida.",
+    "Operação inválida.",
+    "Publicação inválida.",
+    "Token do carrinho obrigatório.",
+    "Token do carrinho inválido.",
+  ]);
+
+  if (erros400.has(mensagem)) {
     return 400;
   }
 
-  if (
-    mensagem.includes(
-      "Loja não encontrada",
-    ) ||
-    mensagem.includes(
-      "Carrinho não encontrado",
-    ) ||
-    mensagem.includes(
-      "Carrinho inválido",
-    ) ||
-    mensagem.includes(
-      "Produto não encontrado",
-    )
-  ) {
+  const erros404 = new Set([
+    "Loja não encontrada.",
+    "Carrinho não encontrado ou finalizado.",
+    "Carrinho inválido.",
+    "Produto não encontrado.",
+  ]);
+
+  if (erros404.has(mensagem)) {
     return 404;
   }
 
-  if (
-    mensagem.includes(
-      "Loja indisponível",
-    ) ||
-    mensagem.includes(
-      "reservado",
-    ) ||
-    mensagem.includes(
-      "vendido",
-    ) ||
-    mensagem.includes(
-      "não está disponível",
-    ) ||
-    mensagem.includes(
-      "máximo 10 itens",
-    )
-  ) {
+  const erros409 = new Set([
+    "Loja indisponível.",
+    "Produto não está disponível na loja.",
+    "Produto já foi vendido.",
+    "Produto está reservado em pedido aguardando pagamento.",
+    "Produto está temporariamente reservado em outro carrinho.",
+    "O carrinho permite no máximo 10 itens.",
+  ]);
+
+  if (erros409.has(mensagem)) {
     return 409;
   }
 
