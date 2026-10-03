@@ -13,6 +13,11 @@ const SUPABASE_SERVICE_ROLE_KEY =
     "SUPABASE_SERVICE_ROLE_KEY",
   );
 
+const LOJA_RATE_LIMIT_SECRET =
+  Deno.env.get(
+    "LOJA_RATE_LIMIT_SECRET",
+  );
+
 type OperacaoCarrinho =
   | "adicionar"
   | "consultar"
@@ -69,6 +74,122 @@ function criarSupabaseAdmin(): SupabaseClient {
       },
     },
   );
+}
+
+function bytesParaHex(
+  bytes: ArrayBuffer,
+): string {
+  return Array.from(
+    new Uint8Array(bytes),
+  )
+    .map(
+      (byte) =>
+        byte
+          .toString(16)
+          .padStart(2, "0"),
+    )
+    .join("");
+}
+
+async function hmacSha256Hex(
+  segredo: string,
+  mensagem: string,
+): Promise<string> {
+  const encoder =
+    new TextEncoder();
+
+  const chave =
+    await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(segredo),
+      {
+        name: "HMAC",
+        hash: "SHA-256",
+      },
+      false,
+      ["sign"],
+    );
+
+  const assinatura =
+    await crypto.subtle.sign(
+      "HMAC",
+      chave,
+      encoder.encode(mensagem),
+    );
+
+  return bytesParaHex(
+    assinatura,
+  );
+}
+
+function extrairOrigemRateLimit(
+  request: Request,
+): string {
+  const origem =
+    request.headers
+      .get("cf-connecting-ip")
+      ?.trim();
+
+  if (
+    !origem ||
+    origem.length > 128
+  ) {
+    throw new Error(
+      "Não foi possível validar a origem da requisição.",
+    );
+  }
+
+  return origem;
+}
+
+async function consumirRateLimit(
+  supabase: SupabaseClient,
+  empresaId: string,
+  origemHashHex: string,
+  escopo: string,
+  janelaSegundos: number,
+  limite: number,
+) {
+  const {
+    data,
+    error,
+  } = await supabase.rpc(
+    "loja_consumir_rate_limit",
+    {
+      p_empresa_id: empresaId,
+      p_escopo: escopo,
+      p_origem_hash_hex:
+        origemHashHex,
+      p_janela_segundos:
+        janelaSegundos,
+      p_limite: limite,
+    },
+  );
+
+  if (error) {
+    throw new Error(
+      "Não foi possível validar o limite de requisições.",
+    );
+  }
+
+  const lista =
+    Array.isArray(data)
+      ? data
+      : [];
+
+  const resultado = lista[0];
+
+  if (
+    !resultado ||
+    typeof resultado.permitido !==
+      "boolean"
+  ) {
+    throw new Error(
+      "Não foi possível validar o limite de requisições.",
+    );
+  }
+
+  return resultado;
 }
 
 function validarEmpresaSlug(
@@ -561,6 +682,65 @@ export default {
             body.token,
             false,
           );
+
+        if (!LOJA_RATE_LIMIT_SECRET) {
+          throw new Error(
+            "Proteção antiabuso não configurada.",
+          );
+        }
+
+        const origem =
+          extrairOrigemRateLimit(
+            request,
+          );
+
+        const origemHashHex =
+          await hmacSha256Hex(
+            LOJA_RATE_LIMIT_SECRET,
+            origem,
+          );
+
+        const limiteAdicionar =
+          await consumirRateLimit(
+            supabase,
+            empresaId,
+            origemHashHex,
+            "carrinho:adicionar",
+            60,
+            15,
+          );
+
+        if (!limiteAdicionar.permitido) {
+          return respostaJson(
+            {
+              erro:
+                "Muitas tentativas. Aguarde um momento e tente novamente.",
+            },
+            429,
+          );
+        }
+
+        if (!token) {
+          const limiteCarrinhoNovo =
+            await consumirRateLimit(
+              supabase,
+              empresaId,
+              origemHashHex,
+              "carrinho:novo",
+              600,
+              3,
+            );
+
+          if (!limiteCarrinhoNovo.permitido) {
+            return respostaJson(
+              {
+                erro:
+                  "Muitas tentativas de iniciar uma nova sacola. Aguarde alguns minutos e tente novamente.",
+              },
+              429,
+            );
+          }
+        }
 
         const resultado =
           await adicionarItem(

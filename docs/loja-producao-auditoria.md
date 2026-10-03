@@ -4,9 +4,9 @@ Data: 2026-10-02. Raiz: ~/app-brecho. Branch preservada: feature/loja-online.
 
 ## Conclusão
 
-Implementação avançada com fluxo ponta a ponta VALIDADO em Sandbox do Mercado Pago. Houve deploy controlado das Edge Functions, alteração controlada de secrets, pagamentos Sandbox e validação real do Webhook. Isso NÃO certifica produção: credenciais produtivas, antiabuso e headers da hospedagem ainda precisam ser validados. A concorrência de reserva da mesma publicação foi validada no banco remoto. O isolamento RLS multiempresa entre usuários autenticados de tenants distintos foi validado no banco remoto.
+Implementação avançada com fluxo ponta a ponta VALIDADO em Sandbox do Mercado Pago. Houve deploy controlado das Edge Functions, alteração controlada de secrets, pagamentos Sandbox e validação real do Webhook. O rate limit do carrinho foi implementado e validado no ambiente publicado, com identificação da origem por HMAC SHA-256 e retenção automática de 7 dias. Isso NÃO certifica produção: credenciais produtivas, bot protection adicional e headers da hospedagem ainda precisam ser validados. A concorrência de reserva da mesma publicação foi validada no banco remoto. O isolamento RLS multiempresa entre usuários autenticados de tenants distintos foi validado no banco remoto.
 
-A primeira venda produtiva controlada depende de configuração do vendedor de produção, validação de segurança operacional e execução acompanhada. As migrations 20260930141429 e 20261002010000 estão aplicadas no remoto; isso ainda não certifica produção.
+A primeira venda produtiva controlada depende de configuração do vendedor de produção, validação de segurança operacional e execução acompanhada. As migrations 20260930141429, 20261002010000, 20261002203000, 20261002211500 e 20261003012000 estão aplicadas no remoto; isso ainda não certifica produção.
 
 ## Inventário inicial preservado
 
@@ -21,7 +21,7 @@ B. Faltavam ligação visual ao pagamento, consulta do pedido e administração 
 C. Botão de pagamento permanentemente disabled; CORS do gateway incompatível com headers do Supabase JS; parser visual falhava com preço como R$ 1.299,90. Vitest capturava indevidamente testes node:test.
 D. Além dessas falhas, credenciais de produção e estado das migrations remotas não estão comprovados.
 E. Testes locais, build e navegação somente de leitura puderam ser executados imediatamente.
-F. Segurança contra abuso e conciliação operacional ainda precisam ser concluídas antes de abertura pública. A concorrência de reserva da mesma publicação foi validada no banco remoto. O isolamento RLS multiempresa entre usuários autenticados foi validado no banco remoto.
+F. O rate limit do carrinho foi implementado e validado no ambiente publicado; bot protection adicional permanece pendente como camada complementar. A concorrência de reserva da mesma publicação foi validada no banco remoto. O isolamento RLS multiempresa entre usuários autenticados foi validado no banco remoto.
 
 ## Correções desta missão
 
@@ -92,7 +92,7 @@ Arquivos editados/criados nesta missão:
 | Uploads | Storage com tenant, MIME/tamanho e bloqueio de fotos de publicação ativa; servidor valida existência do objeto |
 | HTTPS/headers | Gateway HTTPS; respostas no-store. CSP/HSTS e demais headers da hospedagem não foram comprovados; precisam configuração/verificação |
 | CORS | Permite headers Supabase; origem * para endpoints públicos. CORS não substitui autenticação ou rate limit |
-| Abuso | Não há rate limit distribuído/CAPTCHA nos endpoints auditados; reserva de peça única pode ser abusada. Bloqueia abertura pública sem mitigação |
+| Abuso | Rate limit distribuído do carrinho implementado via Edge Function + RPC atômica no Postgres: 15 adições/minuto por origem/empresa e 3 novas sacolas/10 minutos por origem/empresa. Origem armazenada somente como HMAC SHA-256 de 32 bytes; limpeza automática após 7 dias via pg_cron. Testes reais retornaram 429 exatamente após os limites. Bot protection/CAPTCHA adicional ainda não implementado |
 | Logs | Diagnósticos HMAC temporários removidos após a investigação; não permanece log de assinatura completa nem secrets MP_HMAC_DIAGNOSTICO_* |
 | Replay/duplicidade | Sem tolerância temporal do ts; GET oficial e RPC idempotente. Não aceitar corpo como fonte da verdade |
 | Dependências | Após atualização controlada: shadcn movido para devDependencies, @supabase/supabase-js atualizado para 2.117.2 e npm audit --omit=dev = 0 vulnerabilidades | Permanecem vulnerabilidades apenas em dependências de desenvolvimento; não bloqueiam a execução produtiva da aplicação |
@@ -108,7 +108,7 @@ Arquivos editados/criados nesta missão:
 - git diff --check: aprovado.
 - Após a correção de dependências: npm audit --omit=dev = 0 vulnerabilidades; npm audit completo ainda aponta vulnerabilidades apenas no conjunto de desenvolvimento.
 - Navegador: catálogo, sacola, checkout e acompanhamento exercitados. Foram criados pedidos Sandbox e realizados pagamentos controlados para validar o fluxo ponta a ponta.
-- NÃO executados: pagamento de PRODUÇÃO, venda concorrente completa até confirmação financeira, validação produtiva de headers/antiabuso, teste específico como anon nas superfícies administrativas e Deno typecheck local. O teste simultâneo de reserva da mesma publicação foi executado com duas conexões independentes ao banco remoto. O isolamento entre dois tenants autenticados foi exercitado no banco remoto; Edge Functions necessárias foram publicadas durante a validação Sandbox.
+- NÃO executados: pagamento de PRODUÇÃO, venda concorrente completa até confirmação financeira, validação produtiva dos headers da hospedagem, bot protection adicional, teste específico como anon nas superfícies administrativas e Deno typecheck local. O rate limit do carrinho foi publicado e validado com requisições reais: a quarta tentativa de nova sacola em 10 minutos retornou 429 e a 16ª tentativa de adicionar em 60 segundos retornou 429. O teste simultâneo de reserva da mesma publicação foi executado com duas conexões independentes ao banco remoto. O isolamento entre dois tenants autenticados foi exercitado no banco remoto; Edge Functions necessárias foram publicadas durante a validação Sandbox.
 
 ## Matriz de liberação
 
@@ -117,7 +117,7 @@ VERDE = evidência local suficiente para o item indicado; AMARELO = depende de c
 | Item | Status | Evidência | Ação |
 |---|---|---|---|
 | Loja / produto | VERDE (local) | Navegação mobile e catálogo reais somente leitura | Revisão de conteúdo e cadastro final |
-| Carrinho | AMARELO | Reserva, expiração de lock e contenção concorrente da mesma publicação validadas no banco remoto; antiabuso não comprovado | Mitigação de abuso/rate limit |
+| Carrinho | AMARELO | Reserva, expiração de lock e contenção concorrente validadas; rate limit publicado e validado com 15 adições/minuto e 3 novas sacolas/10 minutos por origem/empresa; HMAC da origem e retenção automática validados | Bot protection adicional permanece como camada complementar antes da abertura ampla |
 | Checkout | VERDE em Sandbox | Interface, CORS, criação de pedido e checkout validados ponta a ponta | Revalidar com credenciais de produção |
 | Pedido / banco | VERDE para fluxo Sandbox | Estados pago/expirado, consulta e persistência validados no banco remoto; painel administrativo isolado por tenant | Manter validação na primeira operação produtiva controlada |
 | RLS | VERDE para isolamento autenticado | Usuário K.Chic acessou apenas K.Chic; usuário BRECHO TESTE SAAS acessou apenas sua empresa; chamadas cruzadas de loja_painel_pedidos foram negadas com 42501; loja_publicacoes retornou somente linhas do tenant autenticado | Teste específico de anon permanece separado para superfícies administrativas |
