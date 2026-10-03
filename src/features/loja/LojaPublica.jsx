@@ -109,6 +109,7 @@ export default function LojaPublica({ empresaSlug }) {
           {
             sitekey: hcaptchaSiteKey,
             size: "invisible",
+            hl: "pt-BR",
             callback: (token) => {
               if (!ativo) return;
 
