@@ -102,6 +102,7 @@ const FORM_INICIAL_CLIENTE = {
   nome: "",
   cpf: "",
   telefone: "",
+  email: "",
   cep: "",
   endereco: "",
   numero: "",
@@ -2264,13 +2265,17 @@ Qualquer dúvida, é só nos chamar! 💕`;
     }
   }
 
-  async function salvarCadastroClientePublico() {
+  async function salvarCadastroClientePublico(captchaToken) {
     try {
       setSalvandoCadastroPublico(true);
 
       const payload = {
-        ...montarPayloadCliente(formCliente, { exigirCpf: true }),
+        ...montarPayloadCliente(formCliente, {
+          exigirCpf: true,
+          exigirEmail: true,
+        }),
         empresaSlug: empresaSlugPublico,
+        captchaToken: String(captchaToken || "").trim(),
       };
       const resultado = await cadastrarClientePublico(payload);
 
@@ -2299,6 +2304,7 @@ Qualquer dúvida, é só nos chamar! 💕`;
       nome: clienteSelecionado.nome || "",
       cpf: clienteSelecionado.cpf || "",
       telefone: clienteSelecionado.telefone || "",
+      email: clienteSelecionado.email || "",
       cep: clienteSelecionado.cep || "",
       endereco: clienteSelecionado.endereco || "",
       numero: clienteSelecionado.numero || "",

@@ -471,3 +471,9 @@ entrypoint = "./functions/mercado-pago-webhook/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/loja-checkout/index.ts"
+
+[functions.cadastro-cliente-publico]
+enabled = true
+verify_jwt = false
+import_map = "./functions/cadastro-cliente-publico/deno.json"
+entrypoint = "./functions/cadastro-cliente-publico/index.ts"

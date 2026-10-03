@@ -1,9 +1,15 @@
+import { useEffect, useRef, useState } from "react";
+
 import {
     formatarCPF,
     formatarTelefone,
     formatarCEP,
     buscarEnderecoPorCep,
 } from "../utils/clientes";
+
+const HCAPTCHA_SCRIPT_ID = "kchic-hcaptcha-script";
+const HCAPTCHA_SCRIPT_URL =
+  "https://js.hcaptcha.com/1/api.js?render=explicit";
 
 export default function CadastroPublicoCliente({
     logoKchic,
@@ -13,6 +19,207 @@ export default function CadastroPublicoCliente({
     salvandoCadastroPublico,
     salvarCadastroClientePublico,
 }) {
+    const [captchaPronto, setCaptchaPronto] = useState(false);
+    const [erroCaptcha, setErroCaptcha] = useState("");
+
+    const captchaContainerRef = useRef(null);
+    const captchaWidgetIdRef = useRef(null);
+    const captchaRenderizadoRef = useRef(false);
+    const salvarCadastroRef = useRef(
+        salvarCadastroClientePublico
+    );
+
+    salvarCadastroRef.current =
+        salvarCadastroClientePublico;
+
+    const hcaptchaSiteKey =
+        import.meta.env.VITE_HCAPTCHA_SITE_KEY;
+
+    useEffect(() => {
+        if (
+            !hcaptchaSiteKey ||
+            cadastroPublicoConcluido
+        ) {
+            return undefined;
+        }
+
+        let ativo = true;
+
+        function renderizarCaptcha() {
+            if (
+                !ativo ||
+                captchaRenderizadoRef.current ||
+                !captchaContainerRef.current ||
+                !window.hcaptcha
+            ) {
+                return;
+            }
+
+            captchaWidgetIdRef.current =
+                window.hcaptcha.render(
+                    captchaContainerRef.current,
+                    {
+                        sitekey: hcaptchaSiteKey,
+                        size: "invisible",
+                        hl: "pt-BR",
+                        callback: async (token) => {
+                            if (!ativo) return;
+
+                            setErroCaptcha("");
+
+                            if (!token) return;
+
+                            try {
+                                await salvarCadastroRef.current(token);
+                            } finally {
+                                if (
+                                    ativo &&
+                                    window.hcaptcha &&
+                                    captchaWidgetIdRef.current !== null &&
+                                    captchaWidgetIdRef.current !== undefined
+                                ) {
+                                    try {
+                                        window.hcaptcha.reset(
+                                            captchaWidgetIdRef.current
+                                        );
+                                    } catch {
+                                        // O widget pode já ter sido desmontado.
+                                    }
+                                }
+                            }
+                        },
+                        "expired-callback": () => {
+                            if (!ativo) return;
+                            setErroCaptcha("");
+                        },
+                        "error-callback": () => {
+                            if (!ativo) return;
+                            setErroCaptcha(
+                                "Não foi possível validar a verificação de segurança."
+                            );
+                        },
+                    }
+                );
+
+            captchaRenderizadoRef.current = true;
+            setCaptchaPronto(true);
+        }
+
+        if (window.hcaptcha) {
+            renderizarCaptcha();
+        }
+
+        let script =
+            document.getElementById(
+                HCAPTCHA_SCRIPT_ID
+            );
+
+        if (!script) {
+            script =
+                document.createElement("script");
+            script.id = HCAPTCHA_SCRIPT_ID;
+            script.src = HCAPTCHA_SCRIPT_URL;
+            script.async = true;
+            script.defer = true;
+            document.head.appendChild(script);
+        }
+
+        const aoCarregar =
+            () => renderizarCaptcha();
+
+        const aoFalhar = () => {
+            if (!ativo) return;
+            setErroCaptcha(
+                "Não foi possível carregar a verificação de segurança."
+            );
+        };
+
+        script.addEventListener(
+            "load",
+            aoCarregar
+        );
+        script.addEventListener(
+            "error",
+            aoFalhar
+        );
+
+        const intervalo =
+            window.setInterval(() => {
+                if (window.hcaptcha) {
+                    renderizarCaptcha();
+
+                    if (
+                        captchaRenderizadoRef.current
+                    ) {
+                        window.clearInterval(
+                            intervalo
+                        );
+                    }
+                }
+            }, 250);
+
+        return () => {
+            ativo = false;
+            window.clearInterval(intervalo);
+
+            script?.removeEventListener(
+                "load",
+                aoCarregar
+            );
+            script?.removeEventListener(
+                "error",
+                aoFalhar
+            );
+
+            if (
+                window.hcaptcha &&
+                captchaWidgetIdRef.current !== null &&
+                captchaWidgetIdRef.current !== undefined
+            ) {
+                try {
+                    window.hcaptcha.remove(
+                        captchaWidgetIdRef.current
+                    );
+                } catch {
+                    // O widget pode já ter sido removido.
+                }
+            }
+
+            captchaWidgetIdRef.current = null;
+            captchaRenderizadoRef.current = false;
+            setCaptchaPronto(false);
+        };
+    }, [
+        hcaptchaSiteKey,
+        cadastroPublicoConcluido,
+    ]);
+
+    function executarCadastroProtegido() {
+        setErroCaptcha("");
+
+        if (
+            !captchaPronto ||
+            !window.hcaptcha ||
+            captchaWidgetIdRef.current === null ||
+            captchaWidgetIdRef.current === undefined
+        ) {
+            setErroCaptcha(
+                "A verificação de segurança ainda está carregando. Tente novamente em alguns segundos."
+            );
+            return;
+        }
+
+        try {
+            window.hcaptcha.execute(
+                captchaWidgetIdRef.current
+            );
+        } catch {
+            setErroCaptcha(
+                "Não foi possível iniciar a verificação de segurança."
+            );
+        }
+    }
+
     const inputCliente = {
         padding: "12px 14px",
         height: 48,
@@ -154,6 +361,19 @@ export default function CadastroPublicoCliente({
                         />
 
                         <input
+                            type="email"
+                            value={formCliente.email}
+                            onChange={(e) =>
+                                setFormCliente((prev) => ({
+                                    ...prev,
+                                    email: e.target.value,
+                                }))
+                            }
+                            placeholder="E-mail"
+                            style={inputCliente}
+                        />
+
+                        <input
                             value={formCliente.cep}
                             onChange={(e) => {
                                 const cepFormatado = formatarCEP(e.target.value);
@@ -208,16 +428,48 @@ export default function CadastroPublicoCliente({
                         />
 
                         <button
-                            onClick={salvarCadastroClientePublico}
-                            disabled={salvandoCadastroPublico}
+                            onClick={executarCadastroProtegido}
+                            disabled={
+                                salvandoCadastroPublico ||
+                                !captchaPronto
+                            }
                             style={{
                                 ...botao,
-                                opacity: salvandoCadastroPublico ? 0.7 : 1,
-                                cursor: salvandoCadastroPublico ? "not-allowed" : "pointer",
+                                opacity:
+                                    salvandoCadastroPublico ||
+                                    !captchaPronto
+                                        ? 0.7
+                                        : 1,
+                                cursor:
+                                    salvandoCadastroPublico ||
+                                    !captchaPronto
+                                        ? "not-allowed"
+                                        : "pointer",
                             }}
                         >
-                            {salvandoCadastroPublico ? "Enviando..." : "Enviar cadastro"}
+                            {salvandoCadastroPublico
+                                ? "Enviando..."
+                                : !captchaPronto
+                                  ? "Carregando segurança..."
+                                  : "Enviar cadastro"}
                         </button>
+
+                        <div
+                            ref={captchaContainerRef}
+                            style={{ display: "none" }}
+                        />
+
+                        {erroCaptcha ? (
+                            <div
+                                style={{
+                                    fontSize: 13,
+                                    color: "#b42318",
+                                    lineHeight: 1.4,
+                                }}
+                            >
+                                {erroCaptcha}
+                            </div>
+                        ) : null}
                     </div>
                 )}
             </div>
