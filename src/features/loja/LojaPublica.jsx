@@ -1,5 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
+
+const HCAPTCHA_SCRIPT_ID = "kchic-hcaptcha-script";
+const HCAPTCHA_SCRIPT_URL =
+  "https://js.hcaptcha.com/1/api.js?render=explicit";
 import { valorEmReais } from "./preco";
 import CheckoutLoja from "./CheckoutLoja";
 import logoKchic from "../../assets/logo-kchic.png";
@@ -27,6 +31,16 @@ export default function LojaPublica({ empresaSlug }) {
     useState(null);
   const [ultimaAdicionadaId, setUltimaAdicionadaId] = useState(null);
   const [sacolaAberta, setSacolaAberta] = useState(false);
+  const [temTokenCarrinho, setTemTokenCarrinho] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaPronto, setCaptchaPronto] = useState(false);
+
+  const captchaContainerRef = useRef(null);
+  const captchaWidgetIdRef = useRef(null);
+  const captchaRenderizadoRef = useRef(false);
+
+  const hcaptchaSiteKey =
+    import.meta.env.VITE_HCAPTCHA_SITE_KEY;
 
   const chaveTokenCarrinho = `loja:carrinho:${empresaSlug}`;
 
@@ -52,11 +66,179 @@ export default function LojaPublica({ empresaSlug }) {
         chaveTokenCarrinho,
         token
       );
+      setTemTokenCarrinho(true);
     } catch (error) {
       console.error(
         "Não foi possível salvar o token da sacola:",
         error
       );
+    }
+  }
+
+  useEffect(() => {
+    setTemTokenCarrinho(
+      Boolean(obterTokenCarrinho())
+    );
+  }, [empresaSlug]);
+
+  useEffect(() => {
+    if (
+      !hcaptchaSiteKey ||
+      temTokenCarrinho ||
+      !produtoSelecionado
+    ) {
+      return undefined;
+    }
+
+    let ativo = true;
+
+    function renderizarCaptcha() {
+      if (
+        !ativo ||
+        captchaRenderizadoRef.current ||
+        !captchaContainerRef.current ||
+        !window.hcaptcha
+      ) {
+        return;
+      }
+
+      captchaWidgetIdRef.current =
+        window.hcaptcha.render(
+          captchaContainerRef.current,
+          {
+            sitekey: hcaptchaSiteKey,
+            callback: (token) => {
+              if (!ativo) return;
+              setCaptchaToken(token || "");
+              setErroSacola("");
+            },
+            "expired-callback": () => {
+              if (!ativo) return;
+              setCaptchaToken("");
+            },
+            "error-callback": () => {
+              if (!ativo) return;
+              setCaptchaToken("");
+              setErroSacola(
+                "Não foi possível validar a verificação de segurança."
+              );
+            },
+          }
+        );
+
+      captchaRenderizadoRef.current = true;
+      setCaptchaPronto(true);
+    }
+
+    if (window.hcaptcha) {
+      renderizarCaptcha();
+    }
+
+    let script =
+      document.getElementById(
+        HCAPTCHA_SCRIPT_ID
+      );
+
+    if (!script) {
+      script =
+        document.createElement("script");
+      script.id = HCAPTCHA_SCRIPT_ID;
+      script.src = HCAPTCHA_SCRIPT_URL;
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+
+    const aoCarregar =
+      () => renderizarCaptcha();
+
+    const aoFalhar = () => {
+      if (!ativo) return;
+      setErroSacola(
+        "Não foi possível carregar a verificação de segurança."
+      );
+    };
+
+    script.addEventListener(
+      "load",
+      aoCarregar
+    );
+    script.addEventListener(
+      "error",
+      aoFalhar
+    );
+
+    const intervalo =
+      window.setInterval(() => {
+        if (window.hcaptcha) {
+          renderizarCaptcha();
+
+          if (
+            captchaRenderizadoRef.current
+          ) {
+            window.clearInterval(
+              intervalo
+            );
+          }
+        }
+      }, 250);
+
+    return () => {
+      ativo = false;
+      window.clearInterval(intervalo);
+
+      script?.removeEventListener(
+        "load",
+        aoCarregar
+      );
+      script?.removeEventListener(
+        "error",
+        aoFalhar
+      );
+
+      if (
+        window.hcaptcha &&
+        captchaWidgetIdRef.current !== null &&
+        captchaWidgetIdRef.current !==
+          undefined
+      ) {
+        try {
+          window.hcaptcha.remove(
+            captchaWidgetIdRef.current
+          );
+        } catch {
+          // O widget pode já ter sido removido.
+        }
+      }
+
+      captchaWidgetIdRef.current = null;
+      captchaRenderizadoRef.current =
+        false;
+      setCaptchaPronto(false);
+      setCaptchaToken("");
+    };
+  }, [
+    hcaptchaSiteKey,
+    temTokenCarrinho,
+    produtoSelecionado,
+  ]);
+
+  function resetarCaptcha() {
+    setCaptchaToken("");
+
+    if (
+      window.hcaptcha &&
+      captchaWidgetIdRef.current !== null &&
+      captchaWidgetIdRef.current !==
+        undefined
+    ) {
+      try {
+        window.hcaptcha.reset(
+          captchaWidgetIdRef.current
+        );
+      } catch {
+        // O widget pode já ter sido desmontado.
+      }
     }
   }
 
@@ -154,6 +336,7 @@ export default function LojaPublica({ empresaSlug }) {
             window.localStorage.removeItem(
               chaveTokenCarrinho
             );
+            setTemTokenCarrinho(false);
           } catch (storageError) {
             console.error(
               "Não foi possível remover o token antigo da sacola:",
@@ -273,10 +456,15 @@ export default function LojaPublica({ empresaSlug }) {
         operacao: "adicionar",
         publicacaoId: produto.publicacao_id,
         token,
+        captchaToken:
+          token
+            ? null
+            : captchaToken,
       });
 
       if (data?.token) {
         salvarTokenCarrinho(data.token);
+        resetarCaptcha();
       }
 
       const itemNovo = {
@@ -335,6 +523,28 @@ export default function LojaPublica({ empresaSlug }) {
         "Erro ao adicionar peça à sacola:",
         error
       );
+
+      if (
+        error instanceof Error &&
+        (
+          error.message ===
+            "Carrinho não encontrado ou finalizado." ||
+          error.message ===
+            "Carrinho inválido."
+        )
+      ) {
+        try {
+          window.localStorage.removeItem(
+            chaveTokenCarrinho
+          );
+          setTemTokenCarrinho(false);
+        } catch (storageError) {
+          console.error(
+            "Não foi possível remover o token antigo da sacola:",
+            storageError
+          );
+        }
+      }
 
       setErroSacola(
         error instanceof Error
@@ -1251,6 +1461,54 @@ export default function LojaPublica({ empresaSlug }) {
                   borderTop: "1px solid #eadfe3",
                 }}
               >
+                {!temTokenCarrinho && (
+                  <div
+                    style={{
+                      marginBottom: 14,
+                      display: "grid",
+                      gap: 8,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: "#6f6066",
+                        textAlign: "center",
+                      }}
+                    >
+                      Verificação de segurança
+                    </div>
+
+                    {hcaptchaSiteKey ? (
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent:
+                            "center",
+                          minHeight: 78,
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          ref={
+                            captchaContainerRef
+                          }
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: "#9a3f52",
+                          textAlign: "center",
+                        }}
+                      >
+                        Verificação de segurança indisponível.
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={() =>
@@ -1258,7 +1516,14 @@ export default function LojaPublica({ empresaSlug }) {
                   }
                   disabled={
                     adicionandoPublicacaoId ===
-                    produtoSelecionado.publicacao_id
+                      produtoSelecionado.publicacao_id ||
+                    (
+                      !temTokenCarrinho &&
+                      (
+                        !captchaPronto ||
+                        !captchaToken
+                      )
+                    )
                   }
                   style={{
                     width: "100%",

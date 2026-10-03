@@ -18,6 +18,16 @@ const LOJA_RATE_LIMIT_SECRET =
     "LOJA_RATE_LIMIT_SECRET",
   );
 
+const HCAPTCHA_SECRET =
+  Deno.env.get(
+    "HCAPTCHA_SECRET",
+  );
+
+const HCAPTCHA_SITE_KEY =
+  Deno.env.get(
+    "HCAPTCHA_SITE_KEY",
+  );
+
 type OperacaoCarrinho =
   | "adicionar"
   | "consultar"
@@ -28,6 +38,7 @@ type CarrinhoBody = {
   operacao?: OperacaoCarrinho;
   publicacaoId?: string;
   token?: string | null;
+  captchaToken?: string | null;
 };
 
 type Empresa = {
@@ -190,6 +201,88 @@ async function consumirRateLimit(
   }
 
   return resultado;
+}
+
+async function validarHcaptcha(
+  captchaToken: unknown,
+): Promise<boolean> {
+  if (
+    !HCAPTCHA_SECRET ||
+    !HCAPTCHA_SITE_KEY
+  ) {
+    throw new Error(
+      "Proteção CAPTCHA não configurada.",
+    );
+  }
+
+  if (
+    typeof captchaToken !== "string" ||
+    !captchaToken.trim() ||
+    captchaToken.length > 4096
+  ) {
+    return false;
+  }
+
+  const body =
+    new URLSearchParams();
+
+  body.set(
+    "secret",
+    HCAPTCHA_SECRET,
+  );
+  body.set(
+    "response",
+    captchaToken.trim(),
+  );
+  body.set(
+    "sitekey",
+    HCAPTCHA_SITE_KEY,
+  );
+
+  let response: Response;
+
+  try {
+    response = await fetch(
+      "https://api.hcaptcha.com/siteverify",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/x-www-form-urlencoded",
+        },
+        body,
+      },
+    );
+  } catch {
+    throw new Error(
+      "Não foi possível validar a proteção CAPTCHA.",
+    );
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      "Não foi possível validar a proteção CAPTCHA.",
+    );
+  }
+
+  let resultado: unknown;
+
+  try {
+    resultado =
+      await response.json();
+  } catch {
+    throw new Error(
+      "Não foi possível validar a proteção CAPTCHA.",
+    );
+  }
+
+  return (
+    typeof resultado === "object" &&
+    resultado !== null &&
+    "success" in resultado &&
+    (resultado as { success?: unknown })
+      .success === true
+  );
 }
 
 function validarEmpresaSlug(
@@ -721,6 +814,21 @@ export default {
         }
 
         if (!token) {
+          const captchaValido =
+            await validarHcaptcha(
+              body.captchaToken,
+            );
+
+          if (!captchaValido) {
+            return respostaJson(
+              {
+                erro:
+                  "Confirme a verificação de segurança antes de iniciar a sacola.",
+              },
+              403,
+            );
+          }
+
           const limiteCarrinhoNovo =
             await consumirRateLimit(
               supabase,
