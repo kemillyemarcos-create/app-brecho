@@ -322,12 +322,19 @@ function somenteDigitos(
   valor: unknown,
   maximo: number,
 ): string {
-  return validarTexto(
-    valor,
-    maximo + 16,
-  )
-    .replace(/\D/g, "")
-    .slice(0, maximo);
+  const digitos =
+    validarTexto(
+      valor,
+      maximo + 16,
+    ).replace(/\D/g, "");
+
+  if (digitos.length > maximo) {
+    throw new Error(
+      "Dados de cadastro inválidos.",
+    );
+  }
+
+  return digitos;
 }
 
 function validarEmpresaSlug(
@@ -682,6 +689,23 @@ export default {
         error instanceof Error
           ? error.message
           : String(error);
+
+      const errosDeEntrada = new Set([
+        "Dados de cadastro inválidos.",
+        "Loja inválida.",
+        "Informe seu nome.",
+        "Informe um CPF válido com 11 dígitos.",
+        "Informe um e-mail válido.",
+      ]);
+
+      if (errosDeEntrada.has(mensagem)) {
+        return respostaJson(
+          {
+            erro: mensagem,
+          },
+          400,
+        );
+      }
 
       console.error(
         "Erro no cadastro público de cliente:",
