@@ -38,6 +38,7 @@ export default function LojaPublica({ empresaSlug }) {
   const captchaContainerRef = useRef(null);
   const captchaWidgetIdRef = useRef(null);
   const captchaRenderizadoRef = useRef(false);
+  const captchaProdutoPendenteRef = useRef(null);
 
   const hcaptchaSiteKey =
     import.meta.env.VITE_HCAPTCHA_SITE_KEY;
@@ -107,10 +108,28 @@ export default function LojaPublica({ empresaSlug }) {
           captchaContainerRef.current,
           {
             sitekey: hcaptchaSiteKey,
+            size: "invisible",
             callback: (token) => {
               if (!ativo) return;
+
               setCaptchaToken(token || "");
               setErroSacola("");
+
+              const produtoPendente =
+                captchaProdutoPendenteRef.current;
+
+              captchaProdutoPendenteRef.current =
+                null;
+
+              if (
+                produtoPendente &&
+                token
+              ) {
+                adicionarNaSacola(
+                  produtoPendente,
+                  token
+                );
+              }
             },
             "expired-callback": () => {
               if (!ativo) return;
@@ -439,9 +458,51 @@ export default function LojaPublica({ empresaSlug }) {
     }
   }
 
-  async function adicionarNaSacola(produto) {
+  async function adicionarNaSacola(
+    produto,
+    captchaTokenExecutado = null
+  ) {
     if (!produto?.publicacao_id) return;
     if (adicionandoPublicacaoId) return;
+
+    const token = obterTokenCarrinho();
+
+    if (
+      !token &&
+      !captchaTokenExecutado
+    ) {
+      if (
+        !captchaPronto ||
+        !window.hcaptcha ||
+        captchaWidgetIdRef.current === null ||
+        captchaWidgetIdRef.current === undefined
+      ) {
+        setErroSacola(
+          "A verificação de segurança ainda está carregando. Tente novamente."
+        );
+        return;
+      }
+
+      captchaProdutoPendenteRef.current =
+        produto;
+
+      setErroSacola("");
+
+      try {
+        window.hcaptcha.execute(
+          captchaWidgetIdRef.current
+        );
+      } catch {
+        captchaProdutoPendenteRef.current =
+          null;
+
+        setErroSacola(
+          "Não foi possível iniciar a verificação de segurança."
+        );
+      }
+
+      return;
+    }
 
     setAdicionandoPublicacaoId(
       produto.publicacao_id
@@ -450,8 +511,6 @@ export default function LojaPublica({ empresaSlug }) {
     setErroSacola("");
 
     try {
-      const token = obterTokenCarrinho();
-
       const data = await chamarSacola({
         operacao: "adicionar",
         publicacaoId: produto.publicacao_id,
@@ -459,7 +518,7 @@ export default function LojaPublica({ empresaSlug }) {
         captchaToken:
           token
             ? null
-            : captchaToken,
+            : captchaTokenExecutado,
       });
 
       if (data?.token) {
@@ -1461,53 +1520,17 @@ export default function LojaPublica({ empresaSlug }) {
                   borderTop: "1px solid #eadfe3",
                 }}
               >
-                {!temTokenCarrinho && (
-                  <div
-                    style={{
-                      marginBottom: 14,
-                      display: "grid",
-                      gap: 8,
-                    }}
-                  >
+                {!temTokenCarrinho &&
+                  hcaptchaSiteKey && (
                     <div
+                      ref={captchaContainerRef}
                       style={{
-                        fontSize: 12,
-                        color: "#6f6066",
-                        textAlign: "center",
+                        width: 0,
+                        height: 0,
+                        overflow: "hidden",
                       }}
-                    >
-                      Verificação de segurança
-                    </div>
-
-                    {hcaptchaSiteKey ? (
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent:
-                            "center",
-                          minHeight: 78,
-                          overflow: "hidden",
-                        }}
-                      >
-                        <div
-                          ref={
-                            captchaContainerRef
-                          }
-                        />
-                      </div>
-                    ) : (
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "#9a3f52",
-                          textAlign: "center",
-                        }}
-                      >
-                        Verificação de segurança indisponível.
-                      </div>
-                    )}
-                  </div>
-                )}
+                    />
+                  )}
 
                 <button
                   type="button"
@@ -1520,8 +1543,8 @@ export default function LojaPublica({ empresaSlug }) {
                     (
                       !temTokenCarrinho &&
                       (
-                        !captchaPronto ||
-                        !captchaToken
+                        !hcaptchaSiteKey ||
+                        !captchaPronto
                       )
                     )
                   }
