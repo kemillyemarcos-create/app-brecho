@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { enviarFotoGaleria } from './fotos';
 
 const opcoes = {
   categoria: ['blusas', 'camisas', 'calcas', 'shorts', 'saias', 'vestidos', 'jaquetas', 'casacos', 'moletons', 'tricots', 'conjuntos', 'macacoes', 'calcados', 'bolsas', 'acessorios', 'moda_infantil', 'outros'],
@@ -77,15 +78,7 @@ export default function LojaGestao({ empresaId, pecas = [] }) {
     executar(async () => {
       const extensoes = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
       if (!extensoes[arquivo.type] || arquivo.size > 10485760) throw new Error('Use JPEG, PNG ou WebP de até 10 MB.');
-      const path = `${empresaId}/${publicacao.id}/${crypto.randomUUID()}.${extensoes[arquivo.type]}`;
-      const { error } = await supabase.storage.from('loja-produtos').upload(path, arquivo, { contentType: arquivo.type, upsert: false });
-      if (error) throw error;
-      try {
-        await rpc('loja_adicionar_foto', { p_publicacao_id: publicacao.id, p_storage_path: path, p_mime_type: arquivo.type, p_tamanho_bytes: arquivo.size, p_principal: fotos.length === 0 });
-      } catch (error) {
-        await supabase.storage.from('loja-produtos').remove([path]);
-        throw error;
-      }
+      await enviarFotoGaleria({ supabase, empresaId, publicacaoId: publicacao.id, arquivo });
     });
   }
   return <section>
