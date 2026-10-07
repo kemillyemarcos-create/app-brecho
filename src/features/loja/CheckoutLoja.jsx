@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { ArrowLeft, ShieldCheck } from 'lucide-react';
+import './styles/loja-publica.css';
 
-export default function CheckoutLoja({ empresaSlug, tokenCarrinho, onFechar }) {
+export default function CheckoutLoja({ empresaSlug, tokenCarrinho, onFechar, resumoSacola, subtotal, formatarPreco, obterUrlFoto }) {
   const chave = `loja:pedido:${empresaSlug}`;
   const [pedido, setPedido] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem(chave) || 'null'); } catch { return null; }
@@ -69,25 +71,28 @@ export default function CheckoutLoja({ empresaSlug, tokenCarrinho, onFechar }) {
     window.location.reload();
   }
   const encerrado = estado && estado.status !== 'pendente_pagamento';
-  return <section role="dialog" aria-modal="true" aria-label="Finalizar compra" style={{ position: 'fixed', inset: 0, zIndex: 200, background: '#fff', padding: 24, overflowY: 'auto' }}>
-    <div style={{ maxWidth: 480, margin: 'auto' }}>
-      <button type="button" onClick={onFechar}>Voltar à loja</button>
-      <h2>Finalizar compra</h2>
-      <p>Entrega: retirada combinada com a loja. Frete: R$ 0,00.</p>
-      {pedido && <p>Pedido {pedido.pedidoId}<br />Total: {Number(pedido.total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
-      {estado && <p role="status">{estado.status === 'pago' ? 'Pagamento confirmado. A loja recebeu seu pedido.' : estado.pagamento_status === 'paid' ? 'Pagamento recebido após o prazo. Entre em contato com a loja antes de retirar.' : estado.status === 'expirado' ? 'Prazo do pedido encerrado. Se você já pagou, consulte a loja antes de pagar novamente.' : 'Aguardando confirmação oficial do pagamento.'}</p>}
-      {!encerrado && <form onSubmit={iniciar} style={{ display: 'grid', gap: 12 }}>
-        {!pedido && <>
-          <label>Nome completo<input name="nome" required maxLength={160} autoComplete="name" style={{ display: 'block', width: '100%' }} /></label>
-          <label>CPF<input name="cpf" required inputMode="numeric" maxLength={14} pattern="[0-9.\-]{11,14}" style={{ display: 'block', width: '100%' }} /></label>
-          <label>Telefone com DDD<input name="telefone" required type="tel" maxLength={30} autoComplete="tel" style={{ display: 'block', width: '100%' }} /></label>
+  return <section className="kc-store kc-store-checkout" aria-label="Finalizar compra">
+    <header className="kc-store-checkout-header kc-store-container"><button type="button" className="kc-store-text-button" onClick={onFechar}><ArrowLeft size={18} aria-hidden="true" />Voltar à loja</button><div className="kc-store-wordmark"><span className="kc-store-name">K.CHIC</span><span className="kc-store-outlet">OUTLET</span></div><span className="kc-store-assurance"><ShieldCheck size={18} aria-hidden="true" />Compra segura</span></header>
+    <div className="kc-store-container kc-store-checkout-grid">
+      <div><p className="kc-store-eyebrow">SEUS ACHADOS, QUASE SEUS</p><h1>Finalizar compra</h1>
+        {estado && <p className="kc-store-checkout-status" role="status">{estado.status === 'pago' ? 'Pagamento confirmado. A loja recebeu seu pedido.' : estado.pagamento_status === 'paid' ? 'Pagamento recebido após o prazo. Entre em contato com a loja antes de retirar.' : estado.status === 'expirado' ? 'Prazo do pedido encerrado. Se você já pagou, consulte a loja antes de pagar novamente.' : 'Aguardando confirmação oficial do pagamento.'}</p>}
+        {!encerrado && <form onSubmit={iniciar} className="kc-store-checkout-form">
+          {!pedido && <><h2>Seus dados</h2><label>Nome completo<input name="nome" required maxLength={160} autoComplete="name" /></label><label>CPF<input name="cpf" required inputMode="numeric" maxLength={14} pattern="[0-9.\-]{11,14}" /></label><label>Telefone com DDD<input name="telefone" required type="tel" maxLength={30} autoComplete="tel" /></label></>}
+          <button className="kc-store-primary" disabled={ocupado || (!pedido && !tokenCarrinho)}>{ocupado ? 'Preparando pagamento…' : 'Preparar pagamento seguro'}</button>
+        </form>}
+        {url && !encerrado && <div className="kc-store-checkout-status"><a className="kc-store-primary" href={url} target="_blank" rel="noopener noreferrer">Abrir Mercado Pago para pagar</a><p>Após pagar, volte a esta página para acompanhar a confirmação.</p></div>}
+        {pedido && <button type="button" className="kc-store-text-button" onClick={() => setAtualizacao(v => v + 1)}>Consultar confirmação</button>}
+        {encerrado && <button type="button" className="kc-store-text-button" onClick={encerrar}>Encerrar acompanhamento e voltar à loja</button>}
+        {erro && <p className="kc-store-error" role="alert">{erro}</p>}
+      </div>
+      <aside className="kc-store-checkout-summary"><h2>Resumo {pedido ? 'do pedido' : 'da sacola'}</h2>
+        {pedido ? <><p className="kc-store-order-id">Pedido {pedido.pedidoId}</p><div className="kc-store-cart-total"><span>Total</span><strong>{Number(pedido.total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></div></> : <>
+          {resumoSacola?.itens.map(item => <article className="kc-store-summary-item" key={item.publicacaoId}>{item.fotoPrincipal && <img src={obterUrlFoto(item.fotoPrincipal)} alt={item.nome} loading="lazy" />}<div><p className="kc-store-eyebrow">{item.marca}</p><h3>{item.nome}</h3><p>{item.tamanho ? `Tam. ${item.tamanho}` : ''}</p><strong>{formatarPreco(item.preco)}</strong></div></article>)}
+          {resumoSacola?.itens.length > 0 ? <div className="kc-store-cart-total"><span>Subtotal</span><strong>{formatarPreco(subtotal)}</strong></div> : <p className="kc-store-muted">Sua sacola está vazia. Selecione uma peça na loja para iniciar uma compra.</p>}
         </>}
-        <button disabled={ocupado || (!pedido && !tokenCarrinho)}>{ocupado ? 'Preparando pagamento…' : 'Preparar pagamento seguro'}</button>
-      </form>}
-      {url && !encerrado && <p><a href={url} target="_blank" rel="noopener noreferrer">Abrir Mercado Pago para pagar</a><br />Após pagar, volte a esta página para acompanhar a confirmação.</p>}
-      {pedido && <button type="button" onClick={() => setAtualizacao(v => v + 1)}>Consultar confirmação</button>}
-      {encerrado && <button type="button" onClick={encerrar}>Encerrar acompanhamento e voltar à loja</button>}
-      {erro && <p role="alert">{erro}</p>}
+        <p className="kc-store-delivery">Entrega: retirada combinada com a loja. Frete: R$ 0,00.</p>
+        <p className="kc-store-assurance"><ShieldCheck size={18} aria-hidden="true" />Pagamento processado pelo Mercado Pago.</p>
+      </aside>
     </div>
   </section>;
 }
