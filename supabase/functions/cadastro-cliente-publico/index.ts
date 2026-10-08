@@ -343,7 +343,7 @@ function validarEmpresaSlug(
   const slug =
     validarTexto(
       valor,
-      120,
+      100,
     ).toLowerCase();
 
   if (

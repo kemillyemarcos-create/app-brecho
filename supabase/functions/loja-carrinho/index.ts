@@ -299,7 +299,7 @@ function validarEmpresaSlug(
 
   if (
     !slug ||
-    slug.length > 120 ||
+    slug.length > 100 ||
     !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(
       slug,
     )
