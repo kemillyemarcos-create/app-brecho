@@ -5,6 +5,11 @@ const HCAPTCHA_SCRIPT_ID = "kchic-hcaptcha-script";
 const HCAPTCHA_SCRIPT_URL =
   "https://js.hcaptcha.com/1/api.js?render=explicit";
 import { valorEmReais } from "./preco";
+import {
+  catalogoTemMais,
+  mesclarProdutosCatalogo,
+  TAMANHO_PAGINA_CATALOGO,
+} from "./catalogo";
 import CheckoutLoja from "./CheckoutLoja";
 import StoreHeader from "./components/StoreHeader";
 import StoreHero from "./components/StoreHero";
@@ -19,7 +24,11 @@ export default function LojaPublica({ empresaSlug }) {
   const [checkoutAberto, setCheckoutAberto] = useState(false);
   const [produtos, setProdutos] = useState([]);
   const [carregando, setCarregando] = useState(true);
+  const [carregandoMais, setCarregandoMais] = useState(false);
+  const [temMaisProdutos, setTemMaisProdutos] = useState(false);
+  const [offsetCatalogo, setOffsetCatalogo] = useState(0);
   const [erro, setErro] = useState("");
+  const [erroCarregarMais, setErroCarregarMais] = useState("");
   const [busca, setBusca] = useState("");
   const [categoriaAtiva, setCategoriaAtiva] = useState("");
   const [marcaAtiva, setMarcaAtiva] = useState("");
@@ -46,6 +55,9 @@ export default function LojaPublica({ empresaSlug }) {
   const captchaWidgetIdRef = useRef(null);
   const captchaRenderizadoRef = useRef(false);
   const captchaProdutoPendenteRef = useRef(null);
+  const empresaSlugAtualRef = useRef(empresaSlug);
+
+  empresaSlugAtualRef.current = empresaSlug;
 
   const hcaptchaSiteKey =
     import.meta.env.VITE_HCAPTCHA_SITE_KEY;
@@ -629,7 +641,12 @@ export default function LojaPublica({ empresaSlug }) {
 
     async function carregarCatalogo() {
       setCarregando(true);
+      setCarregandoMais(false);
+      setTemMaisProdutos(false);
+      setOffsetCatalogo(0);
+      setProdutos([]);
       setErro("");
+      setErroCarregarMais("");
 
       const { data, error } = await supabase.rpc(
         "loja_catalogo_publico_por_slug",
@@ -639,7 +656,7 @@ export default function LojaPublica({ empresaSlug }) {
           p_categoria: null,
           p_marca: null,
           p_tamanho: null,
-          p_limite: 24,
+          p_limite: TAMANHO_PAGINA_CATALOGO,
           p_offset: 0,
         }
       );
@@ -649,12 +666,17 @@ export default function LojaPublica({ empresaSlug }) {
       if (error) {
         console.error("Erro ao carregar catálogo público:", error);
         setProdutos([]);
+        setTemMaisProdutos(false);
         setErro("Não foi possível carregar a loja neste momento.");
         setCarregando(false);
         return;
       }
 
-      setProdutos(Array.isArray(data) ? data : []);
+      const pagina = Array.isArray(data) ? data : [];
+
+      setProdutos(pagina);
+      setOffsetCatalogo(pagina.length);
+      setTemMaisProdutos(catalogoTemMais(pagina.length));
       setCarregando(false);
     }
 
@@ -662,6 +684,7 @@ export default function LojaPublica({ empresaSlug }) {
       carregarCatalogo();
     } else {
       setProdutos([]);
+      setTemMaisProdutos(false);
       setErro("Loja não identificada.");
       setCarregando(false);
     }
@@ -670,6 +693,66 @@ export default function LojaPublica({ empresaSlug }) {
       ativo = false;
     };
   }, [empresaSlug]);
+
+  async function carregarMaisCatalogo() {
+    if (
+      !empresaSlug ||
+      carregando ||
+      carregandoMais ||
+      !temMaisProdutos
+    ) {
+      return;
+    }
+
+    setCarregandoMais(true);
+    setErroCarregarMais("");
+
+    const slugRequisitado = empresaSlug;
+    const offset = offsetCatalogo;
+
+    const { data, error } = await supabase.rpc(
+      "loja_catalogo_publico_por_slug",
+      {
+        p_empresa_slug: empresaSlug,
+        p_slug: null,
+        p_categoria: null,
+        p_marca: null,
+        p_tamanho: null,
+        p_limite: TAMANHO_PAGINA_CATALOGO,
+        p_offset: offset,
+      }
+    );
+
+    if (
+      empresaSlugAtualRef.current !== slugRequisitado
+    ) {
+      return;
+    }
+
+    if (error) {
+      console.error(
+        "Erro ao carregar mais produtos do catálogo:",
+        error
+      );
+      setErroCarregarMais(
+        "Não foi possível carregar mais peças neste momento."
+      );
+      setCarregandoMais(false);
+      return;
+    }
+
+    const pagina = Array.isArray(data) ? data : [];
+
+    setProdutos((atuais) =>
+      mesclarProdutosCatalogo(atuais, pagina)
+    );
+    setOffsetCatalogo(
+      (atual) => atual + pagina.length
+    );
+    setTemMaisProdutos(catalogoTemMais(pagina.length));
+    setErroCarregarMais("");
+    setCarregandoMais(false);
+  }
 
   function obterUrlFoto(storagePath) {
     if (!storagePath) return "";
@@ -893,6 +976,23 @@ export default function LojaPublica({ empresaSlug }) {
         {!carregando && !erro && produtos.length === 0 && <p className="kc-store-empty">Nenhuma peça disponível no momento.</p>}
         {!carregando && !erro && produtos.length > 0 && produtosOrdenados.length === 0 && <div className="kc-store-empty"><p>Nenhuma peça encontrada com estes filtros.</p><button type="button" className="kc-store-text-button" onClick={limparFiltros}>Ver todas as peças</button></div>}
         {!carregando && !erro && produtosOrdenados.length > 0 && <ProductGrid {...gridProps} produtos={produtosOrdenados} />}
+        {!carregando && produtos.length > 0 && temMaisProdutos && (
+          <div className="kc-store-load-more">
+            <button
+              type="button"
+              className="kc-store-text-button"
+              onClick={carregarMaisCatalogo}
+              disabled={carregandoMais}
+            >
+              {carregandoMais ? "CARREGANDO..." : "CARREGAR MAIS"}
+            </button>
+          </div>
+        )}
+        {!carregando && erroCarregarMais && (
+          <p role="alert" className="kc-store-error kc-store-load-more-error">
+            {erroCarregarMais}
+          </p>
+        )}
       </section>
       <section className="kc-store-section kc-store-container" aria-labelledby="kc-also-title"><div className="kc-store-section-heading"><div><p className="kc-store-eyebrow">MAIS POSSIBILIDADES PARA O SEU ESTILO</p><h2 id="kc-also-title">VEJA TAMBÉM</h2></div></div>
         {vejaTambem.length ? <ProductGrid {...gridProps} produtos={vejaTambem} novidades /> : <p className="kc-store-muted">Explore todos os achados disponíveis no nosso garimpo.</p>}

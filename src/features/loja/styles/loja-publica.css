@@ -255,3 +255,19 @@
   .kc-store-checkout h1 { font-size: 32px; }
 }
 @media (prefers-reduced-motion: reduce) { .kc-store-product-image img { transition: none; } }
+
+.kc-store-load-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 40px;
+}
+
+.kc-store-load-more button:disabled {
+  cursor: wait;
+  opacity: .55;
+}
+
+.kc-store-load-more-error {
+  margin-top: 16px;
+  text-align: center;
+}
