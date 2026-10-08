@@ -175,7 +175,7 @@ on function public.cadastrar_cliente_publico(
   text,
   text
 )
-from public;
+from public, anon, authenticated;
 
 grant execute
 on function public.cadastrar_cliente_publico(
@@ -189,4 +189,4 @@ on function public.cadastrar_cliente_publico(
   text,
   text
 )
-to anon, authenticated, service_role;
+to service_role;
