@@ -52,4 +52,3 @@ using (
 
 comment on policy "loja produtos excluir" on storage.objects
 is 'Permite excluir fisicamente apenas objeto órfão de publicação rascunho da própria empresa; fotos ainda registradas na galeria ficam protegidas.';
-
