@@ -104,6 +104,61 @@ async function snapshot(db, tabela, id, custo) {
 }
 
 describe('snapshot compartilhado do custo da peça', () => {
+
+  it('replay histórico aceita custo BRL com separador de milhar', async () => {
+    const db = new PGlite();
+
+    try {
+      await db.exec(`
+        create table public.pecas (
+          id text not null,
+          empresa_id uuid not null,
+          custo text,
+          primary key (empresa_id, id)
+        );
+
+        create table public.vendas_live (
+          id bigserial primary key,
+          empresa_id uuid not null,
+          peca_id text not null
+        );
+
+        insert into public.pecas(id, empresa_id, custo)
+        values (
+          'HIST-1000',
+          '${empresa}',
+          '1.000,00'
+        );
+
+        insert into public.vendas_live(empresa_id, peca_id)
+        values (
+          '${empresa}',
+          'HIST-1000'
+        );
+      `);
+
+      const historica = await readFile(
+        new URL(
+          '../../supabase/migrations/20260914234500_saas_vendas_live_snapshot_custo.sql',
+          import.meta.url,
+        ),
+        'utf8',
+      );
+
+      await db.exec(historica);
+
+      const result = await db.query(`
+        select custo_peca::text as custo
+        from public.vendas_live
+        where peca_id = 'HIST-1000'
+      `);
+
+      expect(result.rows[0].custo).toBe('1000.00');
+    } finally {
+      await db.close();
+    }
+  });
+
   it.each([
     ['999,99', '999.99'],
     ['1.000,00', '1000.00'],
