@@ -11,7 +11,7 @@ export default function StoreHeader({ busca, onBuscaChange, categorias, categori
     searchButton.current?.focus();
   }
   return <>
-    <div className="kc-store-promo">Marcas que você ama, por menos<span> • Enviamos para todo Brasil</span></div>
+    <div className="kc-store-promo">Marcas que você ama, por menos<span> • Peças únicas, garimpadas para você</span></div>
     <header className="kc-store-header">
       <div className="kc-store-header-main kc-store-container">
         <button ref={searchButton} className="kc-store-action kc-store-search-toggle" type="button"

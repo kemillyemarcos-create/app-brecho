@@ -90,7 +90,7 @@ export default function CheckoutLoja({ empresaSlug, tokenCarrinho, onFechar, res
           {resumoSacola?.itens.map(item => <article className="kc-store-summary-item" key={item.publicacaoId}>{item.fotoPrincipal && <img src={obterUrlFoto(item.fotoPrincipal)} alt={item.nome} loading="lazy" />}<div><p className="kc-store-eyebrow">{item.marca}</p><h3>{item.nome}</h3><p>{item.tamanho ? `Tam. ${item.tamanho}` : ''}</p><strong>{formatarPreco(item.preco)}</strong></div></article>)}
           {resumoSacola?.itens.length > 0 ? <div className="kc-store-cart-total"><span>Subtotal</span><strong>{formatarPreco(subtotal)}</strong></div> : <p className="kc-store-muted">Sua sacola está vazia. Selecione uma peça na loja para iniciar uma compra.</p>}
         </>}
-        <p className="kc-store-delivery">Entrega: retirada combinada com a loja. Frete: R$ 0,00.</p>
+        <p className="kc-store-delivery">Forma de entrega: retirada combinada com a loja.</p>
         <p className="kc-store-assurance"><ShieldCheck size={18} aria-hidden="true" />Pagamento processado pelo Mercado Pago.</p>
       </aside>
     </div>
