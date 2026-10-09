@@ -345,3 +345,18 @@
   margin-top: 16px;
   text-align: center;
 }
+
+/* Pagamento: uma ação principal por etapa, no mesmo vocabulário visual da loja. */
+.kc-store-payment-intro { color: var(--store-muted); font-size: 14px; line-height: 1.7; margin: -16px 0 28px; }
+.kc-store-payment { display: grid; gap: 16px; padding-top: 12px; }
+.kc-store-payment h2, .kc-store-payment p { margin: 0; }
+.kc-store-payment p { font-size: 14px; line-height: 1.7; }
+.kc-store .kc-store-payment-cta { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 54px; padding: 16px 20px; font-size: 13px; letter-spacing: .02em; text-transform: none; line-height: 1.5; }
+.kc-store-payment-cta svg { flex-shrink: 0; }
+.kc-store-payment-cta:disabled { cursor: wait; opacity: .65; }
+.kc-store-payment .kc-store-payment-note, .kc-store-captcha-note { font-size: 12px; color: var(--store-muted); line-height: 1.7; }
+.kc-store-captcha-note { margin-bottom: 12px; }
+.kc-store-payment .kc-store-text-button { justify-self: start; }
+.kc-store-payment-spinner { animation: kc-store-payment-spin 1s linear infinite; }
+@keyframes kc-store-payment-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .kc-store-payment-spinner { animation: none; } }

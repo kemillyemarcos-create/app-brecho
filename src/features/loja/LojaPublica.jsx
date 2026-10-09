@@ -11,6 +11,7 @@ import {
   TAMANHO_PAGINA_CATALOGO,
 } from "./catalogo";
 import CheckoutLoja from "./CheckoutLoja";
+import { restaurarPedido } from "./checkoutPedido";
 import StoreHeader from "./components/StoreHeader";
 import StoreHero from "./components/StoreHero";
 import StoreBenefits from "./components/StoreBenefits";
@@ -21,7 +22,12 @@ import StoreFooter from "./components/StoreFooter";
 import "./styles/loja-publica.css";
 
 export default function LojaPublica({ empresaSlug }) {
-  const [checkoutAberto, setCheckoutAberto] = useState(false);
+  const [checkoutAberto, setCheckoutAberto] = useState(() => {
+    try {
+      return Boolean(restaurarPedido(sessionStorage, empresaSlug,
+        localStorage.getItem(`loja:carrinho:${empresaSlug}`))?.pagamentoAberto);
+    } catch { return false; }
+  });
   const [produtos, setProdutos] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [carregandoMais, setCarregandoMais] = useState(false);
@@ -944,6 +950,7 @@ export default function LojaPublica({ empresaSlug }) {
         obterUrlFoto={obterUrlFoto} onFotoChange={setFotoSelecionada} onVoltar={voltarLoja}
         preco={formatarPrecoSacola(produtoSelecionado.preco)}>
         <div className="kc-store-buy">
+          {!temTokenCarrinho && hcaptchaSiteKey && <p className="kc-store-captcha-note">Ao adicionar sua primeira peça, podemos pedir uma rápida verificação de segurança para proteger sua sacola.</p>}
           {!temTokenCarrinho && hcaptchaSiteKey && <div ref={captchaContainerRef} style={{ width: 0, height: 0, overflow: "hidden" }} />}
           <button className="kc-store-primary" type="button"
             onClick={() => adicionarNaSacola(produtoSelecionado)}
