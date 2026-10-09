@@ -1,3 +1,4 @@
+import { projetarPedidoLoja } from '../utils/expedicaoLoja';
 import { useMemo } from "react";
 import {
     getItensDaSacolinha,
@@ -52,10 +53,14 @@ export default function useExpedicaoMemo({
                 .map((s) => String(s.id))
         );
 
-        return (todasVendasLive || [])
+        const live = (todasVendasLive || [])
             .filter((v) => sacolinhasEnviadasIds.has(String(v.sacolinha_id)))
             .map((v) => String(v.peca_id));
-    }, [todasVendasLive, sacolinhasLive]);
+        const loja = (pedidosEnvio || [])
+            .filter((p) => p.origem === 'loja' && p.status === 'enviado')
+            .flatMap((p) => (p.itens_loja || []).map((i) => String(i.peca_id)));
+        return [...new Set([...live, ...loja])];
+    }, [todasVendasLive, sacolinhasLive, pedidosEnvio]);
 
     const vendasPorSacolinhaId = useMemo(() => {
         const mapa = new Map();
@@ -157,6 +162,8 @@ export default function useExpedicaoMemo({
 
     const pedidosEnvioAgrupados = useMemo(() => {
         return (pedidosEnvio || []).map((pedido) => {
+            const loja = projetarPedidoLoja(pedido);
+            if (loja) return loja;
             const vinculos = (pedidoEnvioSacolinhas || []).filter(
                 (v) => String(v.pedido_envio_id) === String(pedido.id)
             );

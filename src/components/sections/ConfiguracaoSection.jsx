@@ -60,7 +60,7 @@ function obterExtensaoImagem(arquivo) {
 
   if (
     extensaoNome &&
-    ["png", "jpg", "jpeg", "webp", "svg", "ico"].includes(
+    ["png", "jpg", "jpeg", "webp", "ico"].includes(
       extensaoNome
     )
   ) {
@@ -73,7 +73,6 @@ function obterExtensaoImagem(arquivo) {
     "image/png": "png",
     "image/jpeg": "jpg",
     "image/webp": "webp",
-    "image/svg+xml": "svg",
     "image/x-icon": "ico",
     "image/vnd.microsoft.icon": "ico",
   };
@@ -100,7 +99,6 @@ function validarImagemIdentidade(arquivo) {
     "image/png",
     "image/jpeg",
     "image/webp",
-    "image/svg+xml",
     "image/x-icon",
     "image/vnd.microsoft.icon",
   ];
@@ -109,7 +107,7 @@ function validarImagemIdentidade(arquivo) {
     arquivo.type &&
     !tiposPermitidos.includes(arquivo.type)
   ) {
-    return "Formato não permitido. Use PNG, JPG, WEBP, SVG ou ICO.";
+    return "Formato não permitido. Use PNG, JPG, WEBP ou ICO.";
   }
 
   if (arquivo.size > 5 * 1024 * 1024) {
@@ -1796,7 +1794,7 @@ export default function ConfiguracaoSection({
             url:
               identidade?.logoUrl || "",
             accept:
-              "image/png,image/jpeg,image/webp,image/svg+xml",
+              "image/png,image/jpeg,image/webp",
           })}
 
           {cardImagemIdentidade({
@@ -1807,7 +1805,7 @@ export default function ConfiguracaoSection({
             url:
               identidade?.logoCompactaUrl || "",
             accept:
-              "image/png,image/jpeg,image/webp,image/svg+xml",
+              "image/png,image/jpeg,image/webp",
           })}
 
           {cardImagemIdentidade({

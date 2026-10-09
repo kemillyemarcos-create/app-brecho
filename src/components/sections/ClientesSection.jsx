@@ -392,6 +392,24 @@ export default function ClientesSection({
                     </label>
 
                     <label style={labelStyle}>
+                        E-mail
+                        <input
+                            type="email"
+                            style={inputPadrao}
+                            placeholder="cliente@exemplo.com"
+                            value={formCliente.email}
+                            onChange={(e) =>
+                                setFormCliente((prev) => ({
+                                    ...prev,
+                                    email: e.target.value,
+                                }))
+                            }
+                        />
+                    </label>
+                </div>
+
+                <div style={gridDoisCampos}>
+                    <label style={labelStyle}>
                         CEP
                         <input
                             style={inputPadrao}

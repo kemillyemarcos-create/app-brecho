@@ -40,6 +40,7 @@ export default function LoginAdmin() {
         captchaContainerRef.current,
         {
           sitekey: hcaptchaSiteKey,
+          hl: "pt-BR",
           callback: (token) => {
             if (!ativo) return;
             setCaptchaToken(token || "");

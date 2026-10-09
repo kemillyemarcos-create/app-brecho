@@ -43,10 +43,14 @@ export function normalizarTelefone(valor) {
     return String(valor || "").replace(/\D/g, "").slice(0, 11);
 }
 
-export function montarPayloadCliente(formCliente, { exigirCpf = false } = {}) {
+export function montarPayloadCliente(
+    formCliente,
+    { exigirCpf = false, exigirEmail = false } = {}
+) {
     const nome = String(formCliente.nome || "").trim();
     const cpf = normalizarCPF(formCliente.cpf);
     const telefone = normalizarTelefone(formCliente.telefone);
+    const email = String(formCliente.email || "").trim().toLowerCase();
     const cep = String(formCliente.cep || "").replace(/\D/g, "").slice(0, 8);
 
     if (!nome) {
@@ -61,10 +65,22 @@ export function montarPayloadCliente(formCliente, { exigirCpf = false } = {}) {
         throw new Error("CPF inválido. Preencha os 11 dígitos.");
     }
 
+    if (exigirEmail && !email) {
+        throw new Error("Informe seu e-mail.");
+    }
+
+    if (
+        email &&
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    ) {
+        throw new Error("Informe um e-mail válido.");
+    }
+
     return {
         nome,
         cpf,
         telefone,
+        email,
         cep,
         endereco: String(formCliente.endereco || "").trim(),
         numero: String(formCliente.numero || "").trim(),
@@ -99,19 +115,26 @@ export async function buscarClientePorCpf(cpf, idIgnorar = null) {
 
 
 export async function cadastrarClientePublico(payload) {
-    const { data, error } = await supabase.rpc("cadastrar_cliente_publico", {
-        p_empresa_slug: String(payload?.empresaSlug || "").trim().toLowerCase(),
-        p_nome: String(payload?.nome || "").trim(),
-        p_cpf: normalizarCPF(payload?.cpf),
-        p_telefone: normalizarTelefone(payload?.telefone),
-        p_cep: String(payload?.cep || "").replace(/\D/g, "").slice(0, 8),
-        p_endereco: String(payload?.endereco || "").trim(),
-        p_numero: String(payload?.numero || "").trim(),
-        p_complemento: String(payload?.complemento || "").trim(),
-    });
+    const { data, error } = await supabase.functions.invoke(
+        "cadastro-cliente-publico",
+        {
+            body: {
+                empresaSlug: String(payload?.empresaSlug || "").trim().toLowerCase(),
+                nome: String(payload?.nome || "").trim(),
+                cpf: normalizarCPF(payload?.cpf),
+                telefone: normalizarTelefone(payload?.telefone),
+                email: String(payload?.email || "").trim().toLowerCase(),
+                cep: String(payload?.cep || "").replace(/\D/g, "").slice(0, 8),
+                endereco: String(payload?.endereco || "").trim(),
+                numero: String(payload?.numero || "").trim(),
+                complemento: String(payload?.complemento || "").trim(),
+                captchaToken: payload?.captchaToken || null,
+            },
+        }
+    );
 
     if (error) {
-        console.error("ERRO NO RPC DE CADASTRO PÚBLICO:", error);
+        console.error("ERRO NO CADASTRO PÚBLICO:", error);
         throw new Error("Não foi possível concluir o cadastro agora.");
     }
 
@@ -124,7 +147,9 @@ export async function cadastrarClientePublico(payload) {
             };
         }
 
-        throw new Error("Não foi possível concluir o cadastro agora.");
+        throw new Error(
+            data?.erro || "Não foi possível concluir o cadastro agora."
+        );
     }
 
     return data;

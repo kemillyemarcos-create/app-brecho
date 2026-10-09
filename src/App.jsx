@@ -1,3 +1,4 @@
+import { combinarOrigensExpedicao } from './utils/expedicaoLoja';
 import {
   getItensDaSacolinha,
   sacolinhaEstaPaga,
@@ -87,6 +88,8 @@ import {
   useConfig,
 } from "./contexts/ConfigContext";
 import ConfiguracaoSection from "./components/sections/ConfiguracaoSection";
+import LojaPublica from "./features/loja/LojaPublica";
+import LojaGestao from "./features/loja/LojaGestao";
 
 const FORM_INICIAL_PECA = {
   nome: "",
@@ -100,6 +103,7 @@ const FORM_INICIAL_CLIENTE = {
   nome: "",
   cpf: "",
   telefone: "",
+  email: "",
   cep: "",
   endereco: "",
   numero: "",
@@ -189,10 +193,14 @@ function gerarCodigo(prefixo = "KC", custo = "") {
 
 function gerarPortalToken() {
   const caracteres = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const aleatorios = new Uint8Array(12);
+
+  globalThis.crypto.getRandomValues(aleatorios);
+
   let token = "KC";
 
-  for (let i = 0; i < 6; i += 1) {
-    token += caracteres[Math.floor(Math.random() * caracteres.length)];
+  for (const valor of aleatorios) {
+    token += caracteres[valor % caracteres.length];
   }
 
   return token;
@@ -625,9 +633,14 @@ function AppContent() {
     paramsPortal.get("cadastro") === "cliente" &&
     Boolean(empresaSlugPublico);
 
+  const lojaPublicaAtiva =
+    paramsPortal.get("loja") === "online" &&
+    Boolean(empresaSlugPublico);
+
   const rotaPublica =
     portalClienteAtivo ||
-    cadastroPublicoAtivo;
+    cadastroPublicoAtivo ||
+    lojaPublicaAtiva;
 
 
   const {
@@ -1010,6 +1023,8 @@ function AppContent() {
   const [carregandoSacolinhas, setCarregandoSacolinhas] = useState(false);
   const [sacolinhasExpandidas, setSacolinhasExpandidas] = useState({});
   const [pedidosEnvio, setPedidosEnvio] = useState([]);
+  const [erroPedidosEnvio, setErroPedidosEnvio] = useState("");
+  const requisicaoPedidosEnvio = useRef(0);
   const [pedidoEnvioSacolinhas, setPedidoEnvioSacolinhas] = useState([]);
   const [carregandoPedidosEnvio, setCarregandoPedidosEnvio] = useState(false);
   const [pedidosEnvioExpandidos, setPedidosEnvioExpandidos] = useState({});
@@ -1857,6 +1872,10 @@ Qualquer dúvida, é só nos chamar! 💕`;
   ]);
 
   useEffect(() => {
+    requisicaoPedidosEnvio.current += 1;
+    setPedidosEnvio([]);
+    setErroPedidosEnvio("");
+    setItensConferidosPedido({});
     if (rotaPublica) {
       setCarregando(false);
       return;
@@ -1868,7 +1887,8 @@ Qualquer dúvida, é só nos chamar! 💕`;
     }
 
     carregarTudoInicial();
-  }, [rotaPublica, podeAcessarDadosAdministrativos]);
+    return () => { requisicaoPedidosEnvio.current += 1; };
+  }, [rotaPublica, podeAcessarDadosAdministrativos, empresaId]);
 
   useEffect(() => {
     if (!podeAcessarDadosAdministrativos) return undefined;
@@ -2004,7 +2024,10 @@ Qualquer dúvida, é só nos chamar! 💕`;
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "pedidos_envio" },
-        carregarPedidosEnvio
+        () => {
+          // O carregador já apresenta o erro na seção; evitar rejeição solta no Realtime.
+          carregarPedidosEnvio().catch(() => {});
+        }
       )
       .subscribe();
 
@@ -2025,7 +2048,7 @@ Qualquer dúvida, é só nos chamar! 💕`;
       supabase.removeChannel(channelPedidosEnvio);
       supabase.removeChannel(channelPedidoEnvioSacolinhas);
     };
-  }, [podeAcessarDadosAdministrativos]);
+  }, [podeAcessarDadosAdministrativos, empresaId]);
 
   useEffect(() => {
     if (!podeAcessarDadosAdministrativos || !liveEmVisualizacao?.id) {
@@ -2253,13 +2276,17 @@ Qualquer dúvida, é só nos chamar! 💕`;
     }
   }
 
-  async function salvarCadastroClientePublico() {
+  async function salvarCadastroClientePublico(captchaToken) {
     try {
       setSalvandoCadastroPublico(true);
 
       const payload = {
-        ...montarPayloadCliente(formCliente, { exigirCpf: true }),
+        ...montarPayloadCliente(formCliente, {
+          exigirCpf: true,
+          exigirEmail: true,
+        }),
         empresaSlug: empresaSlugPublico,
+        captchaToken: String(captchaToken || "").trim(),
       };
       const resultado = await cadastrarClientePublico(payload);
 
@@ -2288,6 +2315,7 @@ Qualquer dúvida, é só nos chamar! 💕`;
       nome: clienteSelecionado.nome || "",
       cpf: clienteSelecionado.cpf || "",
       telefone: clienteSelecionado.telefone || "",
+      email: clienteSelecionado.email || "",
       cep: clienteSelecionado.cep || "",
       endereco: clienteSelecionado.endereco || "",
       numero: clienteSelecionado.numero || "",
@@ -3712,7 +3740,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     const itensConferidos = itensConferidosPedido[pedido.id] || [];
     const totalItens = pedido.quantidadeCalculada || 0;
 
-    if (itensConferidos.length !== totalItens) {
+    if (totalItens <= 0 || itensConferidos.length !== totalItens) {
       alert("Confira todos os itens antes.");
       return;
     }
@@ -3721,6 +3749,16 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
     if (!confirmar) return;
 
     try {
+      if (pedido.origem === 'loja') {
+        const { error } = await supabase.rpc('loja_expedicao_finalizar', {
+          p_empresa_id: empresaId, p_envio_id: pedido.id, p_itens: itensConferidos,
+        });
+        if (error) throw new Error('Não foi possível finalizar: confira os itens e a situação do pedido.');
+        setItensConferidosPedido((prev) => ({ ...prev, [pedido.id]: [] }));
+        await recarregarExpedicao();
+        resetExpansoesExpedicao();
+        return;
+      }
       const agora = agoraIso();
 
       const { error: erroPedido } = await supabase
@@ -3772,7 +3810,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   async function criarPedidoDeEnvio(clienteNome) {
     if (criandoPedidoEnvioCliente === clienteNome) return;
 
-    if (clienteJaTemPedidoAtivo(clienteNome, pedidosEnvio)) {
+    if (clienteJaTemPedidoAtivo(clienteNome, pedidosEnvio.filter((p) => p.origem !== 'loja'))) {
       alert("Essa cliente já possui um pedido de envio em andamento.");
       return;
     }
@@ -3906,21 +3944,41 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   }
 
   async function carregarPedidosEnvio() {
-    setCarregandoPedidosEnvio(true);
-
-    const { data, error } = await supabase
-      .from("pedidos_envio")
-      .select("*")
-      .order("criado_em", { ascending: false });
-
-    if (error) {
-      console.error("ERRO AO CARREGAR PEDIDOS DE ENVIO:", error);
+    const requisicao = ++requisicaoPedidosEnvio.current;
+    if (!podeAcessarDadosAdministrativos || !empresaId) {
+      setPedidosEnvio([]);
       setCarregandoPedidosEnvio(false);
-      throw new Error(`Erro ao carregar pedidos de envio: ${error.message}`);
+      return;
     }
 
-    setPedidosEnvio(data || []);
-    setCarregandoPedidosEnvio(false);
+    setCarregandoPedidosEnvio(true);
+    setErroPedidosEnvio("");
+    try {
+      const { data, error } = await supabase
+        .from("pedidos_envio")
+        .select("*")
+        .eq("empresa_id", empresaId)
+        .order("criado_em", { ascending: false });
+      if (requisicao !== requisicaoPedidosEnvio.current) return;
+      if (error) throw new Error('Não foi possível carregar os pedidos de envio.');
+
+      const { data: origens, error: erroOrigens } = await supabase.rpc(
+        'loja_expedicao_ler', { p_empresa_id: empresaId }
+      );
+      if (requisicao !== requisicaoPedidosEnvio.current) return;
+      // Após o rollout, qualquer falha de origem impede projetar Loja como Live.
+      if (erroOrigens || !Array.isArray(origens)) {
+        throw new Error('Não foi possível carregar a origem dos pedidos de envio.');
+      }
+      setPedidosEnvio(combinarOrigensExpedicao(data || [], origens));
+    } catch (error) {
+      if (requisicao !== requisicaoPedidosEnvio.current) return;
+      setPedidosEnvio([]);
+      setErroPedidosEnvio(error.message || 'Erro ao carregar a expedição.');
+      throw error;
+    } finally {
+      if (requisicao === requisicaoPedidosEnvio.current) setCarregandoPedidosEnvio(false);
+    }
   }
 
   async function carregarPedidoEnvioSacolinhas() {
@@ -4486,6 +4544,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   }, [pecas, buscaPeca, filtroEstoque, pecaIdsEnviados]);
 
   const MENU_ITEMS = [
+    { id: "loja", label: "Loja Online", icon: Boxes, adminOnly: true },
     { id: "cadastro", label: "Cadastro", icon: Package, adminOnly: false },
     { id: "pecas", label: "Estoque", icon: Boxes, adminOnly: false },
     { id: "vendas", label: "Vendas", icon: ShoppingBag, adminOnly: false },
@@ -4501,6 +4560,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
   const menuVisivel = MENU_ITEMS.filter((item) => !item.adminOnly || isAdmin);
 
   function getTituloAba(aba) {
+    if (aba === "loja") return "Loja Online";
     if (aba === "cadastro") return "Cadastro";
     if (aba === "pecas") return "Estoque";
     if (aba === "vendas") return "Vendas";
@@ -4709,6 +4769,14 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
         cadastroPublicoConcluido={cadastroPublicoConcluido}
         salvandoCadastroPublico={salvandoCadastroPublico}
         salvarCadastroClientePublico={salvarCadastroClientePublico}
+      />
+    );
+  }
+
+  if (lojaPublicaAtiva) {
+    return (
+      <LojaPublica
+        empresaSlug={empresaSlugPublico}
       />
     );
   }
@@ -5414,6 +5482,8 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
               </div>
             </div>
 
+            {abaAtiva === "loja" && isAdmin && <LojaGestao key={empresaAtiva?.id} empresaId={empresaAtiva?.id} pecas={pecas} />}
+
             {abaAtiva === "configuracao" && (
               <ConfiguracaoSection
                 cores={coresApp}
@@ -5485,6 +5555,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
             )}
             {abaAtiva === "vendas" && (
               <VendasSection
+                empresaId={empresaAtiva?.id || ""}
                 boxGrande={estilosTema.boxGrande}
                 tituloSecao={estilosTema.tituloSecao}
                 cabecalhoSecao={cabecalhoSecao}
@@ -5757,6 +5828,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
 
                 cancelarPedidoDeEnvio={cancelarPedidoDeEnvio}
                 pedidoEstaConferido={pedidoEstaConferido}
+                erroPedidosEnvio={erroPedidosEnvio}
                 itensConferidosPedido={itensConferidosPedido}
                 marcarPedidoComoEnviado={marcarPedidoComoEnviado}
                 toggleItemConferidoPedido={toggleItemConferidoPedido}

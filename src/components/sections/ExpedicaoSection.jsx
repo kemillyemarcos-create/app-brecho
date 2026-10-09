@@ -492,6 +492,7 @@ export default function ExpedicaoSection({
     pedidosEnvioEmMontagem,
     pedidosEnvioConcluidos,
     carregandoPedidosEnvio,
+    erroPedidosEnvio,
     mostrarAbertas,
     setMostrarAbertas,
     mostrarSeparadas,
@@ -952,8 +953,10 @@ export default function ExpedicaoSection({
                 ))}
             </div>
 
-            {sacolinhasAgrupadas.length === 0 ? (
-                <EmptyState>Nenhuma sacolinha encontrada.</EmptyState>
+            {sacolinhasAgrupadas.length === 0 &&
+            pedidosEnvioEmMontagem.length === 0 &&
+            pedidosEnvioConcluidos.length === 0 ? (
+                <EmptyState>Nenhuma sacolinha ou pedido de envio encontrado.</EmptyState>
             ) : (
                 <div style={painel}>
                     <SectionHeader
@@ -1107,7 +1110,7 @@ export default function ExpedicaoSection({
                             ) : (
                                 pedidosEnvioEmMontagem.map((pedido) => {
                                     const expandido = !!pedidosEnvioExpandidos[pedido.id];
-                                    const conferido = pedidoEstaConferido(pedido, itensConferidosPedido);
+                                    const conferido = pedido.quantidadeCalculada > 0 && pedidoEstaConferido(pedido, itensConferidosPedido);
                                     const totalConferido = (itensConferidosPedido[pedido.id] || []).length;
 
                                     return (
@@ -1142,7 +1145,7 @@ export default function ExpedicaoSection({
 
                                                     <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
                                                         <Badge tone="primary" icon={Truck}>{pedido.status}</Badge>
-                                                        <Badge tone="muted" icon={Archive}>{pedido.sacolinhas?.length || 0} sacolinha(s)</Badge>
+                                                        <Badge tone="muted" icon={Archive}>{pedido.origem === 'loja' ? 'Loja Online' : `${pedido.sacolinhas?.length || 0} sacolinha(s)`}</Badge>
                                                         <Badge tone="muted" icon={Boxes}>{pedido.quantidadeCalculada} peça(s)</Badge>
                                                         <Badge tone="primary" icon={Wallet}>{formatarBRL(pedido.valorTotalPedido || 0)}</Badge>
                                                         <Badge tone={conferido ? "success" : "warning"} icon={FileCheck2}>
@@ -1152,13 +1155,13 @@ export default function ExpedicaoSection({
                                                 </div>
 
                                                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: isMobile ? "flex-start" : "flex-end" }}>
-                                                    <IconButton
+                                                    {pedido.origem !== 'loja' && <IconButton
                                                         icon={RotateCcw}
                                                         label="Voltar para separadas"
                                                         tone="muted"
                                                         isMobile={isMobile}
                                                         onClick={() => cancelarPedidoDeEnvio(pedido.id, pedido.cliente_nome)}
-                                                    />
+                                                    />}
                                                     <IconButton
                                                         icon={Check}
                                                         label="Marcar pedido como enviado"
@@ -1172,7 +1175,7 @@ export default function ExpedicaoSection({
 
                                             {expandido ? (
                                                 <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
-                                                    <BlocoInfo titulo="Sacolinhas incluídas" icon={Archive}>
+                                                    {pedido.origem !== 'loja' && <BlocoInfo titulo="Sacolinhas incluídas" icon={Archive}>
                                                         {!pedido.sacolinhas || pedido.sacolinhas.length === 0 ? (
                                                             <EmptyState>Nenhuma sacolinha vinculada.</EmptyState>
                                                         ) : (
@@ -1185,8 +1188,12 @@ export default function ExpedicaoSection({
                                                                 </div>
                                                             ))
                                                         )}
-                                                    </BlocoInfo>
+                                                    </BlocoInfo>}
 
+                                                    {pedido.origem === 'loja' && pedido.destino_loja && <BlocoInfo titulo="Destino da compra" icon={Truck}>
+                                                        <p>{pedido.destino_loja.endereco}, {pedido.destino_loja.numero} {pedido.destino_loja.complemento}</p>
+                                                        <p>{pedido.destino_loja.bairro} · {pedido.destino_loja.cidade}/{pedido.destino_loja.uf} · CEP {pedido.destino_loja.cep}</p>
+                                                    </BlocoInfo>}
                                                     <BlocoInfo titulo="Rastreamento" icon={Truck}>
                                                         {renderRastreamentoPedido(pedido)}
                                                     </BlocoInfo>
@@ -1242,6 +1249,8 @@ export default function ExpedicaoSection({
 
                     <div style={divisoria} />
 
+                    {erroPedidosEnvio && <p role="alert">{erroPedidosEnvio}</p>}
+
                     <SectionHeader
                         titulo="Enviadas"
                         quantidade={pedidosEnvioConcluidos.length}
@@ -1278,7 +1287,7 @@ export default function ExpedicaoSection({
 
                                                 <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
                                                     <Badge tone="success" icon={CheckCircle2}>Enviado</Badge>
-                                                    <Badge tone="muted" icon={Archive}>{pedido.sacolinhas?.length || 0} sacolinha(s)</Badge>
+                                                    <Badge tone="muted" icon={Archive}>{pedido.origem === 'loja' ? 'Loja Online' : `${pedido.sacolinhas?.length || 0} sacolinha(s)`}</Badge>
                                                     <Badge tone="muted" icon={Boxes}>{pedido.quantidadeCalculada} peça(s)</Badge>
                                                     <Badge tone="primary" icon={Wallet}>{formatarBRL(pedido.valorTotalPedido || 0)}</Badge>
                                                     <Badge tone="success" icon={Clock3}>{formatarDataHoraBR(pedido.enviado_em) || "-"}</Badge>
@@ -1287,7 +1296,7 @@ export default function ExpedicaoSection({
 
                                             {expandido ? (
                                                 <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
-                                                    <BlocoInfo titulo="Sacolinhas enviadas" icon={Archive}>
+                                                    {pedido.origem !== 'loja' && <BlocoInfo titulo="Sacolinhas enviadas" icon={Archive}>
                                                         {!pedido.sacolinhas || pedido.sacolinhas.length === 0 ? (
                                                             <EmptyState>Nenhuma sacolinha vinculada.</EmptyState>
                                                         ) : (
@@ -1300,8 +1309,12 @@ export default function ExpedicaoSection({
                                                                 </div>
                                                             ))
                                                         )}
-                                                    </BlocoInfo>
+                                                    </BlocoInfo>}
 
+                                                    {pedido.origem === 'loja' && pedido.destino_loja && <BlocoInfo titulo="Destino da compra" icon={Truck}>
+                                                        <p>{pedido.destino_loja.endereco}, {pedido.destino_loja.numero} {pedido.destino_loja.complemento}</p>
+                                                        <p>{pedido.destino_loja.bairro} · {pedido.destino_loja.cidade}/{pedido.destino_loja.uf} · CEP {pedido.destino_loja.cep}</p>
+                                                    </BlocoInfo>}
                                                     <BlocoInfo titulo="Rastreamento" icon={Truck}>
                                                         {renderRastreamentoPedido(pedido)}
                                                     </BlocoInfo>
