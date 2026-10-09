@@ -49,6 +49,11 @@ type PreparacaoPagamento = {
   provider_checkout_id: string | null;
 };
 
+type PedidoItemPagamento = {
+  nome: string;
+  preco: number | string;
+};
+
 type RespostaMercadoPago = {
   id?: string;
   type?: string;
@@ -213,8 +218,99 @@ async function prepararPagamento(
   return pagamento;
 }
 
+async function buscarItensPedido(
+  supabase: SupabaseClient,
+  pagamento: PreparacaoPagamento,
+): Promise<PedidoItemPagamento[]> {
+  const { data, error } = await supabase
+    .from("pedido_itens_loja")
+    .select("nome, preco")
+    .eq("empresa_id", pagamento.empresa_id)
+    .eq("pedido_id", pagamento.pedido_id)
+    .order("id", { ascending: true });
+
+  if (error) {
+    throw new Error(
+      `Não foi possível consultar os itens do pedido: ${error.message}`,
+    );
+  }
+
+  const itens =
+    Array.isArray(data)
+      ? data as PedidoItemPagamento[]
+      : [];
+
+  if (itens.length === 0) {
+    throw new Error(
+      "Pedido sem itens para pagamento.",
+    );
+  }
+
+  return itens;
+}
+
+function montarItensMercadoPago(
+  pagamento: PreparacaoPagamento,
+  itens: PedidoItemPagamento[],
+) {
+  const items = itens.map((item) => {
+    const nome =
+      typeof item.nome === "string"
+        ? item.nome.trim()
+        : "";
+
+    if (!nome) {
+      throw new Error(
+        "Item do pedido sem nome válido.",
+      );
+    }
+
+    const valor =
+      formatarValorMercadoPago(item.preco);
+
+    return {
+      title: nome,
+      quantity: 1,
+      unit_price: valor,
+      unit_measure: "unit",
+      total_amount: valor,
+    };
+  });
+
+  const totalItensCentavos =
+    items.reduce(
+      (soma, item) =>
+        soma +
+        Math.round(
+          Number(item.total_amount) * 100,
+        ),
+      0,
+    );
+
+  const totalPagamentoCentavos =
+    Math.round(
+      Number(
+        formatarValorMercadoPago(
+          pagamento.valor,
+        ),
+      ) * 100,
+    );
+
+  if (
+    totalItensCentavos !==
+    totalPagamentoCentavos
+  ) {
+    throw new Error(
+      "Total dos itens diverge do valor do pagamento.",
+    );
+  }
+
+  return items;
+}
+
 async function criarOrderMercadoPago(
   pagamento: PreparacaoPagamento,
+  itens: PedidoItemPagamento[],
 ): Promise<RespostaMercadoPago> {
   if (!MERCADO_PAGO_ACCESS_TOKEN) {
     throw new Error(
@@ -227,10 +323,17 @@ async function criarOrderMercadoPago(
       pagamento.valor,
     );
 
+  const items =
+    montarItensMercadoPago(
+      pagamento,
+      itens,
+    );
+
   const payload = {
     type: "online",
     processing_mode: "manual",
     total_amount: totalAmount,
+    items,
     external_reference:
       pagamento.pagamento_id,
     description:
@@ -489,9 +592,16 @@ export default {
         throw new Error("Empresa não habilitada para este vendedor.");
       }
 
+      const itens =
+        await buscarItensPedido(
+          supabase,
+          pagamento,
+        );
+
       const order =
         await criarOrderMercadoPago(
           pagamento,
+          itens,
         );
 
       await registrarCheckout(
