@@ -240,11 +240,14 @@ test(
           title: "Calça Ponto Design",
           quantity: 1,
           unit_price: "29.00",
-          unit_measure: "unit",
-          total_amount: "29.00",
         },
       ],
     );
+
+    for (const item of payload.items) {
+      assert.equal(Object.hasOwn(item, "total_amount"), false);
+      assert.equal(Object.hasOwn(item, "unit_measure"), false);
+    }
 
     assert.equal(
       payload.total_amount,

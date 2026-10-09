@@ -273,8 +273,6 @@ function montarItensMercadoPago(
       title: nome,
       quantity: 1,
       unit_price: valor,
-      unit_measure: "unit",
-      total_amount: valor,
     };
   });
 
@@ -283,7 +281,7 @@ function montarItensMercadoPago(
       (soma, item) =>
         soma +
         Math.round(
-          Number(item.total_amount) * 100,
+          Number(item.unit_price) * 100,
         ),
       0,
     );
