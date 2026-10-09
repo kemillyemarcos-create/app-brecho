@@ -9,9 +9,19 @@ function carregar({
     { nome: "Calça Ponto Design", preco: 29 },
   ],
   valorPagamento = 29,
+  mercadoPagoStatus = 200,
+  mercadoPagoBody = {
+    id: "order-123",
+    checkout_url:
+      "https:" + "//mercadopago.test/checkout",
+    integration_data: {
+      application_id: "app-123",
+    },
+  },
 } = {}) {
   const chamadasRpc = [];
   const requisicoesMercadoPago = [];
+  const errosConsole = [];
 
   const source = readFileSync(
     new URL("./index.ts", import.meta.url),
@@ -123,7 +133,9 @@ function carregar({
     Response,
     URL,
     console: {
-      error() {},
+      error(...args) {
+        errosConsole.push(args);
+      },
       log() {},
     },
     Deno: {
@@ -154,14 +166,12 @@ function carregar({
         init,
       });
 
-      return Response.json({
-        id: "order-123",
-        checkout_url:
-          "https:" + "//mercadopago.test/checkout",
-        integration_data: {
-          application_id: "app-123",
+      return Response.json(
+        mercadoPagoBody,
+        {
+          status: mercadoPagoStatus,
         },
-      });
+      );
     },
   });
 
@@ -174,6 +184,7 @@ function carregar({
     handler: context.handler,
     chamadasRpc,
     requisicoesMercadoPago,
+    errosConsole,
   };
 }
 
@@ -280,6 +291,46 @@ test(
     assert.equal(
       requisicoesMercadoPago.length,
       0,
+    );
+  },
+);
+
+
+test(
+  "registra details quando Mercado Pago rejeita a Order",
+  async () => {
+    const {
+      handler,
+      errosConsole,
+    } = carregar({
+      mercadoPagoStatus: 400,
+      mercadoPagoBody: {
+        status: 400,
+        details: [
+          {
+            code: "unsupported_properties",
+            message: "Campo não suportado.",
+          },
+        ],
+      },
+    });
+
+    const response =
+      await handler.fetch(request());
+
+    assert.equal(response.status, 500);
+
+    const log = JSON.stringify(
+      errosConsole,
+    );
+
+    assert.match(
+      log,
+      /unsupported_properties/,
+    );
+    assert.match(
+      log,
+      /Campo não suportado/,
     );
   },
 );
