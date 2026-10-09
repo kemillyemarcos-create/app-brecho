@@ -12,7 +12,12 @@ export default function StoreHero({ produtos, obterUrlFoto, campaignImage, campa
     <div className={`kc-store-hero-visual${campaignImage ? " kc-store-hero-campaign" : ""}`}>
       {campaignImage ? <img src={campaignImage} alt={campaignAlt} fetchPriority="high" /> : fotos.length ? fotos.map((produto, index) =>
         <figure key={produto.publicacao_id}><img src={obterUrlFoto(produto.foto_principal)} alt={produto.nome} fetchPriority={index === 0 ? "high" : "auto"} /><figcaption>{produto.marca || "SELEÇÃO K.CHIC"}<span>0{index + 1}</span></figcaption></figure>
-      ) : <div className="kc-store-hero-monogram" aria-hidden="true">K.<span>CURADORIA & ESTILO</span></div>}
+      ) : <div className="kc-store-hero-monogram" aria-hidden="true">
+          <span className="kc-store-hero-monogram-mark">K.</span>
+          <span className="kc-store-hero-monogram-label">CURADORIA & ESTILO</span>
+          <span className="kc-store-hero-monogram-line"></span>
+          <span className="kc-store-hero-monogram-caption">PEÇAS ÚNICAS · MARCAS QUE VOCÊ AMA</span>
+        </div>}
     </div>
   </section>;
 }

@@ -5555,6 +5555,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
             )}
             {abaAtiva === "vendas" && (
               <VendasSection
+                empresaId={empresaAtiva?.id || ""}
                 boxGrande={estilosTema.boxGrande}
                 tituloSecao={estilosTema.tituloSecao}
                 cabecalhoSecao={cabecalhoSecao}

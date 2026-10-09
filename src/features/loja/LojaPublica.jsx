@@ -45,6 +45,8 @@ export default function LojaPublica({ empresaSlug }) {
   const [erroSacola, setErroSacola] = useState("");
   const [adicionandoPublicacaoId, setAdicionandoPublicacaoId] =
     useState(null);
+  const [validandoCaptchaPublicacaoId, setValidandoCaptchaPublicacaoId] =
+    useState(null);
   const [ultimaAdicionadaId, setUltimaAdicionadaId] = useState(null);
   const [sacolaAberta, setSacolaAberta] = useState(false);
   const [temTokenCarrinho, setTemTokenCarrinho] = useState(false);
@@ -140,6 +142,7 @@ export default function LojaPublica({ empresaSlug }) {
 
               captchaProdutoPendenteRef.current =
                 null;
+              setValidandoCaptchaPublicacaoId(null);
 
               if (
                 produtoPendente &&
@@ -154,10 +157,14 @@ export default function LojaPublica({ empresaSlug }) {
             "expired-callback": () => {
               if (!ativo) return;
               setCaptchaToken("");
+              setValidandoCaptchaPublicacaoId(null);
+              captchaProdutoPendenteRef.current = null;
             },
             "error-callback": () => {
               if (!ativo) return;
               setCaptchaToken("");
+              setValidandoCaptchaPublicacaoId(null);
+              captchaProdutoPendenteRef.current = null;
               setErroSacola(
                 "Não foi possível validar a verificação de segurança."
               );
@@ -506,6 +513,9 @@ export default function LojaPublica({ empresaSlug }) {
       captchaProdutoPendenteRef.current =
         produto;
 
+      setValidandoCaptchaPublicacaoId(
+        produto.publicacao_id
+      );
       setErroSacola("");
 
       try {
@@ -515,6 +525,7 @@ export default function LojaPublica({ empresaSlug }) {
       } catch {
         captchaProdutoPendenteRef.current =
           null;
+        setValidandoCaptchaPublicacaoId(null);
 
         setErroSacola(
           "Não foi possível iniciar a verificação de segurança."
@@ -884,7 +895,7 @@ export default function LojaPublica({ empresaSlug }) {
   // Presentation-only selections; the catalog request and filters stay unchanged.
   const recentes = [...produtos].sort((a, b) => new Date(b.publicada_em) - new Date(a.publicada_em));
   const novidades = recentes.slice(0, 4);
-  const vejaTambem = recentes.length > 4 ? recentes.slice(4, 8) : recentes.slice(0, 4);
+  const vejaTambem = recentes.slice(4, 8);
 
   function abrirProduto(produto) {
     setFotoSelecionada(null);
@@ -936,8 +947,20 @@ export default function LojaPublica({ empresaSlug }) {
           {!temTokenCarrinho && hcaptchaSiteKey && <div ref={captchaContainerRef} style={{ width: 0, height: 0, overflow: "hidden" }} />}
           <button className="kc-store-primary" type="button"
             onClick={() => adicionarNaSacola(produtoSelecionado)}
-            disabled={adicionandoPublicacaoId === produtoSelecionado.publicacao_id || (!temTokenCarrinho && (!hcaptchaSiteKey || !captchaPronto))}>
-            {adicionandoPublicacaoId === produtoSelecionado.publicacao_id ? "Adicionando..." : ultimaAdicionadaId === produtoSelecionado.publicacao_id ? "Peça adicionada à sacola" : "ADICIONAR À SACOLA"}
+            disabled={
+              validandoCaptchaPublicacaoId === produtoSelecionado.publicacao_id ||
+              adicionandoPublicacaoId === produtoSelecionado.publicacao_id ||
+              (!temTokenCarrinho && (!hcaptchaSiteKey || !captchaPronto))
+            }>
+            {
+              validandoCaptchaPublicacaoId === produtoSelecionado.publicacao_id
+                ? "Validando..."
+                : adicionandoPublicacaoId === produtoSelecionado.publicacao_id
+                  ? "Adicionando..."
+                  : ultimaAdicionadaId === produtoSelecionado.publicacao_id
+                    ? "Peça adicionada à sacola"
+                    : "ADICIONAR À SACOLA"
+            }
           </button>
           {erroSacola && <p role="alert" className="kc-store-error">{erroSacola}</p>}
           <p className="kc-store-reservation">Reserva por tempo limitado</p>
@@ -952,28 +975,38 @@ export default function LojaPublica({ empresaSlug }) {
     {header}{sacolaModal}
     <main>
       <StoreHero produtos={recentes} obterUrlFoto={obterUrlFoto} />
-      <section className="kc-store-section kc-store-container" aria-labelledby="kc-new-title">
-        <div className="kc-store-section-heading"><div><p className="kc-store-eyebrow">ACABARAM DE CHEGAR</p><h2 id="kc-new-title">NOVIDADES</h2></div><a className="kc-store-text-button" href="#nosso-garimpo">Ver todas as peças ↗</a></div>
-        {carregando ? <p role="status" className="kc-store-empty">Preparando nossos achados...</p> : erro ? <p role="alert" className="kc-store-error">{erro}</p> : novidades.length ? <ProductGrid {...gridProps} produtos={novidades} novidades /> : <p className="kc-store-empty">Novos achados em breve.</p>}
-      </section>
+      {(carregando || erro || produtos.length > 0) && (
+        <section className="kc-store-section kc-store-container" aria-labelledby="kc-new-title">
+          <div className="kc-store-section-heading"><div><p className="kc-store-eyebrow">ACABARAM DE CHEGAR</p><h2 id="kc-new-title">NOVIDADES</h2></div><a className="kc-store-text-button" href="#nosso-garimpo">Ver todas as peças ↗</a></div>
+          {carregando ? <p role="status" className="kc-store-empty">Preparando nossos achados...</p> : erro ? <p role="alert" className="kc-store-error">{erro}</p> : novidades.length ? <ProductGrid {...gridProps} produtos={novidades} novidades /> : null}
+        </section>
+      )}
       <StoreBenefits />
-      <section className="kc-store-brands kc-store-container" aria-labelledby="kc-brands-title">
-        <h2 id="kc-brands-title" className="kc-store-eyebrow">MARCAS QUE VOCÊ AMA</h2>
-        <div>{marcas.map(marca => <button type="button" key={marca} aria-pressed={marcaAtiva === marca} onClick={() => { setMarcaAtiva(marca); irAoCatalogo(); }}>{marca}</button>)}</div>
-        {!carregando && !marcas.length && <p className="kc-store-muted">As marcas aparecem aqui conforme as peças disponíveis.</p>}
-      </section>
+      {(carregando || erro || marcas.length > 0) && (
+        <section className="kc-store-brands kc-store-container" aria-labelledby="kc-brands-title">
+          <h2 id="kc-brands-title" className="kc-store-eyebrow">MARCAS QUE VOCÊ AMA</h2>
+          <div>{marcas.map(marca => <button type="button" key={marca} aria-pressed={marcaAtiva === marca} onClick={() => { setMarcaAtiva(marca); irAoCatalogo(); }}>{marca}</button>)}</div>
+        </section>
+      )}
       <section id="nosso-garimpo" className="kc-store-section kc-store-container kc-store-catalog" aria-labelledby="kc-catalog-title">
         <div className="kc-store-section-heading"><div><p className="kc-store-eyebrow">ENCONTRE O SEU PRÓXIMO ACHADO</p><h2 id="kc-catalog-title">NOSSO GARIMPO</h2></div><p className="kc-store-muted" role="status">{produtosOrdenados.length} {produtosOrdenados.length === 1 ? "peça encontrada" : "peças encontradas"}</p></div>
-        <div className="kc-store-filters">
-          <label>Categoria<select value={categoriaAtiva} onChange={event => setCategoriaAtiva(event.target.value)}><option value="">Todas as categorias</option>{categorias.map(categoria => <option key={categoria} value={categoria}>{categoria}</option>)}</select></label>
-          <label>Marca<select value={marcaAtiva} onChange={event => setMarcaAtiva(event.target.value)}><option value="">Todas as marcas</option>{marcas.map(marca => <option key={marca} value={marca}>{marca}</option>)}</select></label>
-          <label>Tamanho<select value={tamanhoAtivo} onChange={event => setTamanhoAtivo(event.target.value)}><option value="">Todos os tamanhos</option>{tamanhos.map(tamanho => <option key={tamanho} value={tamanho}>{tamanho}</option>)}</select></label>
-          <label>Ordenar<select value={ordenacao} onChange={event => setOrdenacao(event.target.value)}><option value="recentes">Mais recentes</option><option value="menor-preco">Menor preço</option><option value="maior-preco">Maior preço</option><option value="nome">Nome A-Z</option></select></label>
-        </div>
+        {(carregando || erro || produtos.length > 0) && (
+          <div className="kc-store-filters">
+            <label>Categoria<select value={categoriaAtiva} onChange={event => setCategoriaAtiva(event.target.value)}><option value="">Todas as categorias</option>{categorias.map(categoria => <option key={categoria} value={categoria}>{categoria}</option>)}</select></label>
+            <label>Marca<select value={marcaAtiva} onChange={event => setMarcaAtiva(event.target.value)}><option value="">Todas as marcas</option>{marcas.map(marca => <option key={marca} value={marca}>{marca}</option>)}</select></label>
+            <label>Tamanho<select value={tamanhoAtivo} onChange={event => setTamanhoAtivo(event.target.value)}><option value="">Todos os tamanhos</option>{tamanhos.map(tamanho => <option key={tamanho} value={tamanho}>{tamanho}</option>)}</select></label>
+            <label>Ordenar<select value={ordenacao} onChange={event => setOrdenacao(event.target.value)}><option value="recentes">Mais recentes</option><option value="menor-preco">Menor preço</option><option value="maior-preco">Maior preço</option><option value="nome">Nome A-Z</option></select></label>
+          </div>
+        )}
         {filtrosAtivos && <div className="kc-store-filter-summary"><span>{[busca && `Busca: “${busca}”`, categoriaAtiva, marcaAtiva, tamanhoAtivo && `Tam. ${tamanhoAtivo}`].filter(Boolean).join(" / ")}</span><button type="button" className="kc-store-text-button" onClick={limparFiltros}>Limpar filtros</button></div>}
         {carregando && <p role="status" className="kc-store-empty">Carregando produtos...</p>}
         {!carregando && erro && <p role="alert" className="kc-store-error">{erro}</p>}
-        {!carregando && !erro && produtos.length === 0 && <p className="kc-store-empty">Nenhuma peça disponível no momento.</p>}
+        {!carregando && !erro && produtos.length === 0 && (
+          <div className="kc-store-empty kc-store-catalog-empty">
+            <p>Nenhum achado disponível no momento.</p>
+            <span>Novas peças entram conforme a curadoria da K.Chic.</span>
+          </div>
+        )}
         {!carregando && !erro && produtos.length > 0 && produtosOrdenados.length === 0 && <div className="kc-store-empty"><p>Nenhuma peça encontrada com estes filtros.</p><button type="button" className="kc-store-text-button" onClick={limparFiltros}>Ver todas as peças</button></div>}
         {!carregando && !erro && produtosOrdenados.length > 0 && <ProductGrid {...gridProps} produtos={produtosOrdenados} />}
         {!carregando && produtos.length > 0 && temMaisProdutos && (
@@ -994,9 +1027,11 @@ export default function LojaPublica({ empresaSlug }) {
           </p>
         )}
       </section>
-      <section className="kc-store-section kc-store-container" aria-labelledby="kc-also-title"><div className="kc-store-section-heading"><div><p className="kc-store-eyebrow">MAIS POSSIBILIDADES PARA O SEU ESTILO</p><h2 id="kc-also-title">VEJA TAMBÉM</h2></div></div>
-        {vejaTambem.length ? <ProductGrid {...gridProps} produtos={vejaTambem} novidades /> : <p className="kc-store-muted">Explore todos os achados disponíveis no nosso garimpo.</p>}
-      </section>
+      {vejaTambem.length > 0 && (
+        <section className="kc-store-section kc-store-container" aria-labelledby="kc-also-title"><div className="kc-store-section-heading"><div><p className="kc-store-eyebrow">MAIS POSSIBILIDADES PARA O SEU ESTILO</p><h2 id="kc-also-title">VEJA TAMBÉM</h2></div></div>
+          {vejaTambem.length ? <ProductGrid {...gridProps} produtos={vejaTambem} novidades /> : <p className="kc-store-muted">Explore todos os achados disponíveis no nosso garimpo.</p>}
+        </section>
+      )}
       <section className="kc-store-about" id="sobre-kchic"><div className="kc-store-container"><p className="kc-store-eyebrow">O OLHAR K.CHIC</p><h2>Estilo que encontra<br /><em>novas histórias.</em></h2><div><p>Acreditamos no encanto de encontrar uma peça que tem tudo a ver com você. Por isso, cada achado da K.Chic é selecionado individualmente.</p><p>Marcas que você ama, peças únicas e novas possibilidades para se vestir do seu jeito.</p><a className="kc-store-text-button" href="#nosso-garimpo">Conheça nosso garimpo ↗</a></div></div></section>
     </main>
     <StoreFooter onAcompanharPedido={() => setCheckoutAberto(true)} />

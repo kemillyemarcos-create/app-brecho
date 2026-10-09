@@ -2,12 +2,43 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import './styles/loja-publica.css';
+import { restaurarPedido, limparAcompanhamento } from './checkoutPedido';
 
-export default function CheckoutLoja({ empresaSlug, tokenCarrinho, onFechar, resumoSacola, subtotal, formatarPreco, obterUrlFoto }) {
+function formatarCpfInput(valor) {
+  const digitos = String(valor || "")
+    .replace(/\D/g, "")
+    .slice(0, 11);
+
+  return digitos
+    .replace(/^(\d{3})(\d)/, "$1.$2")
+    .replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1-$2");
+}
+
+function formatarTelefoneInput(valor) {
+  const digitos = String(valor || "")
+    .replace(/\D/g, "")
+    .slice(0, 11);
+
+  if (digitos.length <= 2) {
+    return digitos ? `(${digitos}` : "";
+  }
+
+  if (digitos.length <= 7) {
+    return `(${digitos.slice(0, 2)}) ${digitos.slice(2)}`;
+  }
+
+  return `(${digitos.slice(0, 2)}) ${digitos.slice(2, 7)}-${digitos.slice(7)}`;
+}
+
+export default function CheckoutLoja(props) {
+  // Trocar loja/sacola reinicia os estados e cancela consultas da sessão anterior.
+  return <CheckoutSessao key={`${props.empresaSlug}:${props.tokenCarrinho || ''}`} {...props} />;
+}
+
+function CheckoutSessao({ empresaSlug, tokenCarrinho, onFechar, resumoSacola, subtotal, formatarPreco, obterUrlFoto }) {
   const chave = `loja:pedido:${empresaSlug}`;
-  const [pedido, setPedido] = useState(() => {
-    try { return JSON.parse(sessionStorage.getItem(chave) || 'null'); } catch { return null; }
-  });
+  const [pedido, setPedido] = useState(() => restaurarPedido(sessionStorage, empresaSlug, tokenCarrinho));
   const [estado, setEstado] = useState(null);
   const [url, setUrl] = useState('');
   const [ocupado, setOcupado] = useState(false);
@@ -47,7 +78,7 @@ export default function CheckoutLoja({ empresaSlug, tokenCarrinho, onFechar, res
         });
         if (error || data?.erro) throw new Error(data?.erro || 'Não foi possível criar o pedido. Verifique os dados e a reserva.');
         if (!data?.pedidoToken) throw new Error('Resposta do pedido inválida.');
-        atual = { pedidoToken: data.pedidoToken, pedidoId: data.pedidoId, total: data.total };
+        atual = { pedidoToken: data.pedidoToken, pedidoId: data.pedidoId, total: data.total, tokenCarrinho };
         // Persistir antes de abrir o pagamento permite retomar após navegação.
         sessionStorage.setItem(chave, JSON.stringify(atual));
         setPedido(atual);
@@ -66,9 +97,13 @@ export default function CheckoutLoja({ empresaSlug, tokenCarrinho, onFechar, res
   }
 
   function encerrar() {
-    sessionStorage.removeItem(chave);
-    localStorage.removeItem(`loja:carrinho:${empresaSlug}`);
-    window.location.reload();
+    try {
+      limparAcompanhamento(sessionStorage, localStorage, empresaSlug, pedido, tokenCarrinho);
+      setPedido(null); setEstado(null); setUrl(''); setErro('');
+      window.location.reload();
+    } catch {
+      setErro('Não foi possível encerrar o acompanhamento. Tente novamente.');
+    }
   }
   const encerrado = estado && estado.status !== 'pendente_pagamento';
   return <section className="kc-store kc-store-checkout" aria-label="Finalizar compra">
@@ -77,12 +112,37 @@ export default function CheckoutLoja({ empresaSlug, tokenCarrinho, onFechar, res
       <div><p className="kc-store-eyebrow">SEUS ACHADOS, QUASE SEUS</p><h1>Finalizar compra</h1>
         {estado && <p className="kc-store-checkout-status" role="status">{estado.status === 'pago' ? 'Pagamento confirmado. A loja recebeu seu pedido.' : estado.pagamento_status === 'paid' ? 'Pagamento recebido após o prazo. Entre em contato com a loja antes de retirar.' : estado.status === 'expirado' ? 'Prazo do pedido encerrado. Se você já pagou, consulte a loja antes de pagar novamente.' : 'Aguardando confirmação oficial do pagamento.'}</p>}
         {!encerrado && <form onSubmit={iniciar} className="kc-store-checkout-form">
-          {!pedido && <><h2>Seus dados</h2><label>Nome completo<input name="nome" required maxLength={160} autoComplete="name" /></label><label>CPF<input name="cpf" required inputMode="numeric" maxLength={14} pattern="[0-9.\-]{11,14}" /></label><label>Telefone com DDD<input name="telefone" required type="tel" maxLength={30} autoComplete="tel" /></label></>}
-          <button className="kc-store-primary" disabled={ocupado || (!pedido && !tokenCarrinho)}>{ocupado ? 'Preparando pagamento…' : 'Preparar pagamento seguro'}</button>
+          {!pedido && <><h2>Seus dados</h2><label>Nome completo<input name="nome" required maxLength={160} autoComplete="name" /></label><label>CPF<input
+              name="cpf"
+              required
+              inputMode="numeric"
+              maxLength={14}
+              pattern="\d{3}\.\d{3}\.\d{3}-\d{2}"
+              placeholder="000.000.000-00"
+              onInput={(event) => {
+                event.currentTarget.value = formatarCpfInput(event.currentTarget.value);
+              }}
+            /></label><label>Telefone com DDD<input
+              name="telefone"
+              required
+              type="tel"
+              inputMode="numeric"
+              maxLength={15}
+              minLength={15}
+              pattern="\(\d{2}\) \d{5}-\d{4}"
+              placeholder="(00) 00000-0000"
+              autoComplete="tel"
+              onInput={(event) => {
+                event.currentTarget.value = formatarTelefoneInput(event.currentTarget.value);
+              }}
+            /></label></>}
+          <button className="kc-store-primary" disabled={ocupado || (!pedido && !tokenCarrinho)}>{ocupado ? 'Preparando pagamento…' : 'CONTINUAR PARA O PAGAMENTO'}</button>
         </form>}
         {url && !encerrado && <div className="kc-store-checkout-status"><a className="kc-store-primary" href={url} target="_blank" rel="noopener noreferrer">Abrir Mercado Pago para pagar</a><p>Após pagar, volte a esta página para acompanhar a confirmação.</p></div>}
+        <div className="kc-store-checkout-actions">
         {pedido && <button type="button" className="kc-store-text-button" onClick={() => setAtualizacao(v => v + 1)}>Consultar confirmação</button>}
         {encerrado && <button type="button" className="kc-store-text-button" onClick={encerrar}>Encerrar acompanhamento e voltar à loja</button>}
+        </div>
         {erro && <p className="kc-store-error" role="alert">{erro}</p>}
       </div>
       <aside className="kc-store-checkout-summary"><h2>Resumo {pedido ? 'do pedido' : 'da sacola'}</h2>

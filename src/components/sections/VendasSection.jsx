@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import VendasLojaOnline from "./VendasLojaOnline";
 import {
     Banknote,
     CheckCircle2,
@@ -19,6 +20,7 @@ import {
 } from "../../utils/dateUtils";
 
 export default function VendasSection({
+    empresaId,
     boxGrande,
     tituloSecao,
     cabecalhoSecao,
@@ -73,6 +75,7 @@ export default function VendasSection({
     formatarBRL,
     formatarDataHoraBR = formatarDataHoraBRPadrao,
 }) {
+    const [origem, setOrigem] = useState("live");
     const [mostrarSugestoesCliente, setMostrarSugestoesCliente] = useState(false);
     const [indiceSugestaoClienteAtiva, setIndiceSugestaoClienteAtiva] = useState(-1);
     const [indiceSugestaoPecaAtiva, setIndiceSugestaoPecaAtiva] = useState(-1);
@@ -401,8 +404,34 @@ export default function VendasSection({
             width: isMobile ? "100%" : "auto",
         });
 
+    const seletorOrigem = (
+        <div role="group" aria-label="Origem das vendas" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {[["live", "Live"], ["loja", "Loja Online"]].map(([valor, rotulo]) => (
+                <button key={valor} type="button" aria-pressed={origem === valor}
+                    style={iconeBotao({ ativo: origem === valor })}
+                    onClick={() => {
+                        // A câmera não deve continuar ativa fora da visão Live.
+                        if (valor === "loja" && scannerAtivo) setScannerAtivo(false);
+                        setOrigem(valor);
+                    }}>
+                    {rotulo}
+                </button>
+            ))}
+        </div>
+    );
+
+    if (origem === "loja") {
+        return <div style={{ display: "grid", gap: isMobile ? 14 : 18 }}>
+            {seletorOrigem}
+            <VendasLojaOnline key={empresaId || "sem-empresa"} empresaId={empresaId}
+                boxGrande={boxGrande} tituloSecao={tituloSecao} input={input}
+                isMobile={isMobile} formatarBRL={formatarBRL} formatarDataHoraBR={formatarDataHoraBR} />
+        </div>;
+    }
+
     return (
         <div style={{ display: "grid", gap: isMobile ? 14 : 18 }}>
+            {seletorOrigem}
             <div
                 style={{
                     ...boxGrande,

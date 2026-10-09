@@ -477,3 +477,8 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/cadastro-cliente-publico/deno.json"
 entrypoint = "./functions/cadastro-cliente-publico/index.ts"
+
+[functions.mercado-pago-reembolsar]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/mercado-pago-reembolsar/index.ts"

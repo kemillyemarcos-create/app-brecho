@@ -71,8 +71,52 @@
 .kc-store-hero-visual figure:only-child { max-width: 440px; margin-inline: auto; }
 .kc-store-hero-campaign { padding: 0; }
 .kc-store-hero-campaign > img { width: 100%; height: 100%; object-fit: cover; }
-.kc-store-hero-monogram { width: 100%; text-align: center; font-family: Georgia, serif; font-size: 220px; line-height: 1.1; color: #c5c1b4; }
-.kc-store-hero-monogram span { display: block; font: 9px/2 system-ui; letter-spacing: .3em; }
+.kc-store-hero-monogram {
+  width: min(520px, 82%);
+  min-height: 360px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #c5c1b4;
+  text-align: center;
+}
+
+.kc-store-hero-monogram-mark {
+  display: block;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(150px, 15vw, 235px);
+  line-height: .82;
+  letter-spacing: -.055em;
+}
+
+.kc-store-hero-monogram-label {
+  display: block;
+  margin-top: 32px;
+  font-size: 9px;
+  line-height: 1.5;
+  letter-spacing: .34em;
+  color: #aaa597;
+}
+
+.kc-store-hero-monogram-line {
+  display: block;
+  width: 56px;
+  height: 1px;
+  margin-top: 26px;
+  background: #c9c5ba;
+}
+
+.kc-store-hero-monogram-caption {
+  display: block;
+  max-width: 280px;
+  margin-top: 22px;
+  font-size: 8px;
+  line-height: 1.8;
+  letter-spacing: .22em;
+  color: #aaa597;
+}
 .kc-store-section { padding-block: 64px; }
 .kc-store-section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 30px; }
 .kc-store-section-heading h2 { margin-top: 7px; font-size: 25px; line-height: 1.25; letter-spacing: .055em; font-weight: 400; }
@@ -107,6 +151,22 @@
 .kc-store .kc-store-filters select { width: 100%; min-width: 0; min-height: 44px; padding: 8px 25px 8px 0; border: 0; border-radius: 0; background: #fff; color: var(--store-text); font-size: 12px; letter-spacing: normal; }
 .kc-store-filter-summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: -12px 0 22px; font-size: 12px; }
 .kc-store-empty { min-height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; color: var(--store-muted); padding: 32px 0; }
+
+.kc-store-catalog-empty {
+  min-height: 120px;
+  gap: 6px;
+  padding-block: 16px;
+}
+
+.kc-store-catalog-empty p {
+  color: var(--store-text);
+  font-size: 13px;
+}
+
+.kc-store-catalog-empty span {
+  font-size: 11px;
+  color: var(--store-muted);
+}
 .kc-store-error { padding: 14px; border-left: 2px solid #963d2f; background: #fff4ed; color: #803628; margin-block: 16px !important; font-size: 13px; }
 .kc-store-about { background: #eae7df; padding-block: 72px; }
 .kc-store-about > div { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px 100px; }
@@ -125,8 +185,21 @@
 .kc-store-breadcrumb { display: flex; align-items: center; gap: 24px; margin-bottom: 24px; font-size: 11px; color: var(--store-muted); }
 .kc-store-detail-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 56px; align-items: start; }
 .kc-store-gallery { min-width: 0; }
-.kc-store-detail-image { aspect-ratio: 4/5; background: var(--store-bg); }
-.kc-store-detail-image > img { width: 100%; height: 100%; object-fit: cover; }
+.kc-store-detail-image {
+  height: min(72vh, 720px);
+  min-height: 540px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--store-bg);
+  overflow: hidden;
+}
+
+.kc-store-detail-image > img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
 .kc-store-thumbnails { display: flex; gap: 12px; overflow-x: auto; margin-top: 16px; padding: 4px; }
 .kc-store-thumbnails button { flex: 0 0 64px; width: 64px; padding: 2px; border: 1px solid transparent; background: none; }
 .kc-store-thumbnails button[aria-pressed="true"] { border-color: var(--store-text); }
@@ -182,6 +255,7 @@
 .kc-store-delivery { font-size: 12px; margin-top: 24px !important; padding-top: 18px; border-top: 1px solid var(--store-line); }
 .kc-store-order-id { font-size: 12px; }
 .kc-store-checkout-status { padding: 18px; background: var(--store-bg); margin-block: 18px !important; font-size: 13px; }
+.kc-store-checkout-actions { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 16px; }
 .kc-store-checkout-status p { margin-top: 12px; }
 @media (max-width: 1100px) {
   .kc-store-container { width: calc(100% - 64px); }
