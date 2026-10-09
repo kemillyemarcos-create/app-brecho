@@ -369,42 +369,46 @@ async function criarOrderMercadoPago(
     },
   );
 
-  let dados: RespostaMercadoPago;
-
-  try {
-    dados =
-      await response.json() as
-        RespostaMercadoPago;
-  } catch {
-    throw new Error(
-      `Mercado Pago retornou resposta inválida. HTTP ${response.status}.`,
-    );
-  }
-
   if (!response.ok) {
+    // Consome o body uma única vez. Mantém campos desconhecidos e respostas não JSON.
+    // Não inclui request/headers; oculta credenciais eventualmente refletidas pelo provedor.
+    let corpoBruto = await response.text();
+    for (const segredo of [MERCADO_PAGO_ACCESS_TOKEN, SUPABASE_SERVICE_ROLE_KEY]) {
+      if (segredo) corpoBruto = corpoBruto.split(segredo).join("[REDACTED]");
+    }
+    corpoBruto = corpoBruto
+      .replace(/("(?:authorization|access_token|refresh_token|client_secret|secret|password|api_key)"\s*:\s*)"(?:\\.|[^"\\])*"/gi, '$1"[REDACTED]"')
+      .replace(/\bBearer\s+[A-Za-z0-9._~+\/=-]+/gi, "Bearer [REDACTED]");
+    let jsonResposta: unknown = null;
+    try {
+      jsonResposta = JSON.parse(corpoBruto);
+    } catch {
+      // Texto/HTML também é evidência útil: preservado em corpoBruto.
+    }
+    const erro = jsonResposta as RespostaMercadoPago | null;
     console.error(
       "Erro ao criar order no Mercado Pago.",
       {
-        httpStatus:
-          response.status,
-        pagamentoId:
-          pagamento.pagamento_id,
-        pedidoId:
-          pagamento.pedido_id,
-        erro:
-          dados.error ??
-          dados.message ??
-          null,
-        details:
-          dados.details ??
-          null,
+        httpStatus: response.status,
+        pagamentoId: pagamento.pagamento_id,
+        pedidoId: pagamento.pedido_id,
+        erro: erro?.error ?? erro?.message ?? null,
+        details: erro?.details ?? null,
+        corpoBruto,
+        jsonResposta,
       },
     );
 
+    // O detalhe do provedor fica somente no log interno.
+    throw new Error(`Mercado Pago retornou HTTP ${response.status}.`);
+  }
+
+  let dados: RespostaMercadoPago;
+  try {
+    dados = await response.json() as RespostaMercadoPago;
+  } catch {
     throw new Error(
-      dados.message ??
-        dados.error ??
-        `Mercado Pago retornou HTTP ${response.status}.`,
+      `Mercado Pago retornou resposta inválida. HTTP ${response.status}.`,
     );
   }
 

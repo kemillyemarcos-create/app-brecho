@@ -10,6 +10,7 @@ function carregar({
   ],
   valorPagamento = 29,
   mercadoPagoStatus = 200,
+  mercadoPagoTexto,
   mercadoPagoBody = {
     id: "order-123",
     checkout_url:
@@ -155,6 +156,8 @@ function carregar({
             return undefined;
           }
 
+          if (name === "MERCADO_PAGO_ACCESS_TOKEN") return "test-mp-secret-never-log";
+          if (name === "SUPABASE_SERVICE_ROLE_KEY") return "test-service-secret-never-log";
           return "fixture";
         },
       },
@@ -166,6 +169,9 @@ function carregar({
         init,
       });
 
+      if (mercadoPagoTexto !== undefined) {
+        return new Response(mercadoPagoTexto, { status: mercadoPagoStatus });
+      }
       return Response.json(
         mercadoPagoBody,
         {
@@ -334,3 +340,42 @@ test(
     );
   },
 );
+
+for (const [nome, corpo, esperado] of [
+  ["JSON com estrutura desconhecida", '{ "errors": [{"code":"unknown_shape","context":{"fields":["items","type"]}}], "trace":"fim-do-corpo" }',
+    { errors: [{code:"unknown_shape",context:{fields:["items","type"]}}], trace:"fim-do-corpo" }],
+  ["texto não JSON", "Bad Request\nResposta textual completa: início <html>detalhe</html> fim", null],
+]) {
+  test(`400 registra corpo completo: ${nome}`, async () => {
+    const {handler,errosConsole,chamadasRpc,requisicoesMercadoPago} = carregar({
+      mercadoPagoStatus:400, mercadoPagoTexto:corpo,
+    });
+    const response = await handler.fetch(request());
+    assert.equal(response.status,500);
+    assert.deepEqual(await response.json(), {erro:"Não foi possível iniciar o pagamento."});
+    const log = errosConsole.find(([mensagem]) => mensagem === "Erro ao criar order no Mercado Pago.")[1];
+    assert.equal(log.httpStatus,400);
+    assert.equal(log.pagamentoId,"22222222-2222-4222-8222-222222222222");
+    assert.equal(log.pedidoId,"11111111-1111-4111-8111-111111111111");
+    assert.equal(log.corpoBruto,corpo);
+    assert.deepEqual(JSON.parse(JSON.stringify(log.jsonResposta)),esperado);
+    assert.equal(requisicoesMercadoPago.length,1); // somente o fetch simulado, sem retry
+    assert.equal(chamadasRpc.some(c => c.name === "loja_registrar_checkout_pagamento"),false);
+    assert.doesNotMatch(JSON.stringify(errosConsole),/test-mp-secret-never-log|test-service-secret-never-log|Bearer|Authorization/);
+  });
+}
+
+test("não registra credenciais mesmo quando refletidas na resposta do provedor", async () => {
+  const {handler,errosConsole} = carregar({mercadoPagoStatus:400, mercadoPagoBody:{
+    message:"test-mp-secret-never-log test-service-secret-never-log",
+    nested:{Authorization:"Bearer reflected-secret",access_token:"another-secret",client_secret:"client-secret"},
+    detalhe:"Bearer text-secret",
+    errors:[{code:"preservar-codigo"}],
+  }});
+  const response = await handler.fetch(request());
+  assert.deepEqual(await response.json(),{erro:"Não foi possível iniciar o pagamento."});
+  const log=JSON.stringify(errosConsole);
+  assert.doesNotMatch(log,/test-mp-secret-never-log|test-service-secret-never-log|reflected-secret|another-secret|client-secret|text-secret/);
+  assert.match(log,/preservar-codigo/);
+  assert.match(log,/REDACTED/);
+});
