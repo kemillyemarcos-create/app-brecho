@@ -68,6 +68,7 @@ type RespostaMercadoPago = {
   error?: string;
   status_code?: number;
   cause?: unknown[];
+  details?: unknown[];
   integration_data?: {
     application_id?: string | number;
   };
@@ -393,6 +394,9 @@ async function criarOrderMercadoPago(
         erro:
           dados.error ??
           dados.message ??
+          null,
+        details:
+          dados.details ??
           null,
       },
     );
