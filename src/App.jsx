@@ -5482,7 +5482,7 @@ Complemento: ${clienteSelecionado.complemento || "-"}`;
               </div>
             </div>
 
-            {abaAtiva === "loja" && isAdmin && <LojaGestao key={empresaAtiva?.id} empresaId={empresaAtiva?.id} pecas={pecas} />}
+            {abaAtiva === "loja" && isAdmin && <LojaGestao key={empresaAtiva?.id} empresaId={empresaAtiva?.id} empresaSlug={empresaAtiva?.slug_publico} pecas={pecas} />}
 
             {abaAtiva === "configuracao" && (
               <ConfiguracaoSection
