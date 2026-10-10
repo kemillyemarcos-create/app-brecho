@@ -2685,7 +2685,7 @@ export default function ConfiguracaoSection({
           </div>
         </div>
 
-        <div style={painel}>
+        <div className="kc-impressao" style={painel}>
           <div style={painelTopo}>
             <div style={icone}>
               <Printer size={20} />
@@ -2791,7 +2791,7 @@ export default function ConfiguracaoSection({
               Conteúdo da etiqueta
             </span>
 
-            <label style={linhaOpcao}>
+            <label className="kc-impressao-opcao" style={linhaOpcao}>
               <span style={textoOpcao}>
                 Mostrar logo
               </span>
@@ -2812,7 +2812,7 @@ export default function ConfiguracaoSection({
               />
             </label>
 
-            <label style={linhaOpcao}>
+            <label className="kc-impressao-opcao" style={linhaOpcao}>
               <span style={textoOpcao}>
                 Mostrar QR Code
               </span>
@@ -2833,7 +2833,7 @@ export default function ConfiguracaoSection({
               />
             </label>
 
-            <label style={linhaOpcao}>
+            <label className="kc-impressao-opcao" style={linhaOpcao}>
               <span style={textoOpcao}>
                 Mostrar preço
               </span>
@@ -2854,7 +2854,7 @@ export default function ConfiguracaoSection({
               />
             </label>
 
-            <label style={linhaOpcao}>
+            <label className="kc-impressao-opcao" style={linhaOpcao}>
               <span style={textoOpcao}>
                 Mostrar código da peça
               </span>

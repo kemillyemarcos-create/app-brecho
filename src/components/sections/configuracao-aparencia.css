@@ -66,3 +66,26 @@
     font-size: 16px !important;
   }
 }
+
+/* Impressão: mantém controles nativos compactos e a linha inteira tocável. */
+@media (max-width: 767px) {
+  .kc-impressao .kc-impressao-opcao {
+    min-height: 44px !important; /* Supera os 42px do estilo inline. */
+  }
+
+  .kc-impressao .kc-impressao-opcao > span {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .painel-principal .kc-impressao .kc-impressao-opcao > input[type="checkbox"] {
+    width: 18px !important;
+    height: 18px;
+    min-height: 18px !important;
+    padding: 0 !important;
+    margin: 0;
+    flex: 0 0 18px;
+    border-radius: 0 !important;
+  }
+}
