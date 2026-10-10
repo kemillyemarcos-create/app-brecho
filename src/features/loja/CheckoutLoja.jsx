@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import './styles/loja-publica.css';
 import { restaurarPedido, limparAcompanhamento } from './checkoutPedido';
+import CheckoutPagamento from './CheckoutPagamento';
+import { redirecionarPagamento } from './checkoutNavegacao';
 
 function formatarCpfInput(valor) {
   const digitos = String(valor || "")
@@ -41,7 +43,15 @@ function CheckoutSessao({ empresaSlug, tokenCarrinho, onFechar, resumoSacola, su
   const [pedido, setPedido] = useState(() => restaurarPedido(sessionStorage, empresaSlug, tokenCarrinho));
   const [estado, setEstado] = useState(null);
   const [url, setUrl] = useState('');
-  const [ocupado, setOcupado] = useState(false);
+  const [fase, setFase] = useState(() => pedido?.pagamentoAberto ? 'aguardando' : 'inicial');
+  const ocupado = fase === 'abrindo';
+  const trava = useRef(false);
+  const montado = useRef(true);
+  const cancelarNavegacao = useRef(() => {});
+  useEffect(() => {
+    montado.current = true;
+    return () => { montado.current = false; cancelarNavegacao.current(); };
+  }, []);
   const [erro, setErro] = useState('');
   const [atualizacao, setAtualizacao] = useState(0);
 
@@ -67,8 +77,9 @@ function CheckoutSessao({ empresaSlug, tokenCarrinho, onFechar, resumoSacola, su
 
   async function iniciar(event) {
     event.preventDefault();
-    if (ocupado) return;
-    setOcupado(true); setErro('');
+    if (trava.current) return;
+    trava.current = true;
+    setFase('abrindo'); setErro('');
     try {
       let atual = pedido;
       if (!atual) {
@@ -76,6 +87,7 @@ function CheckoutSessao({ empresaSlug, tokenCarrinho, onFechar, resumoSacola, su
         const { data, error } = await supabase.functions.invoke('loja-checkout', {
           body: { empresaSlug, token: tokenCarrinho, nome: campos.get('nome'), cpf: campos.get('cpf'), telefone: campos.get('telefone') },
         });
+        if (!montado.current) return;
         if (error || data?.erro) throw new Error(data?.erro || 'Não foi possível criar o pedido. Verifique os dados e a reserva.');
         if (!data?.pedidoToken) throw new Error('Resposta do pedido inválida.');
         atual = { pedidoToken: data.pedidoToken, pedidoId: data.pedidoId, total: data.total, tokenCarrinho };
@@ -86,14 +98,33 @@ function CheckoutSessao({ empresaSlug, tokenCarrinho, onFechar, resumoSacola, su
       const { data, error } = await supabase.functions.invoke('mercado-pago-criar-checkout', {
         body: { pedidoToken: atual.pedidoToken },
       });
+      if (!montado.current) return;
       if (error || data?.erro) throw new Error('Não foi possível abrir o pagamento. Seu pedido foi preservado para tentar novamente.');
       const destino = new URL(data.checkoutUrl);
       if (destino.protocol !== 'https:' || !(destino.hostname === 'mercadopago.com.br' || destino.hostname.endsWith('.mercadopago.com.br'))) {
         throw new Error('Endereço de pagamento inesperado.');
       }
       setUrl(destino.href);
-    } catch (error) { setErro(error.message || 'Não foi possível iniciar o pagamento.'); }
-    finally { setOcupado(false); }
+      abrirPagamento(destino.href, atual);
+    } catch (error) {
+      if (!montado.current) return;
+      trava.current = false; setFase('inicial');
+      setErro(error.message || 'Não foi possível iniciar o pagamento.');
+    }
+  }
+
+  function abrirPagamento(destino = url, atual = pedido) {
+    cancelarNavegacao.current();
+    trava.current = true; setFase('abrindo');
+    cancelarNavegacao.current = redirecionarPagamento({
+      destino, navegador: window, documento: document,
+      onSaida: () => {
+        // Apenas um marcador de UX; confirmação financeira continua server-side.
+        try { sessionStorage.setItem(chave, JSON.stringify({ ...atual, pagamentoAberto: true })); } catch { /* O pedido já foi persistido. */ }
+      },
+      onRetorno: () => { trava.current = false; setFase('aguardando'); setAtualizacao(v => v + 1); },
+      onFallback: () => { trava.current = false; setFase('fallback'); },
+    });
   }
 
   function encerrar() {
@@ -110,7 +141,8 @@ function CheckoutSessao({ empresaSlug, tokenCarrinho, onFechar, resumoSacola, su
     <header className="kc-store-checkout-header kc-store-container"><button type="button" className="kc-store-text-button" onClick={onFechar}><ArrowLeft size={18} aria-hidden="true" />Voltar à loja</button><div className="kc-store-wordmark"><span className="kc-store-name">K.CHIC</span><span className="kc-store-outlet">OUTLET</span></div><span className="kc-store-assurance"><ShieldCheck size={18} aria-hidden="true" />Compra segura</span></header>
     <div className="kc-store-container kc-store-checkout-grid">
       <div><p className="kc-store-eyebrow">SEUS ACHADOS, QUASE SEUS</p><h1>Finalizar compra</h1>
-        {estado && <p className="kc-store-checkout-status" role="status">{estado.status === 'pago' ? 'Pagamento confirmado. A loja recebeu seu pedido.' : estado.pagamento_status === 'paid' ? 'Pagamento recebido após o prazo. Entre em contato com a loja antes de retirar.' : estado.status === 'expirado' ? 'Prazo do pedido encerrado. Se você já pagou, consulte a loja antes de pagar novamente.' : 'Aguardando confirmação oficial do pagamento.'}</p>}
+        {encerrado && <p className="kc-store-checkout-status" role="status">{estado.status === 'pago' ? 'Pagamento confirmado. A loja recebeu seu pedido.' : estado.pagamento_status === 'paid' ? 'Pagamento recebido após o prazo. Entre em contato com a loja antes de retirar.' : estado.status === 'expirado' ? 'Prazo do pedido encerrado. Se você já pagou, consulte a loja antes de pagar novamente.' : 'Pedido encerrado. Entre em contato com a loja se precisar de ajuda.'}</p>}
+        {!encerrado && fase === 'inicial' && <p className="kc-store-payment-intro">Revise seu pedido e siga para o ambiente seguro do Mercado Pago.</p>}
         {!encerrado && <form onSubmit={iniciar} className="kc-store-checkout-form">
           {!pedido && <><h2>Seus dados</h2><label>Nome completo<input name="nome" required maxLength={160} autoComplete="name" /></label><label>CPF<input
               name="cpf"
@@ -136,11 +168,11 @@ function CheckoutSessao({ empresaSlug, tokenCarrinho, onFechar, resumoSacola, su
                 event.currentTarget.value = formatarTelefoneInput(event.currentTarget.value);
               }}
             /></label></>}
-          <button className="kc-store-primary" disabled={ocupado || (!pedido && !tokenCarrinho)}>{ocupado ? 'Preparando pagamento…' : 'CONTINUAR PARA O PAGAMENTO'}</button>
+          <CheckoutPagamento fase={fase} indisponivel={!pedido && !tokenCarrinho}
+            onAbrir={() => { if (!trava.current) abrirPagamento(); }} onRetomar={iniciar} />
         </form>}
-        {url && !encerrado && <div className="kc-store-checkout-status"><a className="kc-store-primary" href={url} target="_blank" rel="noopener noreferrer">Abrir Mercado Pago para pagar</a><p>Após pagar, volte a esta página para acompanhar a confirmação.</p></div>}
         <div className="kc-store-checkout-actions">
-        {pedido && <button type="button" className="kc-store-text-button" onClick={() => setAtualizacao(v => v + 1)}>Consultar confirmação</button>}
+        {pedido && !ocupado && <button type="button" className="kc-store-text-button" onClick={() => setAtualizacao(v => v + 1)}>Consultar confirmação</button>}
         {encerrado && <button type="button" className="kc-store-text-button" onClick={encerrar}>Encerrar acompanhamento e voltar à loja</button>}
         </div>
         {erro && <p className="kc-store-error" role="alert">{erro}</p>}
