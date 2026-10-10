@@ -19,6 +19,7 @@ import {
 } from "react";
 
 import { useConfig } from "../../contexts/ConfigContext";
+import "./configuracao-aparencia.css";
 import { DEFAULT_CONFIG } from "../../config/defaultConfig";
 import { supabase } from "../../lib/supabase";
 
@@ -1171,21 +1172,6 @@ export default function ConfiguracaoSection({
     fontWeight: 700,
   };
 
-  const gradeAparencia = {
-    display: "grid",
-    gridTemplateColumns:
-      "minmax(0, 1.1fr) minmax(280px, 0.9fr)",
-    gap: 18,
-    alignItems: "start",
-  };
-
-  const gradeCores = {
-    display: "grid",
-    gridTemplateColumns:
-      "repeat(auto-fit, minmax(205px, 1fr))",
-    gap: 12,
-  };
-
   const grupoCor = {
     display: "grid",
     gap: 7,
@@ -1246,7 +1232,6 @@ export default function ConfiguracaoSection({
 
   const previewCorpo = {
     display: "grid",
-    gridTemplateColumns: "92px 1fr",
     minHeight: 250,
   };
 
@@ -1851,7 +1836,7 @@ export default function ConfiguracaoSection({
         ) : null}
       </div>
 
-      <div style={painel}>
+      <div className="kc-aparencia" style={painel}>
         <div style={painelTopo}>
           <div style={icone}>
             <Palette size={20} />
@@ -1871,7 +1856,7 @@ export default function ConfiguracaoSection({
           </div>
         </div>
 
-        <div style={gradeAparencia}>
+        <div className="kc-aparencia-grade">
           <div
             style={{
               display: "grid",
@@ -1904,7 +1889,7 @@ export default function ConfiguracaoSection({
                 </strong>
               </div>
 
-              <div style={gradeCores}>
+              <div className="kc-aparencia-cores">
                 {campoCor(
                   "Cor principal",
                   "corPrimaria"
@@ -2010,7 +1995,7 @@ export default function ConfiguracaoSection({
                       </span>
                     </div>
 
-                    <div style={gradeCores}>
+                    <div className="kc-aparencia-cores">
                       {[
                         [
                           "Cor principal",
@@ -2113,7 +2098,7 @@ export default function ConfiguracaoSection({
                 </strong>
               </div>
 
-              <div style={gradeFormulario}>
+              <div className="kc-aparencia-formulario">
                 <label style={campo}>
                   <span style={label}>
                     Tema
@@ -2245,14 +2230,7 @@ export default function ConfiguracaoSection({
             </div>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gap: 10,
-              position: "sticky",
-              top: 16,
-            }}
-          >
+          <div className="kc-aparencia-previa">
             <span style={label}>
               Pré-visualização
             </span>
@@ -2285,7 +2263,7 @@ export default function ConfiguracaoSection({
                 </span>
               </div>
 
-              <div style={previewCorpo}>
+              <div className="kc-aparencia-previa-corpo" style={previewCorpo}>
                 <div
                   style={previewSidebar}
                 >
@@ -2707,7 +2685,7 @@ export default function ConfiguracaoSection({
           </div>
         </div>
 
-        <div style={painel}>
+        <div className="kc-impressao" style={painel}>
           <div style={painelTopo}>
             <div style={icone}>
               <Printer size={20} />
@@ -2813,7 +2791,7 @@ export default function ConfiguracaoSection({
               Conteúdo da etiqueta
             </span>
 
-            <label style={linhaOpcao}>
+            <label className="kc-impressao-opcao" style={linhaOpcao}>
               <span style={textoOpcao}>
                 Mostrar logo
               </span>
@@ -2834,7 +2812,7 @@ export default function ConfiguracaoSection({
               />
             </label>
 
-            <label style={linhaOpcao}>
+            <label className="kc-impressao-opcao" style={linhaOpcao}>
               <span style={textoOpcao}>
                 Mostrar QR Code
               </span>
@@ -2855,7 +2833,7 @@ export default function ConfiguracaoSection({
               />
             </label>
 
-            <label style={linhaOpcao}>
+            <label className="kc-impressao-opcao" style={linhaOpcao}>
               <span style={textoOpcao}>
                 Mostrar preço
               </span>
@@ -2876,7 +2854,7 @@ export default function ConfiguracaoSection({
               />
             </label>
 
-            <label style={linhaOpcao}>
+            <label className="kc-impressao-opcao" style={linhaOpcao}>
               <span style={textoOpcao}>
                 Mostrar código da peça
               </span>

@@ -1,0 +1,91 @@
+/* Escopo exclusivo: não altera as outras seções da Configuração. */
+.kc-aparencia {
+  container: kc-aparencia / inline-size;
+}
+
+.kc-aparencia-grade {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.kc-aparencia-cores,
+.kc-aparencia-formulario {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.kc-aparencia-formulario { gap: 14px; }
+
+.kc-aparencia-previa {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  position: static;
+}
+
+.kc-aparencia-previa-corpo {
+  grid-template-columns: 92px minmax(0, 1fr);
+}
+
+/* Neutraliza apenas os overrides globais que deformam o controle de cor. */
+.painel-principal .kc-aparencia input[type="color"] {
+  width: 48px !important;
+  flex: 0 0 48px;
+  min-height: 44px !important;
+  padding: 3px !important;
+}
+
+@container kc-aparencia (min-width: 680px) {
+  .kc-aparencia-grade {
+    grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+  }
+  .kc-aparencia-cores {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 205px), 1fr));
+  }
+  .kc-aparencia-formulario {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  }
+  .kc-aparencia-previa {
+    position: sticky;
+    top: 16px;
+  }
+}
+
+@container kc-aparencia (max-width: 360px) {
+  .kc-aparencia-previa-corpo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .painel-principal .kc-aparencia input:not([type="color"]),
+  .painel-principal .kc-aparencia select {
+    font-size: 16px !important;
+  }
+}
+
+/* Impressão: mantém controles nativos compactos e a linha inteira tocável. */
+@media (max-width: 767px) {
+  .kc-impressao .kc-impressao-opcao {
+    min-height: 44px !important; /* Supera os 42px do estilo inline. */
+  }
+
+  .kc-impressao .kc-impressao-opcao > span {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .painel-principal .kc-impressao .kc-impressao-opcao > input[type="checkbox"] {
+    width: 18px !important;
+    height: 18px;
+    min-height: 18px !important;
+    padding: 0 !important;
+    margin: 0;
+    flex: 0 0 18px;
+    border-radius: 0 !important;
+  }
+}
