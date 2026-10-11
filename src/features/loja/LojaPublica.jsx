@@ -19,6 +19,11 @@ import ProductGrid from "./components/ProductGrid";
 import ProductDetail from "./components/ProductDetail";
 import CartDrawer from "./components/CartDrawer";
 import StoreFooter from "./components/StoreFooter";
+import {
+  lerSlugProduto,
+  criarUrlProduto,
+  criarLinkCompartilhavelProduto,
+} from "./produtoUrl";
 import "./styles/loja-publica.css";
 
 export default function LojaPublica({ empresaSlug }) {
@@ -42,6 +47,12 @@ export default function LojaPublica({ empresaSlug }) {
   const [ordenacao, setOrdenacao] = useState("recentes");
   const [fotoSelecionada, setFotoSelecionada] = useState(null);
   const [produtoSelecionado, setProdutoSelecionado] = useState(null);
+  const [empresaProdutoSelecionado, setEmpresaProdutoSelecionado] = useState(null);
+  const [slugProdutoUrl, setSlugProdutoUrl] = useState(() => lerSlugProduto());
+  const [carregandoProdutoUrl, setCarregandoProdutoUrl] = useState(
+    () => Boolean(lerSlugProduto())
+  );
+  const [erroProdutoUrl, setErroProdutoUrl] = useState("");
 
   const [sacola, setSacola] = useState({
     quantidadeItens: 0,
@@ -56,7 +67,6 @@ export default function LojaPublica({ empresaSlug }) {
   const [ultimaAdicionadaId, setUltimaAdicionadaId] = useState(null);
   const [sacolaAberta, setSacolaAberta] = useState(false);
   const [temTokenCarrinho, setTemTokenCarrinho] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState("");
   const [captchaPronto, setCaptchaPronto] = useState(false);
 
   const captchaContainerRef = useRef(null);
@@ -64,6 +74,7 @@ export default function LojaPublica({ empresaSlug }) {
   const captchaRenderizadoRef = useRef(false);
   const captchaProdutoPendenteRef = useRef(null);
   const empresaSlugAtualRef = useRef(empresaSlug);
+  const produtoAbertoDaVitrineRef = useRef(null);
 
   empresaSlugAtualRef.current = empresaSlug;
 
@@ -140,7 +151,6 @@ export default function LojaPublica({ empresaSlug }) {
             callback: (token) => {
               if (!ativo) return;
 
-              setCaptchaToken(token || "");
               setErroSacola("");
 
               const produtoPendente =
@@ -162,13 +172,11 @@ export default function LojaPublica({ empresaSlug }) {
             },
             "expired-callback": () => {
               if (!ativo) return;
-              setCaptchaToken("");
               setValidandoCaptchaPublicacaoId(null);
               captchaProdutoPendenteRef.current = null;
             },
             "error-callback": () => {
               if (!ativo) return;
-              setCaptchaToken("");
               setValidandoCaptchaPublicacaoId(null);
               captchaProdutoPendenteRef.current = null;
               setErroSacola(
@@ -267,7 +275,6 @@ export default function LojaPublica({ empresaSlug }) {
       captchaRenderizadoRef.current =
         false;
       setCaptchaPronto(false);
-      setCaptchaToken("");
     };
   }, [
     hcaptchaSiteKey,
@@ -276,7 +283,6 @@ export default function LojaPublica({ empresaSlug }) {
   ]);
 
   function resetarCaptcha() {
-    setCaptchaToken("");
 
     if (
       window.hcaptcha &&
@@ -654,6 +660,90 @@ export default function LojaPublica({ empresaSlug }) {
   }
 
   useEffect(() => {
+    function sincronizarHistorico() {
+      produtoAbertoDaVitrineRef.current = null;
+      setSlugProdutoUrl(lerSlugProduto());
+    }
+
+    window.addEventListener("popstate", sincronizarHistorico);
+
+    return () => {
+      window.removeEventListener("popstate", sincronizarHistorico);
+    };
+  }, []);
+
+  useEffect(() => {
+    let ativo = true;
+
+    setFotoSelecionada(null);
+    setErroProdutoUrl("");
+
+    if (!empresaSlug || !slugProdutoUrl) {
+      setProdutoSelecionado(null);
+      setCarregandoProdutoUrl(false);
+      return () => { ativo = false; };
+    }
+
+    const aberturaLocal = produtoAbertoDaVitrineRef.current;
+    produtoAbertoDaVitrineRef.current = null;
+
+    if (
+      aberturaLocal?.empresaSlug === empresaSlug &&
+      aberturaLocal.produto?.slug === slugProdutoUrl
+    ) {
+      setEmpresaProdutoSelecionado(empresaSlug);
+      setProdutoSelecionado(aberturaLocal.produto);
+      setCarregandoProdutoUrl(false);
+      return () => { ativo = false; };
+    }
+
+    setProdutoSelecionado(null);
+    setCarregandoProdutoUrl(true);
+
+    async function carregarProdutoIndividual() {
+      const { data, error } = await supabase.rpc(
+        "loja_catalogo_publico_por_slug",
+        {
+          p_empresa_slug: empresaSlug,
+          p_slug: slugProdutoUrl,
+          p_categoria: null,
+          p_marca: null,
+          p_tamanho: null,
+          p_limite: 1,
+          p_offset: 0,
+        }
+      );
+
+      if (!ativo) return;
+
+      if (error) {
+        console.error("Erro ao consultar produto público:", error);
+        setErroProdutoUrl("Não foi possível carregar esta peça. Tente novamente.");
+      } else if (!Array.isArray(data) || data.length === 0) {
+        setErroProdutoUrl("Esta peça não está disponível no momento.");
+      } else {
+        setEmpresaProdutoSelecionado(empresaSlug);
+        setProdutoSelecionado(data[0]);
+      }
+
+      setCarregandoProdutoUrl(false);
+    }
+
+    carregarProdutoIndividual().catch((erro) => {
+      if (!ativo) return;
+
+      console.error("Falha ao carregar produto público:", erro);
+      setProdutoSelecionado(null);
+      setErroProdutoUrl("Não foi possível carregar esta peça. Tente novamente.");
+      setCarregandoProdutoUrl(false);
+    });
+
+    return () => {
+      ativo = false;
+    };
+  }, [empresaSlug, slugProdutoUrl]);
+
+  useEffect(() => {
     let ativo = true;
 
     async function carregarCatalogo() {
@@ -904,14 +994,66 @@ export default function LojaPublica({ empresaSlug }) {
   const vejaTambem = recentes.slice(4, 8);
 
   function abrirProduto(produto) {
+    if (!produto?.slug) return;
+
+    window.history.pushState(
+      { origem: "vitrine" },
+      "",
+      criarUrlProduto(produto.slug)
+    );
+
+    produtoAbertoDaVitrineRef.current = {
+      empresaSlug,
+      produto,
+    };
+
+    setSlugProdutoUrl(produto.slug);
     setFotoSelecionada(null);
+    setEmpresaProdutoSelecionado(empresaSlug);
     setProdutoSelecionado(produto);
     window.scrollTo({ top: 0, behavior: "instant" });
   }
 
   function voltarLoja() {
+    if (lerSlugProduto()) {
+      window.history.pushState(
+        { origem: "produto" },
+        "",
+        criarUrlProduto(null)
+      );
+    }
+
+    setSlugProdutoUrl("");
     setProdutoSelecionado(null);
+    setFotoSelecionada(null);
     window.scrollTo({ top: 0, behavior: "instant" });
+  }
+
+  async function compartilharProduto(produto) {
+    if (!produto?.slug) return;
+
+    const url = criarLinkCompartilhavelProduto(produto.slug);
+    const titulo = produto.nome || "Peça K.Chic";
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: titulo,
+          url,
+        });
+        return;
+      } catch (erro) {
+        if (erro?.name === "AbortError") return;
+        console.warn("Compartilhamento nativo indisponível:", erro);
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      window.alert("Link da peça copiado!");
+    } catch {
+      window.prompt("Copie o link desta peça:", url);
+    }
   }
 
   function irAoCatalogo() {
@@ -920,10 +1062,10 @@ export default function LojaPublica({ empresaSlug }) {
 
   const header = <StoreHeader
     busca={busca}
-    onBuscaChange={(event) => { setBusca(event.target.value); setProdutoSelecionado(null); }}
+    onBuscaChange={(event) => { setBusca(event.target.value); voltarLoja(); }}
     categorias={categorias}
     categoriaAtiva={categoriaAtiva}
-    onCategoriaChange={(categoria) => { setCategoriaAtiva(categoria); setProdutoSelecionado(null); irAoCatalogo(); }}
+    onCategoriaChange={(categoria) => { setCategoriaAtiva(categoria); voltarLoja(); irAoCatalogo(); }}
     quantidadeSacola={sacola.quantidadeItens}
     onAbrirSacola={() => setSacolaAberta(true)}
     onAcompanharPedido={() => setCheckoutAberto(true)}
@@ -942,7 +1084,45 @@ export default function LojaPublica({ empresaSlug }) {
       resumoSacola={sacola} subtotal={totalSacola} formatarPreco={formatarPrecoSacola} obterUrlFoto={obterUrlFoto} />;
   }
 
-  if (produtoSelecionado) {
+  if (
+    slugProdutoUrl &&
+    (
+      carregandoProdutoUrl ||
+      erroProdutoUrl ||
+      empresaProdutoSelecionado !== empresaSlug
+    )
+  ) {
+    return (
+      <div className="kc-store">
+        {header}
+        {sacolaModal}
+        <main className="kc-store-container">
+          <section className="kc-store-empty" aria-live="polite">
+            {(carregandoProdutoUrl || !erroProdutoUrl) ? (
+              <p role="status">Carregando detalhes da peça...</p>
+            ) : (
+              <>
+                <p role="alert">{erroProdutoUrl}</p>
+                <button
+                  type="button"
+                  className="kc-store-primary"
+                  onClick={voltarLoja}
+                >
+                  Voltar ao garimpo
+                </button>
+              </>
+            )}
+          </section>
+        </main>
+      </div>
+    );
+  }
+
+  if (
+    produtoSelecionado &&
+    produtoSelecionado.slug === slugProdutoUrl &&
+    empresaProdutoSelecionado === empresaSlug
+  ) {
     const fotoDetalhe = obterUrlFoto(fotoSelecionada || produtoSelecionado.foto_principal);
     return <div className="kc-store">
       {header}{sacolaModal}
@@ -970,6 +1150,13 @@ export default function LojaPublica({ empresaSlug }) {
             }
           </button>
           {erroSacola && <p role="alert" className="kc-store-error">{erroSacola}</p>}
+          <button
+            type="button"
+            className="kc-store-text-button"
+            onClick={() => compartilharProduto(produtoSelecionado)}
+          >
+            Compartilhar peça ↗
+          </button>
           <p className="kc-store-reservation">Reserva por tempo limitado</p>
         </div>
       </ProductDetail>
