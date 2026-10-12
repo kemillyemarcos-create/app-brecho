@@ -360,3 +360,27 @@
 .kc-store-payment-spinner { animation: kc-store-payment-spin 1s linear infinite; }
 @keyframes kc-store-payment-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .kc-store-payment-spinner { animation: none; } }
+
+/* V3.1 — Galeria responsiva da página individual no celular. */
+@media (max-width: 760px) {
+  .kc-store-detail-image {
+    height: clamp(280px, 52svh, 440px);
+    min-height: 0;
+  }
+}
+
+/* V3.1 — Banner compacto no celular. */
+@media (max-width: 760px) {
+  .kc-store-hero { min-height: 0; }
+  .kc-store-hero-copy { padding: 26px 24px 18px; }
+  .kc-store-hero h1 { font-size: clamp(30px, 7.5vw, 42px); margin: 14px 0 12px; }
+  .kc-store-hero .kc-store-primary { margin-top: 16px; }
+  .kc-store-hero-visual { padding: 0 24px 18px; }
+  .kc-store-hero-visual figure img { aspect-ratio: 1 / 1; object-fit: cover; }
+  .kc-store-hero-visual figure:nth-child(2) { margin-top: 12px; }
+  .kc-store-hero-monogram { min-height: 180px; padding-bottom: 0; }
+  .kc-store-hero-monogram-mark { font-size: 110px; }
+  .kc-store-hero-monogram-label { margin-top: 14px; }
+  .kc-store-hero-monogram-line { margin-top: 12px; }
+  .kc-store-hero-monogram-caption { margin-top: 10px; }
+}
