@@ -384,3 +384,33 @@
   .kc-store-hero-monogram-line { margin-top: 12px; }
   .kc-store-hero-monogram-caption { margin-top: 10px; }
 }
+
+/* V3.2 — Foco programatico acessivel no titulo da peca. */
+.kc-store-detail-info h1:focus {
+  outline: none;
+}
+
+/* V3.2 — Espacamentos refinados na pagina individual da peca. */
+@media (max-width: 760px) {
+  .kc-store-detail-info > .kc-store-eyebrow {
+    margin-bottom: 14px;
+  }
+
+  .kc-store-detail-info h1 {
+    margin-block: 8px 14px;
+  }
+
+  .kc-store-attributes {
+    gap: 24px;
+    padding-block: 18px;
+    margin-block: 20px;
+  }
+
+  .kc-store-assurance {
+    margin-block: 18px !important;
+  }
+
+  .kc-store-detail-copy {
+    padding-block: 18px;
+  }
+}
