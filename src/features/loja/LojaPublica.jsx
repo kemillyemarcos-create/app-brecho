@@ -1049,7 +1049,6 @@ export default function LojaPublica({ empresaSlug }) {
           {carregando ? <p role="status" className="kc-store-empty">Preparando nossos achados...</p> : erro ? <p role="alert" className="kc-store-error">{erro}</p> : novidades.length ? <ProductGrid {...gridProps} produtos={novidades} novidades /> : null}
         </section>
       )}
-      <StoreBenefits />
       {(carregando || erro || marcas.length > 0) && (
         <section className="kc-store-brands kc-store-container" aria-labelledby="kc-brands-title">
           <h2 id="kc-brands-title" className="kc-store-eyebrow">MARCAS QUE VOCÊ AMA</h2>
@@ -1060,10 +1059,10 @@ export default function LojaPublica({ empresaSlug }) {
         <div className="kc-store-section-heading"><div><p className="kc-store-eyebrow">ENCONTRE O SEU PRÓXIMO ACHADO</p><h2 id="kc-catalog-title">NOSSO GARIMPO</h2></div><p className="kc-store-muted" role="status">{produtosOrdenados.length} {produtosOrdenados.length === 1 ? "peça exibida" : "peças exibidas"}</p></div>
         {(carregando || erro || produtos.length > 0 || filtrosAtivos || categorias.length > 0) && (
           <div className="kc-store-filters">
-            <label>Categoria<select value={categoriaAtiva} onChange={event => setCategoriaAtiva(event.target.value)}><option value="">Todas as categorias</option>{categorias.map(categoria => <option key={categoria} value={categoria}>{categoria}</option>)}</select></label>
-            <label>Marca<select value={marcaAtiva} onChange={event => setMarcaAtiva(event.target.value)}><option value="">Todas as marcas</option>{marcas.map(marca => <option key={marca} value={marca}>{marca}</option>)}</select></label>
-            <label>Tamanho<select value={tamanhoAtivo} onChange={event => setTamanhoAtivo(event.target.value)}><option value="">Todos os tamanhos</option>{tamanhos.map(tamanho => <option key={tamanho} value={tamanho}>{tamanho}</option>)}</select></label>
-            <label>Ordenar<select value={ordenacao} onChange={event => setOrdenacao(event.target.value)}><option value="recentes">Mais recentes</option><option value="menor-preco">Menor preço</option><option value="maior-preco">Maior preço</option><option value="nome">Nome A-Z</option></select></label>
+            <label>Categoria<select value={categoriaAtiva} onChange={event => setCategoriaAtiva(event.target.value)}><option value="">Todas</option>{categorias.map(categoria => <option key={categoria} value={categoria}>{categoria}</option>)}</select></label>
+            <label>Marca<select value={marcaAtiva} onChange={event => setMarcaAtiva(event.target.value)}><option value="">Todas</option>{marcas.map(marca => <option key={marca} value={marca}>{marca}</option>)}</select></label>
+            <label>Tamanho<select value={tamanhoAtivo} onChange={event => setTamanhoAtivo(event.target.value)}><option value="">Todos</option>{tamanhos.map(tamanho => <option key={tamanho} value={tamanho}>{tamanho}</option>)}</select></label>
+            <label>Ordenar<select value={ordenacao} onChange={event => setOrdenacao(event.target.value)}><option value="recentes">Recentes</option><option value="menor-preco">Menor preço</option><option value="maior-preco">Maior preço</option><option value="nome">Nome A-Z</option></select></label>
           </div>
         )}
         {filtrosAtivos && <div className="kc-store-filter-summary"><span>{[busca && `Busca: “${busca}”`, categoriaAtiva, marcaAtiva, tamanhoAtivo && `Tam. ${tamanhoAtivo}`].filter(Boolean).join(" / ")}</span><button type="button" className="kc-store-text-button" onClick={limparFiltros}>Limpar filtros</button></div>}
@@ -1100,6 +1099,7 @@ export default function LojaPublica({ empresaSlug }) {
           {vejaTambem.length ? <ProductGrid {...gridProps} produtos={vejaTambem} novidades /> : <p className="kc-store-muted">Explore todos os achados disponíveis no nosso garimpo.</p>}
         </section>
       )}
+      <StoreBenefits />
       <section className="kc-store-about" id="sobre-kchic"><div className="kc-store-container"><p className="kc-store-eyebrow">O OLHAR K.CHIC</p><h2>Estilo que encontra<br /><em>novas histórias.</em></h2><div><p>Acreditamos no encanto de encontrar uma peça que tem tudo a ver com você. Por isso, cada achado da K.Chic é selecionado individualmente.</p><p>Marcas que você ama, peças únicas e novas possibilidades para se vestir do seu jeito.</p><a className="kc-store-text-button" href="#nosso-garimpo">Conheça nosso garimpo ↗</a></div></div></section>
     </main>
     <StoreFooter onAcompanharPedido={() => setCheckoutAberto(true)} />
