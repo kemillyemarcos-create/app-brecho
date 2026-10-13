@@ -127,7 +127,6 @@
 .kc-store-product-image { width: 100%; flex-shrink: 0; position: relative; aspect-ratio: 4/5; overflow: hidden; background: var(--store-bg); }
 .kc-store-product-image img { width: 100%; height: 100%; object-fit: cover; transition: transform .35s ease; }
 @media (hover: hover) { .kc-store-product-link:hover img { transform: scale(1.025); } }
-.kc-store-condition { position: absolute; top: 12px; left: 12px; max-width: calc(100% - 24px); padding: 4px 8px; background: rgba(255,255,255,.92); color: #55514a; font-size: 9px; }
 .kc-store-product-caption { width: 100%; flex: 1; display: flex; flex-direction: column; padding-top: 16px; }
 .kc-store-product-caption .kc-store-eyebrow { font-size: 10px; }
 .kc-store-product-caption h3 { margin-top: 5px; font-size: 13px; font-weight: 400; line-height: 1.5; }
@@ -299,7 +298,6 @@
   .kc-store-product-caption { padding-top: 12px; }
   .kc-store-product-caption h3 { font-size: 12px; }
   .kc-store-product-caption .kc-store-eyebrow { font-size: 9px; }
-  .kc-store-condition { top: 8px; left: 8px; padding: 3px 6px; font-size: 8px; }
   .kc-store-benefits > div { grid-template-columns: 1fr; gap: 24px; }
   .kc-store-benefits > div > div { justify-content: flex-start; }
   .kc-store-brands { padding-block: 32px; }
